@@ -1,9 +1,10 @@
 import BN from "bn.js";
 import { PublicKey } from "@solana/web3.js";
-import { DAMM_V2_MIGRATION_FEE_ADDRESS, MigrationFeeOption, deriveDammV2PoolAddress } from "@meteora-ag/dynamic-bonding-curve-sdk";
+import { DAMM_V2_MIGRATION_FEE_ADDRESS, deriveDammV2PoolAddress } from "@meteora-ag/dynamic-bonding-curve-sdk";
 import { connection, dbcClient } from "./connection.js";
 import { requireWalletKeypair } from "./config.js";
 import { sendAndConfirmWithRetry } from "./txHelpers.js";
+import { getMigrationFeeOptionForPreset } from "./dbcConfig.js";
 
 // Second half of a DBC pool's lifecycle - see PLANO-DBC-MIGRACAO.md.
 // Unlike the current flow (createInfinitePool, in poolCreator.js), the
@@ -23,16 +24,6 @@ import { sendAndConfirmWithRetry } from "./txHelpers.js";
 // purely from reading the code (pool.poolState.isMigrated, not
 // pool.isMigrated).
 
-// migrationFeeOption has to be THE SAME ONE used when creating the config
-// (see dbcConfig.js - fixed today at FixedBps100) - each migration fee
-// option has its OWN, Meteora-predefined DAMM v2 config account
-// (DAMM_V2_MIGRATION_FEE_ADDRESS, exported by the SDK itself - index
-// matches the MigrationFeeOption enum, confirmed by reading the installed
-// package, v1.5.12). If dbcConfig.js ever varies migrationFeeOption per
-// preset, this needs to read the same value from the preset instead of a
-// fixed constant.
-const MIGRATION_FEE_OPTION = MigrationFeeOption.FixedBps100;
-
 /**
  * Curve progress (0 to 1) based on accumulated quote token - 1 = ready to
  * migrate. Read-only, doesn't sign anything.
@@ -48,8 +39,15 @@ export async function getDbcCurveProgress(poolAddress) {
  * already ran, not by a manual deposit from us. Does nothing (and spends
  * no SOL) if the pool hasn't reached the threshold yet - checks
  * isMigrated first.
+ *
+ * `presetId`: which preset the pool's config was originally built with
+ * (null for Pyth-anchored launches) - needed to pick the matching
+ * DAMM v2 config key, since that has to be the SAME MigrationFeeOption
+ * used at createConfig time (see getMigrationFeeOptionForPreset in
+ * dbcConfig.js - every preset defaults to FixedBps100 except
+ * "compounding-damm-v2").
  */
-export async function migrateDbcPoolIfReady(poolAddress) {
+export async function migrateDbcPoolIfReady(poolAddress, presetId = null) {
   const wallet = requireWalletKeypair();
   const poolPubkey = new PublicKey(poolAddress);
 
@@ -69,7 +67,7 @@ export async function migrateDbcPoolIfReady(poolAddress) {
     return { migrated: false, progress };
   }
 
-  const dammConfig = DAMM_V2_MIGRATION_FEE_ADDRESS[MIGRATION_FEE_OPTION];
+  const dammConfig = DAMM_V2_MIGRATION_FEE_ADDRESS[getMigrationFeeOptionForPreset(presetId)];
   const { transaction, firstPositionNftKeypair, secondPositionNftKeypair } = await dbcClient.migration.migrateToDammV2({
     payer: wallet.publicKey,
     pool: poolPubkey,

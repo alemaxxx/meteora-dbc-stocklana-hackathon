@@ -11,6 +11,8 @@ import {
   BaseFeeMode,
   MigrationOption,
   MigrationFeeOption,
+  MigratedCollectFeeMode,
+  DammV2DynamicFeeMode,
 } from "@meteora-ag/dynamic-bonding-curve-sdk";
 import { connection, dbcClient } from "./connection.js";
 import { requireWalletKeypair } from "./config.js";
@@ -139,10 +141,54 @@ export const DBC_CURVE_PRESETS = [
     endingFeeBps: 50,
     schedulerDurationSeconds: 86400, // 24h instead of 7200 (2h) - the only thing that makes this "long"
   },
+  // Added 2026-09-17, same round as the three above - the other explicit
+  // idea named by the Crypto World's Fair brief: "Compounding Liquidity
+  // DAMM v2 Pools". DBC already supports this at migration time via
+  // MigrationFeeOption.Customizable + a migratedPoolFee block (confirmed
+  // against the SDK's real .d.ts and validated offline with buildCurve,
+  // same discipline as every other preset here) - the migrated DAMM v2
+  // pool compounds half its trading fees back into its own liquidity
+  // instead of paying all of it out. HIGHER RISK than the other five:
+  // this is the first preset to use anything other than
+  // MigrationFeeOption.FixedBps100, so it also exercises the
+  // previously-unused dammConfig-selection branch in dbcMigration.js (see
+  // getMigrationFeeOptionForPreset below) - untested live, on top of
+  // migrate/claim already being untested live for every other preset too
+  // (section 5.5/5.8).
+  {
+    id: "compounding-damm-v2",
+    label: "Compounding DAMM v2 (3%→0.5% over 2h curve, migrates at 10 SOL, migrated pool compounds 50% of fees back into its own liquidity) - untested live, higher risk than the other presets",
+    totalTokenSupply: 1_000_000_000,
+    percentageSupplyOnMigration: 20,
+    migrationQuoteThreshold: 10,
+    startingFeeBps: 300,
+    endingFeeBps: 50,
+    schedulerDurationSeconds: 7200,
+    migrationFeeOption: MigrationFeeOption.Customizable,
+    migratedPoolFee: {
+      collectFeeMode: MigratedCollectFeeMode.Compounding,
+      dynamicFee: DammV2DynamicFeeMode.Enabled,
+      poolFeeBps: 100, // 1% - within the SDK's [10, 1000] bps bounds for a migrated pool fee
+      compoundingFeeBps: 5000, // 50% of trading fees compound back into the pool's own liquidity, the rest still pays out
+    },
+  },
 ];
 
 export function findDbcCurvePreset(id) {
   return DBC_CURVE_PRESETS.find((p) => p.id === id);
+}
+
+/**
+ * Which MigrationFeeOption a given launch's config actually used when it
+ * was created - needed at migrate time to pick the matching DAMM v2
+ * config key (DAMM_V2_MIGRATION_FEE_ADDRESS), since that address is
+ * DIFFERENT per option and has to match exactly what createConfig used.
+ * `presetId` null (Pyth-anchored launches) falls back to the same
+ * FixedBps100 default every preset used before this file supported
+ * per-preset overrides (see "compounding-damm-v2").
+ */
+export function getMigrationFeeOptionForPreset(presetId) {
+  return findDbcCurvePreset(presetId)?.migrationFeeOption ?? MigrationFeeOption.FixedBps100;
 }
 
 /**
@@ -153,7 +199,18 @@ export function findDbcCurvePreset(id) {
  * can't drift apart on anything except the numbers that actually define
  * the curve.
  */
-function sharedCurveConfig(quoteInfo, { startingFeeBps, endingFeeBps, schedulerDurationSeconds, baseFeeMode = BaseFeeMode.FeeSchedulerLinear, totalTokenSupply = 1_000_000_000 }) {
+function sharedCurveConfig(
+  quoteInfo,
+  {
+    startingFeeBps,
+    endingFeeBps,
+    schedulerDurationSeconds,
+    baseFeeMode = BaseFeeMode.FeeSchedulerLinear,
+    totalTokenSupply = 1_000_000_000,
+    migrationFeeOption = MigrationFeeOption.FixedBps100,
+    migratedPoolFee,
+  }
+) {
   return {
     token: {
       tokenType: TokenType.SPLToken, // new token, minted by DBC itself - no need for the Token-2022 that StonkFun/pump.fun sometimes require
@@ -176,8 +233,9 @@ function sharedCurveConfig(quoteInfo, { startingFeeBps, endingFeeBps, schedulerD
     },
     migration: {
       migrationOption: MigrationOption.MET_DAMM_V2, // V1 is deprecated for new configs
-      migrationFeeOption: MigrationFeeOption.FixedBps100, // 1% fee on the post-migration DAMM v2 pool - middle ground, revisit
+      migrationFeeOption, // FixedBps100 (1%) by default - middle ground, revisit; Customizable for presets that also set migratedPoolFee (see "compounding-damm-v2")
       migrationFee: { feePercentage: 0, creatorFeePercentage: 0 }, // no EXTRA migration fee beyond the one above
+      ...(migratedPoolFee ? { migratedPoolFee } : {}),
     },
     liquidityDistribution: {
       // 100% of the migration liquidity is permanently locked in the

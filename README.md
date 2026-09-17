@@ -53,7 +53,7 @@ fixed a real bug the live test surfaced (the pool lookup right after confirming 
 retry loop, not just the mint's) and dropped the unused platform-wallet balance display per
 feedback.
 
-## Five curve presets, plus one live-priced mode (2026-09-17)
+## Six curve presets, plus one live-priced mode (2026-09-17)
 
 - `baixa-taxa-2h-linear` (default) and `default-2h-linear` - the two original presets (see the real
   finding below).
@@ -61,10 +61,15 @@ feedback.
   hackathon briefs' own "novel curve or fee configurations" ask ("Flat Curve, Exponential Curve, or
   Long Curve" is close to verbatim from the Crypto World's Fair brief) - see section 5.9 of
   `PLANO-DBC-MIGRACAO.md`.
+- `compounding-damm-v2` - the OTHER example from that same brief line, "Compounding Liquidity DAMM
+  v2 Pools": the migrated pool compounds 50% of its trading fees back into its own liquidity
+  instead of paying it all out. **Higher risk than the other five** - it's the first preset to use
+  a `migrationFeeOption` other than `FixedBps100`, so migrating a pool launched with it exercises a
+  code path never run even once - see section 5.10.
 - **Pyth-anchored mode** - pick a real stock (**TSLA** or **QQQ** - see why only these two in
   section 5.6) and the curve's market-cap targets get computed from that stock's **live Pyth
   price**, not a guessed SOL number. Needs a free `PYTH_API_KEY` (see `.env.example`) - without it,
-  the app still works fine with just the five fixed presets. Confirmed live on mainnet: section 5.6.
+  the app still works fine with just the six fixed presets. Confirmed live on mainnet: section 5.6.
 
 ## Real finding (2026-09-16)
 

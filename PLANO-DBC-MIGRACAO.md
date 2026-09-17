@@ -179,11 +179,11 @@ remain unconfirmed on devnet/mainnet.
    presets. `totalTokenSupply`/`percentageSupplyOnMigration` already
    matched. The UI still shows the BETA warning + extra confirmation, out
    of general caution (not just for this specific item).
-2. **Fixed `migrationFeeOption`** (`FixedBps100` = 1%) in two files
-   (`dbcConfig.js` and `dbcMigration.js`) - if this ever becomes
-   configurable per preset, both need to read from the same place (today
-   it's a standalone constant in each file, deliberately simple for the
-   first cut).
+2. ~~Fixed `migrationFeeOption`~~ **RESOLVED on 2026-09-17 (see section 5.10)** - now configurable
+   per preset via `dbcConfig.js`'s `getMigrationFeeOptionForPreset(presetId)`, read from the same
+   place by both `dbcConfig.js` (at config-creation time) and `dbcMigration.js` (at migrate time) -
+   forced by adding the "compounding-damm-v2" preset, the first to need anything other than
+   `FixedBps100`.
 3. **Nothing tested with a real transaction.** The rest of the bot has
    real bugs documented and fixed on top of tests with real money
    (`PLANO-NOVO-BOT-LANCAR-TOKEN.md`). This code matches the installed
@@ -602,6 +602,42 @@ regression check confirmed the original two still do too.
 
 Not yet tested with a real transaction (only `buildCurve`'s own validation, offline) - same caution
 tier as the two original presets before their first live launch.
+
+## 5.10. Twelfth round (2026-09-17) - Compounding DAMM v2 preset, the last brief-literal idea
+
+Same scoped-research pass as 5.9, going after the other explicit example from Crypto World's Fair's
+"novel curve or fee configurations" idea: **"Compounding Liquidity DAMM v2 Pools."** DBC already
+supports this - not at the curve level, but in what happens to the pool AFTER migration:
+`migration.migratedPoolFee` with `collectFeeMode: MigratedCollectFeeMode.Compounding` makes the
+migrated DAMM v2 pool automatically compound a share of its trading fees back into its own
+liquidity instead of paying all of it straight out. Confirmed the exact shape against the
+installed SDK's `.d.ts` (`MigratedPoolFeeConfig`) and validated a real `buildCurve` call offline
+with it (no RPC, no cost) before adding anything - same discipline as every other preset here.
+
+**New preset**: `compounding-damm-v2` - same 3%→0.5%/2h curve and 10 SOL threshold as the low-fee
+preset, but `migrationFeeOption: MigrationFeeOption.Customizable` (6, not the usual FixedBps100)
+plus `migratedPoolFee: { collectFeeMode: Compounding, dynamicFee: Enabled, poolFeeBps: 100,
+compoundingFeeBps: 5000 }` - the migrated pool compounds 50% of its trading fees back into its own
+liquidity.
+
+**Real technical debt this forced fixing**: `Customizable` needs a DIFFERENT DAMM v2 config key at
+migrate time than `FixedBps100` does (`DAMM_V2_MIGRATION_FEE_ADDRESS` is indexed by
+`MigrationFeeOption`, and the value used at `migrateToDammV2` MUST match whatever `createConfig`
+used originally, or migration would target the wrong DAMM v2 config). `dbcMigration.js` used to
+hardcode a single `MIGRATION_FEE_OPTION = MigrationFeeOption.FixedBps100` module constant - exactly
+the limitation flagged (but not yet acted on) back in section 5, item 2. Fixed properly:
+`dbcConfig.js` now exports `getMigrationFeeOptionForPreset(presetId)` (looks up the preset's own
+`migrationFeeOption`, defaulting to `FixedBps100` for the five presets and Pyth-anchored launches
+that never set one - zero behavior change for anything that existed before this round);
+`migrateDbcPoolIfReady(poolAddress, presetId)` now takes the preset id and uses that lookup instead
+of the constant; `server.js`'s migrate route passes `record.presetId` through.
+
+**Risk called out explicitly, including in the preset's own on-screen label**: this is the FIRST
+preset to use anything other than `FixedBps100`, so migrating a pool launched with it exercises a
+branch of `dbcMigration.js` that's never run even once - on top of `migrateDbcPoolIfReady`/
+`claimDbcFees` already being untested live for every other preset too (section 5.5/5.8). Not
+recommended as the first thing to test for real; the five other presets remain the better choice
+until this one gets its own live migration test.
 
 ## 6. Suggested next steps
 

@@ -130,7 +130,7 @@ export function startServer() {
     if (!record) return res.status(404).json({ error: "Launched token not found." });
     if (!record.poolAddress) return res.status(400).json({ error: "This record has no associated pool." });
     try {
-      const result = await migrateDbcPoolIfReady(record.poolAddress);
+      const result = await migrateDbcPoolIfReady(record.poolAddress, record.presetId);
       if (result.migrated) markDbcPoolMigrated(record.id, result.newPoolAddress);
       res.json(result);
     } catch (err) {
