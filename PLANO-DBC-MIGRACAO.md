@@ -545,6 +545,39 @@ mint's is already present while the creator's is correctly still empty, waiting 
 wallet. **Still needs a real end-to-end test with an actual wallet extension** (Phantom, in a real
 browser) - flagged as the next thing to verify live, not yet done as of this round.
 
+## 5.8. Tenth round (2026-09-17) - real Phantom test + 3 fixes from live feedback
+
+The user tested section 5.7's wallet-connect flow for real, in their own Chrome with Phantom
+installed (this environment's browser still has no extension support). Results and fixes:
+
+1. **It worked.** Phantom prompted for the account password, the connect button showed the
+   connected address, and clicking Launch opened a real Phantom approval popup showing the SOL
+   about to be spent - confirming feePayer really is the user's wallet, not the platform's. A real
+   transaction was signed and confirmed (mint `4fZWmmPPsyhTyqFYFeCS36wEe5AzdMgu21cUsmrBZ9eX`
+   confirmed on-chain for real).
+2. **Real bug found**: after that confirmed transaction, the app still reported "couldn't find the
+   pool yet" instead of success. Root cause: `waitForAccountVisible` only re-checked the MINT
+   account's visibility before looking up the pool - the pool is a SEPARATE account, and its own
+   RPC-replica propagation lag wasn't retried at all, just checked once. Fixed with a dedicated
+   `waitForPoolByBaseMint` retry loop (10 attempts, 2s apart) around the pool lookup itself, not
+   just the mint. Also swapped `connection.confirmTransaction(signature, "confirmed")` (the
+   deprecated bare-signature overload, no defined expiry) for the `{signature, blockhash,
+   lastValidBlockHeight}` strategy object - `prepareLaunchTransaction` now returns
+   `blockhash`/`lastValidBlockHeight` alongside the transaction, `tokenLauncher.js` persists them on
+   the pending record, and `confirmTokenLaunch` reads them back for `submitLaunchTransaction`.
+3. **UI feedback acted on**:
+   - Removed the "platform wallet" balance display entirely (`GET /api/wallet/balance` stays as a
+     harmless, unused diagnostic route) - the user didn't see a reason for it to be on screen
+     anymore now that launches don't touch that wallet.
+   - Replaced the Phantom-only `window.solana` check with a proper **Wallet Standard** integration
+     (new `public/walletConnect.js`, loaded as an ES module importing `@wallet-standard/app` from
+     `esm.sh` - no bundler in this project, so a CDN ESM import is the only way in) - detects
+     Phantom, Solflare, Backpack, and any other wallet implementing the standard, with a picker
+     modal (`walletPickerDialog` in `uiKit.js`) when more than one is installed. Verified the
+     "no wallet" fallback path renders correctly in this environment's extension-less browser;
+     multi-wallet picking itself still needs a real test with 2+ extensions installed (not done -
+     only one real wallet, Phantom, has been tested against so far).
+
 ## 6. Suggested next steps
 
 1. ~~Validate the curve presets against Meteora's official calculator~~
@@ -566,6 +599,7 @@ browser) - flagged as the next thing to verify live, not yet done as of this rou
    buyers, not the team): closely watch the first real
    `migrateToDammV2`/`claimCreatorTradingFee` - still the part of the
    cycle never executed on-chain.
-5. Test the new wallet-connect launch flow (section 5.7) end to end with a real wallet extension
-   (Phantom) in an actual browser - this environment's sandboxed browser has none installed, so
-   only the unsigned-transaction structure was verified, not a full sign+submit.
+5. ~~Test the new wallet-connect launch flow (section 5.7) end to end with a real wallet
+   extension~~ **DONE on 2026-09-17 for Phantom** (see section 5.8) - real signature, real
+   confirmed transaction. Still needs a test with a SECOND wallet installed (Solflare/Backpack) to
+   confirm the picker modal actually works, not just the single-wallet path.

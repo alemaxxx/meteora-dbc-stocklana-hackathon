@@ -109,6 +109,61 @@
     });
   }
 
+  /**
+   * Lets the user pick one of several detected wallets (Phantom, Solflare,
+   * Backpack, ...) - same modal look as confirmDialog. Resolves the
+   * chosen wallet object, or null if cancelled/Esc/clicked outside.
+   */
+  function walletPickerDialog(wallets) {
+    return new Promise((resolve) => {
+      const overlay = document.createElement("div");
+      overlay.className = "modal-overlay confirm-overlay";
+      overlay.innerHTML = `
+        <div class="modal confirm-modal" role="dialog" aria-modal="true" aria-labelledby="wallet-picker-title">
+          <div class="modal__header">
+            <h2 id="wallet-picker-title">Choose a wallet</h2>
+          </div>
+          <div class="modal__body">
+            <div class="wallet-picker"></div>
+          </div>
+          <div class="modal__footer">
+            <button type="button" class="btn-secondary wallet-picker__cancel">Cancel</button>
+          </div>
+        </div>
+      `;
+      const list = overlay.querySelector(".wallet-picker");
+      wallets.forEach((wallet, i) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "wallet-picker__item";
+        btn.dataset.index = String(i);
+        btn.innerHTML = `<img src="${wallet.icon}" alt="" /><span></span>`;
+        btn.querySelector("span").textContent = wallet.name; // textContent on purpose - wallet name comes from the extension, never trust as HTML
+        list.appendChild(btn);
+      });
+      document.body.appendChild(overlay);
+
+      function settle(result) {
+        document.removeEventListener("keydown", onKeydown);
+        overlay.remove();
+        resolve(result);
+      }
+      function onKeydown(ev) {
+        if (ev.key === "Escape") settle(null);
+      }
+      list.addEventListener("click", (ev) => {
+        const item = ev.target.closest(".wallet-picker__item");
+        if (item) settle(wallets[Number(item.dataset.index)]);
+      });
+      overlay.querySelector(".wallet-picker__cancel").addEventListener("click", () => settle(null));
+      overlay.addEventListener("click", (ev) => {
+        if (ev.target === overlay) settle(null);
+      });
+      document.addEventListener("keydown", onKeydown);
+    });
+  }
+
   window.toast = toast;
   window.confirmDialog = confirmDialog;
+  window.walletPickerDialog = walletPickerDialog;
 })();

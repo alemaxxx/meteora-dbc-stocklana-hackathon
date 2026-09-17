@@ -20,24 +20,29 @@
   let selectedPresetId = null;
   let selectedPythSymbol = null;
   let imageDataUrl = null;
-  let connectedWallet = null; // base58 pubkey of the browser wallet paying for launches - see wallet-connect() below
+  let connectedWallet = null; // base58 address of the browser wallet paying for launches
+  let connectedWalletHandle = null; // { wallet, account } pair from walletConnect.js, needed to sign later
   const LARGE_SOL_THRESHOLD = 0.5; // same "fat finger" guard from the original Lançar Token Bot
 
-  // ---- wallet connect (Phantom-compatible `window.solana` provider) -
-  // launching pays from and is owned by THIS wallet, never the platform
-  // one (see PLANO-DBC-MIGRACAO.md section 5.7 for why this exists: the
-  // app used to have no auth at all, so anyone with the URL could spend
-  // the platform wallet's real SOL just by clicking Launch). ----
+  // ---- wallet connect (any Wallet Standard wallet - Phantom, Solflare,
+  // Backpack, ...; see public/walletConnect.js) - launching pays from and
+  // is owned by THIS wallet, never the platform one (see
+  // PLANO-DBC-MIGRACAO.md section 5.7 for why this exists: the app used
+  // to have no auth at all, so anyone with the URL could spend the
+  // platform wallet's real SOL just by clicking Launch). ----
   async function connectWallet() {
-    const provider = window.solana;
-    if (!provider) {
-      toast("No Solana wallet found - install Phantom (or another wallet exposing window.solana) and reload.", { type: "error", duration: 8000 });
+    const wallets = window.WalletConnect?.listWallets() ?? [];
+    if (!wallets.length) {
+      toast("No Solana wallet detected - install Phantom, Solflare, Backpack or another Wallet-Standard wallet and reload.", { type: "error", duration: 8000 });
       return;
     }
+    const wallet = wallets.length === 1 ? wallets[0] : await walletPickerDialog(wallets);
+    if (!wallet) return;
     try {
-      const resp = await provider.connect();
-      connectedWallet = resp.publicKey.toBase58();
-      els.walletConnectBtn.textContent = shortAddr(connectedWallet);
+      const { address, account } = await window.WalletConnect.connect(wallet);
+      connectedWallet = address;
+      connectedWalletHandle = { wallet, account };
+      els.walletConnectBtn.textContent = `${wallet.name}: ${shortAddr(address)}`;
       els.walletConnectBtn.classList.add("is-connected");
     } catch (err) {
       toast(`Wallet connection failed: ${err.message}`, { type: "error" });
@@ -237,12 +242,15 @@
       if (!prepRes.ok) throw new Error(prepData.error ?? `HTTP ${prepRes.status}`);
 
       // Phase 2: the connected wallet completes the signature - this is
-      // the step the user actually approves in their wallet's popup.
+      // the step the user actually approves in their wallet's popup. The
+      // transaction already carries the mint's own signature (added by
+      // the server) - serializing with requireAllSignatures: false keeps
+      // it intact for the wallet to add its own alongside.
       els.confirmBtn.textContent = "Approve in your wallet…";
       const txBytes = Uint8Array.from(atob(prepData.transactionBase64), (c) => c.charCodeAt(0));
       const tx = solanaWeb3.Transaction.from(txBytes);
-      const signedTx = await window.solana.signTransaction(tx);
-      const signedBytes = signedTx.serialize();
+      const unsignedBytes = tx.serialize({ requireAllSignatures: false });
+      const signedBytes = await window.WalletConnect.signTransaction(connectedWalletHandle.wallet, connectedWalletHandle.account, unsignedBytes);
       let binary = "";
       for (const b of signedBytes) binary += String.fromCharCode(b);
       const signedTransactionBase64 = btoa(binary);
@@ -363,7 +371,6 @@
         if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
         if (data.migrated) {
           toast(`Migrated! DAMM v2 pool: ${data.newPoolAddress ?? "(address not computed, check the transaction)"}`, { type: "success", duration: 10000 });
-          window.refreshWalletBalance?.();
           refreshLaunchedTokens();
         } else if (data.alreadyMigrated) {
           toast("This pool had already been migrated.", { type: "info" });
@@ -390,7 +397,6 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
         toast("Fees claimed (creator + partner).", { type: "success" });
-        window.refreshWalletBalance?.();
       } catch (err) {
         toast(`Failed to claim fees: ${err.message}`, { type: "error", duration: 8000 });
       } finally {

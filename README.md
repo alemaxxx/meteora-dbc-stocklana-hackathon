@@ -46,8 +46,12 @@ instead (see `PLANO-DBC-MIGRACAO.md` section 5.7): the server builds the transac
 partially signs it (it still has to co-sign the new token's own mint creation), then your wallet
 completes the signature before anything gets sent. Migrating and claiming fees are unchanged -
 those stay creator-only actions on the platform side (see section 5.7 for why that's fine, not a
-leftover gap). Needs a Phantom-compatible wallet (`window.solana`) - **not yet tested with a real
-wallet extension**, only the unsigned-transaction structure was verified.
+leftover gap). Works with any **Wallet Standard** wallet (Phantom, Solflare, Backpack, ...) - picks
+automatically if only one is installed, shows a picker if there's more than one. **Confirmed live
+with Phantom** (section 5.8): real approval popup, real confirmed transaction. That round also
+fixed a real bug the live test surfaced (the pool lookup right after confirming needed its own
+retry loop, not just the mint's) and dropped the unused platform-wallet balance display per
+feedback.
 
 ## Pyth-anchored curve preset (2026-09-17)
 

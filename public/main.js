@@ -18,20 +18,3 @@ function shortAddr(addr, size = 4) {
   return `${addr.slice(0, size)}…${addr.slice(-size)}`;
 }
 window.shortAddr = shortAddr;
-
-async function refreshWalletBalance() {
-  const el = document.getElementById("wallet-balance-value");
-  if (!el) return;
-  try {
-    const res = await fetch("/api/wallet/balance");
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-    el.innerHTML = `${data.solBalance.toFixed(4)} SOL <span class="mono" title="${data.address}">(${shortAddr(data.address)})</span> <button type="button" class="copy-btn" data-copy="${data.address}" title="Copy wallet address" aria-label="Copy wallet address">⧉</button>`;
-  } catch (err) {
-    el.textContent = "error";
-    el.title = err.message;
-  }
-}
-window.refreshWalletBalance = refreshWalletBalance;
-refreshWalletBalance();
-setInterval(refreshWalletBalance, 30000);

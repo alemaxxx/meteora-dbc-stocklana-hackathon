@@ -101,7 +101,7 @@ export async function prepareLaunchTransaction({ name, symbol, metadataUri, pres
       : undefined,
   });
 
-  const { blockhash } = await connection.getLatestBlockhash("confirmed");
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
   tx.recentBlockhash = blockhash;
   tx.feePayer = creator;
   tx.partialSign(baseMintKeypair); // only the mint's own signature - the creator's is still missing
@@ -109,7 +109,27 @@ export async function prepareLaunchTransaction({ name, symbol, metadataUri, pres
   return {
     transactionBase64: tx.serialize({ requireAllSignatures: false }).toString("base64"),
     mint: baseMintKeypair.publicKey.toBase58(),
+    blockhash,
+    lastValidBlockHeight,
   };
+}
+
+/**
+ * Retries getPoolByBaseMint on its own, separately from the mint account -
+ * found live on 2026-09-17 (see PLANO-DBC-MIGRACAO.md section 5.8): even
+ * after the mint account itself was visible, the pool account (a
+ * DIFFERENT account) could still lag behind on the RPC replica serving
+ * this request, so a single lookup right after confirmation isn't
+ * reliably enough - same root cause as the propagation lag documented in
+ * txHelpers.js/getMintInfo, just for a different account.
+ */
+async function waitForPoolByBaseMint(mintPubkey, { attempts = 10, delayMs = 2000 } = {}) {
+  for (let i = 0; i < attempts; i++) {
+    const pool = await dbcClient.state.getPoolByBaseMint(mintPubkey);
+    if (pool) return pool;
+    if (i < attempts - 1) await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+  return null;
 }
 
 /**
@@ -118,20 +138,21 @@ export async function prepareLaunchTransaction({ name, symbol, metadataUri, pres
  * sends and confirms it, then resolves the DBC pool address the same way
  * the old single-phase flow did.
  */
-export async function submitLaunchTransaction({ signedTransactionBase64, mint, symbol }) {
+export async function submitLaunchTransaction({ signedTransactionBase64, mint, symbol, blockhash, lastValidBlockHeight }) {
   const tx = Transaction.from(Buffer.from(signedTransactionBase64, "base64"));
   const signature = await connection.sendRawTransaction(tx.serialize());
-  await connection.confirmTransaction(signature, "confirmed");
+  // Confirmation strategy object (blockhash + lastValidBlockHeight) instead
+  // of the deprecated bare-signature overload - matches sendAndConfirmWithRetry
+  // elsewhere and gives a well-defined expiry cutoff instead of guessing.
+  await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, "confirmed");
 
   const mintPubkey = new PublicKey(mint);
 
   // The DBC pool address doesn't come back from createPoolWithFirstBuy
-  // (only the Transaction) - derive/confirm it by reading it back via
-  // getPoolByBaseMint, with the same RPC-propagation patience used in
-  // getMintInfo/waitForAccountVisible (the mint just confirmed, it might
-  // not be visible yet on another replica).
+  // (only the Transaction) - derive/confirm it by reading it back, with
+  // extra patience on the pool account itself (see waitForPoolByBaseMint).
   await waitForAccountVisible(connection, mintPubkey);
-  const poolAccount = await dbcClient.state.getPoolByBaseMint(mintPubkey);
+  const poolAccount = await waitForPoolByBaseMint(mintPubkey);
   if (!poolAccount) {
     const err = new Error(`Token ${symbol} created on DBC (mint ${mint}, tx ${signature}) but couldn't find the pool yet - check on-chain.`);
     err.mint = mint;

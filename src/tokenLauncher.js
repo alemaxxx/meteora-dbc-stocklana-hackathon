@@ -168,7 +168,7 @@ export async function prepareTokenLaunch({ name, symbol, imageDataUrl, presetId,
   });
   record.imageUrl = imageUrl;
 
-  const { transactionBase64, mint } = await prepareLaunchTransaction({
+  const { transactionBase64, mint, blockhash, lastValidBlockHeight } = await prepareLaunchTransaction({
     name,
     symbol,
     metadataUri: metadataUrl,
@@ -179,6 +179,8 @@ export async function prepareTokenLaunch({ name, symbol, imageDataUrl, presetId,
     creatorPublicKey,
   });
   record.mint = mint;
+  record.blockhash = blockhash;
+  record.lastValidBlockHeight = lastValidBlockHeight;
 
   const list = loadLaunchedTokens();
   list.unshift(record);
@@ -198,7 +200,13 @@ export async function confirmTokenLaunch({ id, signedTransactionBase64 }) {
   if (!record) throw new Error(`Pending launch "${id}" not found - did you already confirm it?`);
 
   try {
-    const result = await submitLaunchTransaction({ signedTransactionBase64, mint: record.mint, symbol: record.symbol });
+    const result = await submitLaunchTransaction({
+      signedTransactionBase64,
+      mint: record.mint,
+      symbol: record.symbol,
+      blockhash: record.blockhash,
+      lastValidBlockHeight: record.lastValidBlockHeight,
+    });
     record.poolAddress = result.poolAddress;
     record.status = "success";
   } catch (err) {
