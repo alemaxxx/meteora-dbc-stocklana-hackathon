@@ -95,6 +95,16 @@ export async function launchToken({ name, symbol, imageDataUrl, presetId, firstB
   if (!preset) {
     throw new Error(`Unknown curve preset: "${presetId}".`);
   }
+  // Found live on 2026-09-17 (see PLANO-DBC-MIGRACAO.md section 5.5): the
+  // curve has no liquidity to sell past its own migration threshold, so a
+  // first buy at or above it fails on-chain with AnchorError
+  // InsufficientLiquidity (0x1791) - caught here with a clear message
+  // instead of letting the raw simulation error reach the user.
+  if (Number(firstBuySolUi) > 0 && Number(firstBuySolUi) >= preset.migrationQuoteThreshold) {
+    throw new Error(
+      `Initial buy (${firstBuySolUi} SOL) can't reach or exceed this preset's migration threshold (${preset.migrationQuoteThreshold} SOL) - the curve has no liquidity to sell beyond that point. Use a smaller amount.`
+    );
+  }
 
   const record = {
     id: `launch-${Date.now()}`,

@@ -78,8 +78,6 @@ low test thresholds (well below 1 SOL) aren't a good cheap proxy for the product
 
 - **Migration and fee withdrawal** (`migrateToDammV2`/`claimCreatorTradingFee`/`claimPartnerTradingFee`)
   - never executed with a real transaction yet (see above).
-- **Client/server-side validation that the initial buy doesn't exceed the migration threshold** -
-  today it only fails with the raw on-chain simulation error.
 - **Quote locked to SOL** - the presets define the threshold in units of the quote token itself,
   with no price conversion; supporting another quote (USDC, an xStock) would require calibrating
   the presets to each one's market value first.

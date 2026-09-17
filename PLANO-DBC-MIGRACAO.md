@@ -443,10 +443,14 @@ use the `confirmDialog` pattern in `public/uiKit.js`, not `window.prompt`.
    small values~~ **PARTIALLY DONE on 2026-09-17** (see section 5.5) -
    launch + buy + read progress confirmed on real mainnet; migrate +
    withdraw fees still not executed for real (only code/IDL review).
-3. Add validation that the initial buy (`firstBuySolUi`) doesn't exceed
-   the chosen preset's `migrationQuoteThreshold`, with a clear error
-   message - today it only fails with the raw simulation error (found in
-   section 5.5, item 4).
+3. ~~Add validation that the initial buy (`firstBuySolUi`) doesn't exceed
+   the chosen preset's `migrationQuoteThreshold`~~ **DONE on 2026-09-17**
+   (see `tokenLauncher.js`) - now rejects with a clear message before any
+   network call when `firstBuySolUi >= migrationQuoteThreshold`. Verified
+   via `curl` against the real server: 10 SOL against the 10 SOL
+   production threshold is rejected instantly (no cost); 5 SOL passes the
+   check and reaches the real on-chain simulation (failed only for lack of
+   balance in the test wallet, as expected).
 4. Once a real production pool approaches its migration threshold (real
    buyers, not the team): closely watch the first real
    `migrateToDammV2`/`claimCreatorTradingFee` - still the part of the
