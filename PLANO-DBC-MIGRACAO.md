@@ -690,3 +690,20 @@ chain data agree.
    extension~~ **DONE on 2026-09-17 for Phantom** (see section 5.8) - real signature, real
    confirmed transaction. Still needs a test with a SECOND wallet installed (Solflare/Backpack) to
    confirm the picker modal actually works, not just the single-wallet path.
+6. **Researched, not built: DLMM "Conviction Pools"** - the one remaining idea from the Crypto
+   World's Fair brief ("creative end-to-end launch flows using DBC, DAMM v2 and DLMM... Conviction
+   Pools with DLMM"). Confirmed `@meteora-ag/dlmm@1.9.14` exists on npm and is compatible with this
+   project's stack (same `@solana/web3.js`/`@coral-xyz/anchor` major versions). "Conviction Pool"
+   isn't a term with a findable, formal Meteora definition (checked `docs.meteora.ag`'s DLMM
+   section) - it reads as illustrative brief language, not a pre-built feature, meaning it's open
+   to interpretation rather than something to integrate against a spec. Deliberately NOT
+   implemented blind: unlike the five ideas built this round (each had one clear, literal reading
+   straight from the brief), this one has several plausible directions - e.g. seeding a DLMM pool
+   with concentrated liquidity around the DBC migration price once a pool graduates, or letting
+   long-term holders lock graduated tokens into a DLMM position as a public signal of conviction -
+   and picking one is a product decision, not a technical one, better made with the user's input
+   than guessed at alone. Biggest remaining differentiator if there's time before either deadline.
+7. Test a real `migrateDbcPoolIfReady` for the `compounding-damm-v2` preset (section 5.10) once a
+   pool launched with it reaches its threshold - the riskiest untested code path added this round.
+8. Multi-wallet picker (section 5.8/5.9) still only tested with one real wallet (Phantom) -
+   confirm the picker modal itself with a second extension (Solflare/Backpack) installed.

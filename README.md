@@ -121,10 +121,15 @@ low test thresholds (well below 1 SOL) aren't a good cheap proxy for the product
 ## What's still left to validate
 
 - **Migration and fee withdrawal** (`migrateToDammV2`/`claimCreatorTradingFee`/`claimPartnerTradingFee`)
-  - never executed with a real transaction yet (see above).
+  - never executed with a real transaction yet (see above); the `compounding-damm-v2` preset adds
+    its own never-tested branch on top of that (section 5.10).
+- **Multi-wallet picker** - only tested with one real wallet (Phantom) so far; the picker modal
+  itself needs a second extension installed to confirm.
 - **Quote locked to SOL** - the presets define the threshold in units of the quote token itself,
   with no price conversion; supporting another quote (USDC, an xStock) would require calibrating
   the presets to each one's market value first.
+- **DLMM "Conviction Pools"** - researched, not built (section 6, item 6) - the one remaining brief
+  idea from Crypto World's Fair, left for a deliberate product decision rather than a guess.
 
 See `PLANO-DBC-MIGRACAO.md` for the full history of decisions and findings (inherited from the
 original project, with what's specific to this cut added at the top).
