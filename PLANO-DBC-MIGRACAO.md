@@ -434,6 +434,68 @@ permanent code (the feature that used it was removed during cleanup), but
 it's recorded here in case a future feature needs text input in a modal -
 use the `confirmDialog` pattern in `public/uiKit.js`, not `window.prompt`.
 
+## 5.6. Eighth round (2026-09-17) - Pyth-anchored curve preset (new differentiator)
+
+Motivation: competing against strong teams for the same $5k/$20k Meteora DBC tracks, both fixed
+presets use an arbitrary SOL number for the migration threshold - no different, mechanically, from
+any other memecoin bonding curve. Since this hackathon is specifically about **tokenized stocks**
+(not memecoins), and the brief explicitly asks for "launch mechanics tuned for equity-like assets -
+price discovery for thinly traded or newly tokenized stock pairs," added a third curve mode: anchor
+the DBC curve's market-cap targets to a real stock's live price from **Pyth**, instead of a guessed
+SOL number. New module: `src/pythPricing.js`.
+
+**Real constraints found before building anything** (same "verify, don't assume" discipline as the
+rest of this document):
+
+1. Pyth's Hermes price-update API (`/v2/updates/price/latest`) now requires a Pyth Pro API key even
+   for the most basic feeds (SOL/USD included) - this used to be a fully open, keyless endpoint.
+   Confirmed empirically: the metadata endpoint (`/v2/price_feeds`, symbol search) works with no
+   auth, but every price READ returned `unauthorized` without a `Bearer` token. Requires a free
+   Pyth Terminal account (`pythdata.app`) + API key - user signed up and provided the key locally
+   (`.env`, never committed).
+2. The free trial plan only entitles a small allowlist of equity symbols. Tested ~25 large-cap
+   tickers (AAPL, NVDA, MSFT, GOOGL, AMZN, SPY, META, GME, COIN, QQQ, IBM, DIS, NFLX, AMD, INTC, BA,
+   JPM, V, WMT, KO, PLTR, HOOD, MSTR, CRCL, TSLA) against the real API with the key - only **TSLA**
+   and **QQQ** returned real data; everything else came back `403 Not entitled` (real-world
+   exchange data is licensed per symbol - not a bug). The xStock feed (`Crypto.AAPLX/USD`), despite
+   being classified as "Crypto" not "Equity," is ALSO gated the same way under this trial.
+3. The trial itself expires ~2026-10-01 - uncomfortably close to Stocklana's judging window (through
+   2026-10-02) and well before Crypto World's Fair's deadline (~2026-10-12). Because of this, every
+   Pyth-touching code path is designed to fail gracefully: `/api/pyth-presets` (the symbol list) is
+   fully static, no Pyth call at all, so the UI always renders the option; only picking a symbol
+   (preview) or launching with one actually calls Pyth, and both surface a clear error instead of
+   crashing if the key/trial/symbol stops working.
+
+**Design** (scoped to TSLA + QQQ given the above):
+
+- `buildCurveWithMarketCap` (a DIFFERENT SDK curve-builder than the `buildCurve` the two fixed
+  presets use) takes `initialMarketCap`/`migrationMarketCap` directly, in quote-token (SOL) terms -
+  no `percentageSupplyOnMigration`/`migrationQuoteThreshold` needed for this mode.
+- Formula: `pricePerShareSol = stockPriceUsd / solPriceUsd` (both fetched live from Pyth at launch
+  time); `initialMarketCap = pricePerShareSol * 0.01` (the launched supply symbolically represents
+  1% of one real share - a demo-scale calibration, disclosed as such); `migrationMarketCap =
+  initialMarketCap * 50`. With live prices checked 2026-09-17 (TSLA ~$367, QQQ ~$717, SOL ~$101),
+  this put migration thresholds at ~1.82 SOL (TSLA) and ~3.55 SOL (QQQ) - small and testable, while
+  still genuinely derived from real market data rather than picked out of thin air.
+- Same validated fee schedule as the "low-fee" preset (3%→0.5% over 2h) - reused, not reinvented.
+- Config is **never cached/reused** for Pyth-anchored launches (unlike the two fixed presets) - a
+  fresh config is created every time, on purpose, so the market caps always reflect the price at
+  that exact moment rather than freezing whatever price happened to be live the first time a symbol
+  was used.
+- `src/tokenLauncher.js`'s initial-buy-vs-threshold validation (section 5.5, item 4) was generalized
+  to cover both curve modes, not just the fixed presets - fetches the live threshold for validation
+  even in Pyth mode.
+
+**Confirmed live on mainnet (2026-09-17)**, same isolated test wallet as the rest of section 5.5:
+launched "Tesla Anchored Test" (TSLAX) with the TSLA-anchored preset, 0.05 SOL initial buy - config
+`CwhfetFiWLVYzY5bzsvXPUmFRCRETkkTxfoiWvSEBX35` (fresh, Pyth-anchored), mint
+`DkbqjHBX2JjVm6qCCUXzYYHq4e4i2nZZvLfFZuwhfdBj`, pool `3z4M15EP1XPS4KybgmnGA5Pg5hGGMYb2x9PaRoePSx6L`.
+Server logs confirm the config was built from the live-fetched TSLA/SOL prices, not a fixed number.
+
+**Secondary UI finding**: `window.prompt()` (see section 5.5's UI finding) was never needed here -
+the whole flow reuses the existing preset-chip UI, just with a second, dynamically-loaded chip
+group and a live-fetched hint line instead of a static label.
+
 ## 6. Suggested next steps
 
 1. ~~Validate the curve presets against Meteora's official calculator~~

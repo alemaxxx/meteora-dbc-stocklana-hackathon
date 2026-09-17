@@ -6,6 +6,7 @@ import { getWalletTokenBalance } from "./walletBalance.js";
 import { DBC_CURVE_PRESETS } from "./dbcConfig.js";
 import { getDbcCurveProgress, migrateDbcPoolIfReady, claimDbcFees } from "./dbcMigration.js";
 import { launchToken, getLaunchedTokens, markDbcPoolMigrated } from "./tokenLauncher.js";
+import { PYTH_STOCK_SYMBOLS, computePythAnchoredMarketCaps } from "./pythPricing.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, "..", "public");
@@ -34,14 +35,34 @@ export function startServer() {
     res.json({ presets: DBC_CURVE_PRESETS });
   });
 
+  // ---- Pyth-anchored presets - see pythPricing.js for the real
+  // constraints (trial API key, only a couple of symbols entitled). This
+  // list is static (no Pyth call), so it always renders even if Pyth
+  // itself is down or the trial has expired - only the preview/launch
+  // below actually touch the Pyth API and can fail gracefully. ----
+  app.get("/api/pyth-presets", (req, res) => {
+    const symbols = Object.entries(PYTH_STOCK_SYMBOLS).map(([symbol, { label }]) => ({ symbol, label }));
+    res.json({ symbols });
+  });
+
+  app.get("/api/pyth-presets/:symbol/preview", async (req, res) => {
+    try {
+      const preview = await computePythAnchoredMarketCaps(req.params.symbol);
+      res.json(preview);
+    } catch (err) {
+      console.error("Failed to fetch Pyth preview:", err);
+      res.status(502).json({ error: err.message });
+    }
+  });
+
   // ---- Launch ----
   // Sends a real on-chain transaction (mint + DBC curve) - only called
   // when the user confirms on the form after reviewing
   // name/symbol/image/preset.
   app.post("/api/launch", async (req, res) => {
-    const { name, symbol, imageDataUrl, presetId, firstBuySolUi } = req.body ?? {};
-    if (!name || !symbol || !imageDataUrl || !presetId) {
-      return res.status(400).json({ error: "Provide name, symbol, imageDataUrl and presetId." });
+    const { name, symbol, imageDataUrl, presetId, pythSymbol, firstBuySolUi } = req.body ?? {};
+    if (!name || !symbol || !imageDataUrl || !(presetId || pythSymbol)) {
+      return res.status(400).json({ error: "Provide name, symbol, imageDataUrl and either presetId or pythSymbol." });
     }
     try {
       const result = await launchToken({
@@ -49,6 +70,7 @@ export function startServer() {
         symbol,
         imageDataUrl,
         presetId,
+        pythSymbol,
         firstBuySolUi: firstBuySolUi !== undefined ? Number(firstBuySolUi) : undefined,
       });
       res.json(result);

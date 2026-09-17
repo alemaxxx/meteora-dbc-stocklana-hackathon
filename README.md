@@ -36,6 +36,15 @@ None of this happens on its own: every action (launch, migrate, withdraw) requir
 explicit confirmation. No volume generator, no wave detection, no AI name/image suggestion - just
 the DBC flow.
 
+## Pyth-anchored curve preset (2026-09-17)
+
+On top of the two fixed-SOL presets, there's a third mode: pick a real stock (**TSLA** or **QQQ** -
+see why only these two in `PLANO-DBC-MIGRACAO.md` section 5.6) and the curve's market-cap targets
+get computed from that stock's **live Pyth price**, not a guessed SOL number - the whole point of a
+tokenized-stock launchpad is price discovery grounded in something real. Needs a free `PYTH_API_KEY`
+(see `.env.example`) - without it, the app still works fine with just the two fixed presets.
+Confirmed live on mainnet: see section 5.6 of `PLANO-DBC-MIGRACAO.md`.
+
 ## Real finding (2026-09-16)
 
 The first test launch (mint `5SxgYUr6yx1QLFajnY2JHChaekCmqWJo3Di34kBBS8Ei`, done on the original

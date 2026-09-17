@@ -3,7 +3,7 @@ import { Keypair, PublicKey } from "@solana/web3.js";
 import { connection, dbcClient } from "./connection.js";
 import { requireWalletKeypair, SOL_MINT } from "./config.js";
 import { sendAndConfirmWithRetry, waitForAccountVisible } from "./txHelpers.js";
-import { getOrCreateDbcConfig } from "./dbcConfig.js";
+import { getOrCreateDbcConfig, createPythAnchoredDbcConfig } from "./dbcConfig.js";
 
 // Launch via Meteora DBC (Dynamic Bonding Curve) - see
 // PLANO-DBC-MIGRACAO.md for context (evaluation for the Stocklana
@@ -45,12 +45,18 @@ function toRawAmount(uiAmount, decimals) {
  * (getOrCreateDbcConfig creates a new config per preset+quote combination
  * the first time it's used).
  *
+ * `pythSymbol`: when set, ignores `presetId` and anchors the curve to that
+ * symbol's live Pyth price instead (see dbcConfig.js/pythPricing.js) -
+ * always creates a fresh config, never cached.
+ *
  * Returns the new token's mint and the DBC pool address ("virtual" pool -
  * pre-migration; see dbcMigration.js for the final DAMM v2 address).
  */
-export async function launchOnDbc({ name, symbol, metadataUri, presetId, quoteMint = SOL_MINT, firstBuySolUi }) {
+export async function launchOnDbc({ name, symbol, metadataUri, presetId, pythSymbol, quoteMint = SOL_MINT, firstBuySolUi }) {
   const wallet = requireWalletKeypair();
-  const config = await getOrCreateDbcConfig(presetId, quoteMint);
+  const config = pythSymbol
+    ? await createPythAnchoredDbcConfig(pythSymbol, quoteMint)
+    : await getOrCreateDbcConfig(presetId, quoteMint);
 
   const hasFirstBuy = Number(firstBuySolUi) > 0;
   const baseMintKeypair = Keypair.generate();

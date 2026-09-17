@@ -17,6 +17,7 @@
 
   let allPresets = [];
   let selectedPresetId = null;
+  let selectedPythSymbol = null;
   let imageDataUrl = null;
   const LARGE_SOL_THRESHOLD = 0.5; // same "fat finger" guard from the original Lançar Token Bot
 
@@ -60,33 +61,77 @@
     els.image.src = imageDataUrl;
   });
 
-  // ---- curve presets ----
+  // ---- curve presets (fixed SOL presets + Pyth-anchored ones) ----
   async function loadPresets() {
     try {
       const res = await fetch("/api/dbc-presets");
       const data = await res.json();
       allPresets = data.presets ?? [];
-      els.presetChips.innerHTML = allPresets
+      let chipsHtml = allPresets
         .map((p) => `<button type="button" class="token-chip" data-preset="${p.id}">${p.label.split(" - ")[0]}</button>`)
         .join("");
+
+      // Pyth-anchored chips are a SEPARATE, static list (no live Pyth call
+      // here) so they always render even if Pyth itself is unreachable or
+      // this project's trial key has expired - only picking one triggers
+      // a live fetch (see selectPythSymbol below), which fails gracefully
+      // on its own.
+      try {
+        const pythRes = await fetch("/api/pyth-presets");
+        const pythData = await pythRes.json();
+        chipsHtml += (pythData.symbols ?? [])
+          .map((s) => `<button type="button" class="token-chip token-chip--pyth" data-pyth="${s.symbol}">🔴 Live: ${s.label}</button>`)
+          .join("");
+      } catch (err) {
+        console.error("Failed to load Pyth-anchored presets:", err);
+      }
+
+      els.presetChips.innerHTML = chipsHtml;
       if (allPresets.length > 0) selectPreset(allPresets[0].id);
     } catch (err) {
       console.error("Failed to load presets:", err);
     }
   }
 
+  function markSelectedChip(matcher) {
+    els.presetChips.querySelectorAll(".token-chip").forEach((c) => {
+      c.classList.toggle("is-selected", matcher(c));
+    });
+  }
+
   function selectPreset(id) {
     selectedPresetId = id;
-    els.presetChips.querySelectorAll(".token-chip").forEach((c) => {
-      c.classList.toggle("is-selected", c.dataset.preset === id);
-    });
+    selectedPythSymbol = null;
+    markSelectedChip((c) => c.dataset.preset === id);
     const preset = allPresets.find((p) => p.id === id);
     els.presetHint.textContent = preset?.label ?? "";
   }
 
+  async function selectPythSymbol(symbol) {
+    selectedPresetId = null;
+    selectedPythSymbol = symbol;
+    markSelectedChip((c) => c.dataset.pyth === symbol);
+    els.presetHint.textContent = `Fetching ${symbol}'s live price from Pyth…`;
+    try {
+      const res = await fetch(`/api/pyth-presets/${encodeURIComponent(symbol)}/preview`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      // selection may have moved on to something else while this was in flight
+      if (selectedPythSymbol !== symbol) return;
+      els.presetHint.textContent =
+        `${symbol} @ $${data.stockUsd.toFixed(2)} (SOL @ $${data.solUsd.toFixed(2)}) - ` +
+        `curve migrates at ${data.migrationMarketCap.toFixed(4)} SOL, anchored to this live price.`;
+    } catch (err) {
+      if (selectedPythSymbol !== symbol) return;
+      els.presetHint.textContent = `Couldn't fetch ${symbol}'s live Pyth price (${err.message}). Pick a different preset.`;
+    }
+  }
+
   els.presetChips.addEventListener("click", (ev) => {
     const chip = ev.target.closest(".token-chip");
-    if (chip) selectPreset(chip.dataset.preset);
+    if (!chip) return;
+    if (chip.dataset.pyth) selectPythSymbol(chip.dataset.pyth);
+    else selectPreset(chip.dataset.preset);
   });
 
   // ---- launch ----
@@ -107,7 +152,7 @@
       els.error.hidden = false;
       return;
     }
-    if (!selectedPresetId) {
+    if (!selectedPresetId && !selectedPythSymbol) {
       els.error.textContent = "No curve preset available - check /api/dbc-presets.";
       els.error.hidden = false;
       return;
@@ -144,7 +189,7 @@
       const res = await fetch("/api/launch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, symbol, imageDataUrl, presetId: selectedPresetId, firstBuySolUi }),
+        body: JSON.stringify({ name, symbol, imageDataUrl, presetId: selectedPresetId, pythSymbol: selectedPythSymbol, firstBuySolUi }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -191,12 +236,15 @@
     }
 
     const preset = allPresets.find((p) => p.id === token.presetId);
+    const presetLabel = token.pythSymbol
+      ? `🔴 Live: ${token.pythSymbol} (Pyth-anchored)`
+      : (preset ? preset.label.split(" - ")[0] : token.presetId ?? "—");
     tr.innerHTML = `
       <td>
         <span class="pool-name">${token.name ?? "?"}${token.symbol ? ` (${token.symbol})` : ""}</span>
         <span class="pool-addr">${token.mint ? shortAddr(token.mint) : "—"}${token.mint ? `<button type="button" class="copy-btn" data-copy="${token.mint}" title="Copy mint">⧉</button>` : ""}</span>
       </td>
-      <td class="mono">${preset ? preset.label.split(" - ")[0] : token.presetId ?? "—"}</td>
+      <td class="mono">${presetLabel}</td>
       <td class="mono">${formatShortTime(token.createdAt)}</td>
       <td>${statusHtml}</td>
       <td>${poolCell}</td>

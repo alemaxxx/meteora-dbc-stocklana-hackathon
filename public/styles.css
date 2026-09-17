@@ -93,6 +93,8 @@ html, body {
   padding: 8px 10px; cursor: pointer; text-align: left;
 }
 .token-chip.is-selected { color: var(--bg); background: var(--accent-mine); border-color: var(--accent-mine); }
+.token-chip--pyth { border-color: #e0245e; }
+.token-chip--pyth.is-selected { background: #e0245e; border-color: #e0245e; color: #fff; }
 
 .btn-secondary, .btn-primary, .btn-danger {
   font-family: var(--font-display); font-weight: 600; font-size: 13px; border-radius: 8px;

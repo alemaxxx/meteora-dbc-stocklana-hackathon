@@ -2,6 +2,7 @@ import fs from "fs";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import {
   buildCurve,
+  buildCurveWithMarketCap,
   TokenType,
   TokenDecimal,
   TokenAuthorityOption,
@@ -15,6 +16,7 @@ import { connection, dbcClient } from "./connection.js";
 import { requireWalletKeypair } from "./config.js";
 import { getMintInfo } from "./tokenInfo.js";
 import { sendAndConfirmWithRetry } from "./txHelpers.js";
+import { computePythAnchoredMarketCaps, PYTH_STOCK_SYMBOLS, isPythStockSymbolSupported } from "./pythPricing.js";
 
 // DBC (Dynamic Bonding Curve) "config" step - see PLANO-DBC-MIGRACAO.md for
 // the full design. A "config" is a SEPARATE account from the pool: it
@@ -102,32 +104,27 @@ export function findDbcCurvePreset(id) {
 }
 
 /**
- * Builds the ConfigParameters (curve + fees + migration) from a preset +
- * the chosen quote - uses buildCurve, which does all the sqrtPrice/
- * liquidity math for us (equivalent to the preparePoolCreationParams that
- * poolCreator.js already uses for DAMM v2, just on the DBC side).
+ * Everything a DBC config needs that ISN'T about the curve's shape itself
+ * (token/fee/migration/liquidity/vesting/activation) - identical for both
+ * the fixed SOL presets (buildCurve) and the Pyth-anchored ones
+ * (buildCurveWithMarketCap), factored out so the two curve modes below
+ * can't drift apart on anything except the numbers that actually define
+ * the curve.
  */
-async function buildConfigParameters(preset, quoteMint) {
-  const quoteInfo = await getMintInfo(connection, quoteMint);
-
-  return buildCurve({
+function sharedCurveConfig(quoteInfo, { startingFeeBps, endingFeeBps, schedulerDurationSeconds, totalTokenSupply = 1_000_000_000 }) {
+  return {
     token: {
       tokenType: TokenType.SPLToken, // new token, minted by DBC itself - no need for the Token-2022 that StonkFun/pump.fun sometimes require
       tokenBaseDecimal: TokenDecimal.SIX,
       tokenQuoteDecimal: quoteInfo.decimals, // needs to match the quote's REAL decimals (SPYx = 8, SOL = 9, USDC/USDT = 6)
       tokenAuthorityOption: TokenAuthorityOption.Immutable, // no mint/update authority left with us after launch - same spirit as "direct" (mintNewToken already revokes authority, see tokenMinter.js)
-      totalTokenSupply: preset.totalTokenSupply,
+      totalTokenSupply,
       leftover: 0, // nothing withheld on purpose - all supply that doesn't migrate stays with whoever bought on the curve
     },
     fee: {
       baseFeeParams: {
         baseFeeMode: BaseFeeMode.FeeSchedulerLinear,
-        feeSchedulerParam: {
-          startingFeeBps: preset.startingFeeBps,
-          endingFeeBps: preset.endingFeeBps,
-          numberOfPeriod: preset.schedulerDurationSeconds,
-          totalDuration: preset.schedulerDurationSeconds,
-        },
+        feeSchedulerParam: { startingFeeBps, endingFeeBps, numberOfPeriod: schedulerDurationSeconds, totalDuration: schedulerDurationSeconds },
       },
       dynamicFeeEnabled: true,
       collectFeeMode: CollectFeeMode.QuoteToken, // fee always in the quote (SOL/SPYx/...), never in the new token - more predictable to withdraw later (see dbcMigration.js)
@@ -162,8 +159,48 @@ async function buildConfigParameters(preset, quoteMint) {
       cliffDurationFromMigrationTime: 0,
     },
     activationType: ActivationType.Timestamp, // same convention already used in poolCreator.js (activationType: 1)
+  };
+}
+
+/**
+ * Builds the ConfigParameters (curve + fees + migration) from a preset +
+ * the chosen quote - uses buildCurve, which does all the sqrtPrice/
+ * liquidity math for us (equivalent to the preparePoolCreationParams that
+ * poolCreator.js already uses for DAMM v2, just on the DBC side).
+ */
+async function buildConfigParameters(preset, quoteMint) {
+  const quoteInfo = await getMintInfo(connection, quoteMint);
+
+  return buildCurve({
+    ...sharedCurveConfig(quoteInfo, preset),
     percentageSupplyOnMigration: preset.percentageSupplyOnMigration,
     migrationQuoteThreshold: preset.migrationQuoteThreshold,
+  });
+}
+
+// Same fee schedule as the validated "low-fee" preset (see
+// DBC_CURVE_PRESETS above) - reused as-is for Pyth-anchored launches
+// rather than inventing a new number, since it's the one already proven
+// live against GMGN's "high tax" heuristic.
+const PYTH_ANCHORED_FEE_SCHEDULE = { startingFeeBps: 300, endingFeeBps: 50, schedulerDurationSeconds: 7200 };
+
+/**
+ * Builds ConfigParameters anchored to a real stock's live Pyth price
+ * instead of a fixed SOL number - uses buildCurveWithMarketCap (a
+ * DIFFERENT SDK curve-builder than the one above: it takes
+ * initialMarketCap/migrationMarketCap directly, no
+ * percentageSupplyOnMigration/migrationQuoteThreshold). See
+ * pythPricing.js for where the market caps come from and the real
+ * limitations found (trial API key, only TSLA/QQQ entitled).
+ */
+async function buildPythAnchoredConfigParameters(symbol, quoteMint) {
+  const quoteInfo = await getMintInfo(connection, quoteMint);
+  const { initialMarketCap, migrationMarketCap } = await computePythAnchoredMarketCaps(symbol);
+
+  return buildCurveWithMarketCap({
+    ...sharedCurveConfig(quoteInfo, PYTH_ANCHORED_FEE_SCHEDULE),
+    initialMarketCap,
+    migrationMarketCap,
   });
 }
 
@@ -199,6 +236,48 @@ export async function getOrCreateDbcConfig(presetId, quoteMint) {
 
   list.push({
     presetId,
+    quoteMint,
+    configAddress: configKeypair.publicKey.toBase58(),
+    createdAt: new Date().toISOString(),
+    signature,
+  });
+  saveConfigs(list);
+
+  return configKeypair.publicKey;
+}
+
+/**
+ * Creates a FRESH DBC config anchored to a stock's live Pyth price - on
+ * purpose NEVER cached/reused like getOrCreateDbcConfig above: the whole
+ * point is that the market caps reflect the price at the moment of
+ * launch, so every Pyth-anchored launch gets its own config with a
+ * current read, not a stale one from whenever the symbol was first used.
+ * The extra config-account rent this costs is negligible.
+ */
+export async function createPythAnchoredDbcConfig(symbol, quoteMint) {
+  if (!isPythStockSymbolSupported(symbol)) {
+    throw new Error(`Unsupported Pyth-anchored symbol: "${symbol}". Supported: ${Object.keys(PYTH_STOCK_SYMBOLS).join(", ")}.`);
+  }
+
+  const wallet = requireWalletKeypair();
+  const configKeypair = Keypair.generate();
+  const configParams = await buildPythAnchoredConfigParameters(symbol, quoteMint);
+
+  const tx = await dbcClient.partner.createConfig({
+    ...configParams,
+    config: configKeypair.publicKey,
+    feeClaimer: wallet.publicKey,
+    leftoverReceiver: wallet.publicKey,
+    quoteMint: new PublicKey(quoteMint),
+    payer: wallet.publicKey,
+  });
+
+  const signature = await sendAndConfirmWithRetry(connection, tx, [wallet, configKeypair]);
+  console.log(`[dbcConfig] new Pyth-anchored config created for "${symbol}" / quote ${quoteMint}: ${configKeypair.publicKey.toBase58()} (tx ${signature})`);
+
+  const list = loadConfigs();
+  list.push({
+    presetId: `pyth:${symbol}`,
     quoteMint,
     configAddress: configKeypair.publicKey.toBase58(),
     createdAt: new Date().toISOString(),

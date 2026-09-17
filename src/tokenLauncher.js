@@ -4,6 +4,7 @@ import { SOL_MINT } from "./config.js";
 import { uploadTokenAssets } from "./arweaveUpload.js";
 import { launchOnDbc } from "./dbcLaunchpad.js";
 import { findDbcCurvePreset } from "./dbcConfig.js";
+import { computePythAnchoredMarketCaps, isPythStockSymbolSupported } from "./pythPricing.js";
 
 // Launch orchestration - a lean version of the Lançar Token Bot's
 // tokenLauncher.js (github.com/alemaxxx/lauch-token), cutting everything
@@ -84,25 +85,43 @@ function extractErrorMessage(err) {
  * typed on the form - doesn't depend on any detected candidate/wave (this
  * project doesn't have the original Lançar Token Bot's hype detector).
  */
-export async function launchToken({ name, symbol, imageDataUrl, presetId, firstBuySolUi }) {
+export async function launchToken({ name, symbol, imageDataUrl, presetId, pythSymbol, firstBuySolUi }) {
   if (!name || !symbol) {
     throw new Error("Provide the token's name and symbol.");
   }
   if (!imageDataUrl) {
     throw new Error("Choose an image for the token.");
   }
-  const preset = findDbcCurvePreset(presetId);
-  if (!preset) {
-    throw new Error(`Unknown curve preset: "${presetId}".`);
+
+  // Two mutually exclusive curve modes: a fixed SOL preset (the two
+  // production ones), or a Pyth-anchored one (see pythPricing.js) -
+  // pythSymbol takes priority when both would somehow be set.
+  let migrationThresholdForValidation;
+  if (pythSymbol) {
+    if (!isPythStockSymbolSupported(pythSymbol)) {
+      throw new Error(`Unsupported Pyth-anchored symbol: "${pythSymbol}".`);
+    }
+    // Fetched again (fresh) inside launchOnDbc/createPythAnchoredDbcConfig
+    // when the config actually gets created - this read is only used to
+    // validate the requested first buy below, a live price move between
+    // the two reads is expected and fine.
+    ({ migrationMarketCap: migrationThresholdForValidation } = await computePythAnchoredMarketCaps(pythSymbol));
+  } else {
+    const preset = findDbcCurvePreset(presetId);
+    if (!preset) {
+      throw new Error(`Unknown curve preset: "${presetId}".`);
+    }
+    migrationThresholdForValidation = preset.migrationQuoteThreshold;
   }
+
   // Found live on 2026-09-17 (see PLANO-DBC-MIGRACAO.md section 5.5): the
   // curve has no liquidity to sell past its own migration threshold, so a
   // first buy at or above it fails on-chain with AnchorError
   // InsufficientLiquidity (0x1791) - caught here with a clear message
   // instead of letting the raw simulation error reach the user.
-  if (Number(firstBuySolUi) > 0 && Number(firstBuySolUi) >= preset.migrationQuoteThreshold) {
+  if (Number(firstBuySolUi) > 0 && Number(firstBuySolUi) >= migrationThresholdForValidation) {
     throw new Error(
-      `Initial buy (${firstBuySolUi} SOL) can't reach or exceed this preset's migration threshold (${preset.migrationQuoteThreshold} SOL) - the curve has no liquidity to sell beyond that point. Use a smaller amount.`
+      `Initial buy (${firstBuySolUi} SOL) can't reach or exceed this curve's migration threshold (${migrationThresholdForValidation} SOL) - the curve has no liquidity to sell beyond that point. Use a smaller amount.`
     );
   }
 
@@ -112,7 +131,8 @@ export async function launchToken({ name, symbol, imageDataUrl, presetId, firstB
     symbol,
     quoteMint: SOL_MINT,
     quoteSymbol: "SOL",
-    presetId,
+    presetId: pythSymbol ? null : presetId,
+    pythSymbol: pythSymbol ?? null,
     firstBuySolUi: Number(firstBuySolUi) || 0,
     dbcMigrated: false,
     createdAt: new Date().toISOString(),
@@ -132,7 +152,9 @@ export async function launchToken({ name, symbol, imageDataUrl, presetId, firstB
       contentType,
       name,
       symbol,
-      description: `${name} - launched via Meteora DBC.`,
+      description: pythSymbol
+        ? `${name} - launched via Meteora DBC, curve anchored to ${pythSymbol}'s live Pyth price.`
+        : `${name} - launched via Meteora DBC.`,
     });
     record.imageUrl = imageUrl;
 
@@ -143,6 +165,7 @@ export async function launchToken({ name, symbol, imageDataUrl, presetId, firstB
       symbol,
       metadataUri: metadataUrl,
       presetId,
+      pythSymbol,
       quoteMint: SOL_MINT,
       firstBuySolUi,
     });
