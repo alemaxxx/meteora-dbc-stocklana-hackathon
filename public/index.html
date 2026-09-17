@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meteora DBC Launchpad</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%9A%80%3C/text%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div>
+        <span class="eyebrow">stocklana · trilha meteora</span>
+        <h1>Meteora DBC Launchpad</h1>
+        <p class="tagline">
+          Lança um token direto numa bonding curve nativa da Meteora (Dynamic Bonding Curve) - a curva
+          já é a liquidez, e migra sozinha pra uma pool DAMM v2 quando atingir o limiar configurado.
+          Recorte focado do <a href="https://github.com/alemaxxx/lauch-token" target="_blank" rel="noopener">Lançar Token Bot</a>.
+        </p>
+      </div>
+      <div class="stat" id="wallet-balance-stat" title="Saldo de SOL da wallet configurada (WALLET_PRIVATE_KEY)">
+        <span class="stat__label">saldo da wallet</span>
+        <span class="stat__value" id="wallet-balance-value">—</span>
+      </div>
+    </header>
+
+    <section class="panel">
+      <h2 class="panel__title">Lançar novo token</h2>
+      <p class="panel__subtitle">Nunca automático - só envia a transação quando você confirma abaixo.</p>
+
+      <div class="image-row">
+        <img id="launch-image" class="image-preview" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 84 84'%3E%3Crect width='84' height='84' fill='%23171c25'/%3E%3Cpath d='M28 52l10-12 8 9 6-7 12 14H28z' fill='%232a3140'/%3E%3Ccircle cx='32' cy='30' r='5' fill='%232a3140'/%3E%3C/svg%3E" alt="Pré-visualização da imagem do token" />
+        <div class="image-actions">
+          <button type="button" class="btn-secondary" id="launch-image-upload-btn">Escolher imagem</button>
+          <input type="file" id="launch-image-file" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
+          <span class="field__hint">ou cole com Ctrl+V</span>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="launch-name">Nome do token</label>
+          <input id="launch-name" type="text" placeholder="ex: Narrative Wave" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label for="launch-symbol">Símbolo</label>
+          <input id="launch-symbol" type="text" placeholder="ex: NARWAVE" maxlength="10" autocomplete="off" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Preset da curva</label>
+        <div class="token-b-chips" id="preset-chips"></div>
+        <p class="field__hint" id="preset-hint"></p>
+      </div>
+
+      <div class="field">
+        <label for="launch-firstbuy">SOL pra compra inicial (opcional)</label>
+        <input id="launch-firstbuy" type="text" placeholder="deixe vazio pra não comprar" autocomplete="off" />
+        <p class="field__hint">
+          Opcional - a curva já é liquidez sozinha mesmo sem essa compra; qualquer um já consegue
+          negociar assim que o token existir.
+        </p>
+      </div>
+
+      <p class="warning-box">
+        BETA - código validado contra o SDK oficial da Meteora, mas cada lançamento envia uma
+        transação real na blockchain (mint + curva). Confira nome, símbolo e valores com atenção
+        antes de confirmar.
+      </p>
+      <p class="error-box" id="launch-error" hidden></p>
+      <p class="success-box" id="launch-success" hidden></p>
+
+      <div style="margin-top: 16px;">
+        <button type="button" class="btn-primary" id="launch-confirm-btn">Lançar Token</button>
+      </div>
+    </section>
+
+    <h2 class="subsection-title">Tokens lançados</h2>
+    <div class="table-wrap">
+      <table class="grid">
+        <thead>
+          <tr>
+            <th>Token</th>
+            <th>Preset</th>
+            <th>Quando</th>
+            <th>Status</th>
+            <th>Pool</th>
+          </tr>
+        </thead>
+        <tbody id="launched-rows"></tbody>
+      </table>
+      <p class="empty-state" id="launched-empty">Nenhum token lançado ainda.</p>
+    </div>
+  </div>
+
+  <script src="uiKit.js"></script>
+  <script src="main.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

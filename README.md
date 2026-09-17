@@ -1,0 +1,65 @@
+# Meteora DBC Launchpad
+
+Submissão pra trilha **Meteora** do hackathon **Stocklana** (`hackathons.solana.com/hackathons/stocklana`,
+prazo 25/09/2026, 16h ET).
+
+Extraído do [Lançar Token Bot](https://github.com/alemaxxx/lauch-token) - um bot maior que detecta
+ondas de hype no StonkFun/pump.fun e lança tokens em cima delas. Esse projeto aqui é só a parte
+**Meteora DBC** (Dynamic Bonding Curve), sem a detecção de onda: um formulário direto - nome,
+símbolo, imagem, preset de curva - e o resto é automático até a curva estar pronta pra migrar.
+
+## O que faz
+
+1. **Lança um token na curva** (`createPoolWithFirstBuy` do SDK oficial) - minta o token e inicializa
+   a bonding curve numa transação só. A curva já É a liquidez: qualquer um compra/vende assim que
+   o token existe, sem precisar de nenhuma compra inicial do criador (opcional).
+2. **Acompanha o progresso** da curva - quanto falta pra atingir o limiar de migração do preset
+   escolhido.
+3. **Migra pra uma pool DAMM v2 de verdade**, sob clique explícito, quando a curva completar - nunca
+   automático.
+4. **Saca as taxas de negociação** acumuladas (creator + partner - a wallet configurada é as duas
+   partes).
+
+Nada disso acontece sozinho: cada ação (lançar, migrar, sacar) exige um clique + confirmação
+explícita. Sem gerador de volume, sem detecção de onda, sem sugestão de nome/imagem por IA - só o
+fluxo DBC.
+
+## Achado real (16/09/2026)
+
+O primeiro lançamento de teste (mint `5SxgYUr6yx1QLFajnY2JHChaekCmqWJo3Di34kBBS8Ei`, feito no
+Lançar Token Bot original antes desse recorte existir) usou uma taxa inicial de 10% - e ~2 minutos
+depois o GMGN (terminal de trade) marcou o token com "Security check — High tax rate now (9.83%)":
+taxa alta o suficiente pra disparar a heurística anti-honeypot que scanners de terminal usam,
+espantando comprador de verdade mesmo o token sendo legítimo. Por isso os dois presets em
+`src/dbcConfig.js`:
+
+| Preset | Taxa (inicial → final, 2h) | Observação |
+|---|---|---|
+| `baixa-taxa-2h-linear` (padrão) | 3% → 0,5% | abaixo do limiar que costuma disparar alerta |
+| `default-2h-linear` | 10% → 1% | disparou "high tax" no GMGN - mantido pra comparação |
+
+## Rodando localmente
+
+```bash
+npm install
+cp .env.example .env   # preencha RPC_URL e WALLET_PRIVATE_KEY
+npm start
+```
+
+Abre em `http://localhost:3000`.
+
+## Variáveis de ambiente
+
+Só duas obrigatórias - ver `.env.example`. Nenhum valor real deve ir pro Git. Em produção
+(Railway), cole os valores direto no painel de variáveis do serviço.
+
+## O que ainda falta validar
+
+- **Limiar de migração dos presets** (`migrationMarketCap` em `src/dbcConfig.js`) é uma estimativa
+  de mercado, não confirmada contra a calculadora oficial da Meteora - comece com valores pequenos.
+- **Quote travado em SOL** - os presets definem o limiar em unidades do próprio quote token, sem
+  converter preço; suportar outro quote (USDC, um xStock) exigiria calibrar os presets pro valor de
+  mercado de cada um antes.
+
+Ver `PLANO-DBC-MIGRACAO.md` pro histórico completo de decisões e achados (herdado do projeto
+original, com o que é específico deste recorte adicionado no topo).

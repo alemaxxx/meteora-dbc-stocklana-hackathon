@@ -1,0 +1,21 @@
+{
+  "name": "meteora-dbc-launchpad",
+  "version": "1.0.0",
+  "description": "Lançador de token via Meteora DBC (Dynamic Bonding Curve) - submissão pra trilha Meteora do hackathon Stocklana. Extraído do Lançar Token Bot (github.com/alemaxxx/lauch-token), focado só no fluxo DBC: formulário manual (sem detecção de onda) -> lança na curva -> acompanha progresso -> migra pra DAMM v2 quando pronto.",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "@irys/upload": "^0.0.15",
+    "@irys/upload-solana": "^0.1.8",
+    "@meteora-ag/dynamic-bonding-curve-sdk": "^1.5.12",
+    "@solana/spl-token": "^0.4.9",
+    "@solana/web3.js": "^1.95.3",
+    "bn.js": "^5.2.1",
+    "bs58": "^6.0.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.22.2"
+  }
+}
