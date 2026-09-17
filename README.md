@@ -1,7 +1,16 @@
 # Meteora DBC Launchpad
 
-Submissão pra trilha **Meteora** do hackathon **Stocklana** (`hackathons.solana.com/hackathons/stocklana`,
-prazo 25/09/2026, 16h ET).
+Submissão pra trilha **Meteora** de dois hackathons, com o mesmo código:
+
+1. **Stocklana** (`hackathons.solana.com/hackathons/stocklana`) - track "Best Use of Meteora DBC",
+   $5.000 USDC, prazo **25/09/2026, 16h ET** (estendido).
+2. **Crypto World's Fair** (Colosseum, via Superteam Earn - `superteam.fun/earn/listing/meteora-dbc`) -
+   track "Best use of Meteora DBC", $20.000 USDC entre 5 vencedores ($10k/$5k/$3k/$1,5k/$500), prazo
+   **~12/10/2026** (vencedores anunciados até 31/10/2026).
+
+A própria página do Stocklana aponta o Crypto World's Fair como continuação natural ("Taking it
+further after Stocklana? Colosseum's World's Fair is the next stop") - não são concorrentes entre si,
+dá pra submeter no Stocklana primeiro e evoluir o mesmo projeto pro Crypto World's Fair depois.
 
 Extraído do [Lançar Token Bot](https://github.com/alemaxxx/lauch-token) - um bot maior que detecta
 ondas de hype no StonkFun/pump.fun e lança tokens em cima delas. Esse projeto aqui é só a parte
@@ -53,10 +62,22 @@ Abre em `http://localhost:3000`.
 Só duas obrigatórias - ver `.env.example`. Nenhum valor real deve ir pro Git. Em produção
 (Railway), cole os valores direto no painel de variáveis do serviço.
 
+## O que já foi testado em mainnet de verdade (17/09/2026)
+
+Com uma wallet de teste isolada (não a de produção): `createConfig`, `createPoolWithFirstBuy` (com
+o preset de produção já corrigido) e leitura de progresso da curva - todos confirmados on-chain.
+Migração e saque de taxa ainda não foram executados de verdade (só revisão de código/IDL) - ver
+seção 5.5 do `PLANO-DBC-MIGRACAO.md` pro relato completo, incluindo dois achados reais de
+protocolo: (1) a compra inicial não pode exceder o limiar de migração do preset (a curva não tem
+liquidez além desse ponto), e (2) o progresso da curva não é linear com o SOL depositado - limiares
+de teste muito baixos (bem abaixo de 1 SOL) não são um bom proxy barato pros presets de produção.
+
 ## O que ainda falta validar
 
-- **Limiar de migração dos presets** (`migrationMarketCap` em `src/dbcConfig.js`) é uma estimativa
-  de mercado, não confirmada contra a calculadora oficial da Meteora - comece com valores pequenos.
+- **Migração e saque de taxa** (`migrateToDammV2`/`claimCreatorTradingFee`/`claimPartnerTradingFee`)
+  - nunca executados com transação real ainda (ver acima).
+- **Validação client/server-side de que a compra inicial não excede o limiar de migração** - hoje
+  só falha com o erro cru da simulação on-chain.
 - **Quote travado em SOL** - os presets definem o limiar em unidades do próprio quote token, sem
   converter preço; suportar outro quote (USDC, um xStock) exigiria calibrar os presets pro valor de
   mercado de cada um antes.

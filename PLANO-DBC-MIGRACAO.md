@@ -165,15 +165,12 @@ verdade. `buildCurve`/`createConfig`/`createPoolWithFirstBuy`/
 
 ## 5. Riscos / o que falta antes de usar com dinheiro de verdade
 
-1. **Números da curva não validados** (`DBC_CURVE_PRESETS` em
-   `dbcConfig.js`): `initialMarketCap`/`migrationMarketCap` estão com
-   valores placeholder ("85 SOL" é o número clássico de graduação do
-   pump.fun, não um valor confirmado pro DBC). Validar contra a calculadora
-   oficial da Meteora (`app.meteora.ag/dbc`, bloqueada nesse ambiente) antes
-   de lançar algo de verdade. `buildCurve` só valida a FORMA dos parâmetros
-   (não lançou erro com os números atuais) - não valida se fazem sentido
-   economicamente. **Por isso o botão de lançar via DBC pede confirmação
-   extra e a UI mostra aviso de BETA em todo lugar relevante.**
+1. ~~**Números da curva não validados**~~ **RESOLVIDO em 17/09/2026 (ver seção 5.4)** -
+   `migrationQuoteThreshold` (antigo `migrationMarketCap`) estava em 85 SOL (placeholder do
+   pump.fun); confirmado contra a config oficial da Meteora (`meteora-invent/dbc_config.jsonc`) e
+   corrigido pra 10 SOL nos dois presets. `totalTokenSupply`/`percentageSupplyOnMigration` já
+   batiam certo. A UI continua com aviso de BETA + confirmação extra, por cautela geral (não só
+   por esse item específico).
 2. **`migrationFeeOption` fixo** (`FixedBps100` = 1%) em dois arquivos
    (`dbcConfig.js` e `dbcMigration.js`) - se um dia isso virar configurável
    por preset, os dois precisam ler do mesmo lugar (hoje é uma constante
@@ -266,14 +263,149 @@ fee models, quote assets, graduation mechanics, price discovery": esse
 ciclo (lançar → observar comportamento real → ajustar o modelo de taxa)
 é exatamente isso, só que baseado em dado real, não teoria.
 
+## 5.3. Quinta rodada (17/09/2026) - segunda competição confirmada: Crypto World's Fair
+
+Post da Meteora no Discord (17/09/2026, 09:56) anunciou uma segunda track "Best Use of Meteora
+DBC", desta vez dentro do **Crypto World's Fair** da Colosseum, com sidetrack via Superteam Earn
+(`superteam.fun/earn/listing/meteora-dbc`). Confirmado no navegador (X/Twitter + página do
+Superteam Earn + página do Stocklana) que são **dois eventos diferentes**, não uma substituição:
+
+| | Stocklana | Crypto World's Fair |
+|---|---|---|
+| Organizador | Solana Foundation | Colosseum (via Superteam Earn) |
+| Prêmio da track Meteora DBC | $5.000 USDC (prêmio único) | $20.000 USDC (5 vencedores: $10k/$5k/$3k/$1,5k/$500) |
+| Prazo de submissão | 25/09/2026, 16h ET | ~12/10/2026 (25 dias a partir de 17/09) |
+| Anúncio dos vencedores | até 02/10/2026 | até 31/10/2026 |
+
+A própria página do Stocklana orienta: **"Taking it further after Stocklana? Colosseum's World's
+Fair is the next stop"** (`colosseum.com/worldsfair`) - confirma que não é concorrência, é
+continuação. Estratégia: submeter no Stocklana no prazo (25/09) e continuar evoluindo o mesmo
+código pro Crypto World's Fair antes de 12/10.
+
+Critérios de julgamento do Crypto World's Fair (mais detalhados que o do Stocklana): profundidade
+da integração com o stack Meteora, execução técnica, originalidade (se o caso de uso sobrevive ao
+"meme-stock meta" atual), potencial de impacto, e tração/volume real em mainnet - reforça o
+princípio já seguido aqui de "working code on mainnet beats slides". Ideias sugeridas pelo próprio
+edital que valem considerar: curvas não-lineares (flat/exponential/long curve), fluxos combinando
+DBC + DAMM v2 + DLMM, e um "marketplace" de presets de config DBC.
+
+## 5.4. Sexta rodada (17/09/2026) - limiar de migração corrigido (85 SOL → 10 SOL)
+
+Com `docs.meteora.ag`/`github.com/MeteoraAg` acessíveis (bloqueados nas rodadas anteriores),
+validei de verdade o `migrationMarketCap` que a seção 5, item 1, já marcava como risco. Comparei
+`dbcConfig.js` contra a config de referência oficial da própria Meteora
+(`github.com/MeteoraAg/meteora-invent`, `studio/config/dbc_config.jsonc`, `buildCurveMode: 0` -
+o mesmo modo que este projeto usa) e contra a tabela de "migration keepers" em
+`docs.meteora.ag/developer-guides/dbc`:
+
+- `totalTokenSupply` (1B) e `percentageSupplyOnMigration` (20%) bateram certinho com o exemplo
+  oficial - nenhuma mudança necessária.
+- `migrationMarketCap: 85` (SOL) estava **8,5x acima** do valor de referência oficial
+  (`migrationQuoteThreshold: 10`) - confirma a suspeita antiga: "85 SOL" era mesmo só o número
+  clássico de graduação do pump.fun, nunca validado pro DBC. A tabela de migration keepers também
+  lista **10 SOL** como o limiar canônico pra pools cotadas em SOL. Corrigido pra 10 nos dois
+  presets.
+- Achado secundário: o campo `initialMarketCap` que existia nos dois presets nunca era lido em
+  lugar nenhum - `buildCurve` (o modo usado aqui) só aceita `percentageSupplyOnMigration` e
+  `migrationQuoteThreshold`; `initialMarketCap`/`migrationMarketCap` só existem nos modos
+  `buildCurveWithMarketCap`/`buildCurveWithTwoSegments`/etc, que este projeto não usa. Campo morto,
+  removido. O campo `migrationMarketCap` também foi renomeado pra `migrationQuoteThreshold` (nome
+  real do parâmetro do SDK) - o nome antigo era enganoso, sugeria conversão de market cap que nunca
+  existiu: o valor sempre foi um total bruto de SOL acumulado na curva.
+
+**Efeito prático**: com o limiar em 10 SOL (era 85), a curva completa com bem menos volume real de
+compra - mais fácil de alcançar migração de verdade dentro da janela do hackathon, e mais alinhado
+com o critério de julgamento "Traction/Volume... prefer projects who have gone live on mainnet"
+citado na seção 5.3.
+
+**O que isso NÃO muda**: `startingFeeBps`/`endingFeeBps` dos dois presets (3%→0,5% e 10%→1%)
+continuam os mesmos - esses vieram de um achado ao vivo real (GMGN/NARWAVE), não de suposição, e
+não têm equivalente na config de referência genérica da Meteora pra comparar.
+
+## 5.5. Sétima rodada (17/09/2026) - teste end-to-end real em mainnet (parcial)
+
+Devnet estava genuinamente bloqueado no momento do teste: a RPC pública (`api.devnet.solana.com`)
+recusou airdrop (limite diário do IP esgotado), o próprio `faucet.solana.com` pede explicitamente
+que agentes de IA não usem o formulário web (indica CLI/PoW-faucet/validador local como
+alternativa), e não havia Solana CLI nem Rust/cargo instalados nessa máquina pra rodar um
+validador local com o programa DBC clonado. Diante disso, o usuário mandou 0,5 SOL de verdade pra
+uma wallet de teste nova (`7cGPyHxdgMZiocrMKHXkJSaPi965Cb6wgnGmUJh4Cn1s`, gerada só pra isso,
+chave só neste ambiente local em `.env`, nunca no Git) e o teste foi feito em **mainnet real, com
+valor pequeno**, seguindo a mesma lógica de cautela já usada pro NARWAVE. Rodado localmente
+(`npm start` contra `http://localhost:3000`, nunca contra o Railway de produção), acompanhado ao
+vivo pelo usuário no navegador.
+
+Antes disso, corrigido um gap de setup: o repo não tinha `.gitignore` nem `.env.example` (o README
+já citava os dois) - adicionados ambos.
+
+**O que foi confirmado on-chain de verdade:**
+
+1. **`createConfig`** - config novo criado pro preset `baixa-taxa-2h-linear` (o de produção, já com
+   `migrationQuoteThreshold: 10` corrigido): `BoFmVZ24TCZQ6SZV3vYNDD6yzssUwT7GbUzJsXrKTPXw`.
+2. **`createPoolWithFirstBuy`** - lançamento real "DBCTEST", compra inicial 0,05 SOL: mint
+   `4JJvXvCRuAuEhjg2okBqkTkBvQHGvx9Dw2RGCgSEwoxJ`, pool
+   `Ey79FuyaJDjoAeAMM36uXKR345WPwAaJi4Hk75pfdXvg`. Confirma que o preset de produção corrigido
+   funciona de ponta a ponta em mainnet.
+3. **`getPoolQuoteTokenCurveProgress`** (leitura) - reportou 0,677% pro DBCTEST (compra de 0,05 SOL
+   contra limiar de 10 SOL) - bate com o esperado.
+4. **Achado real de protocolo**: tentei uma segunda compra inicial de 0,2 SOL contra um preset de
+   teste (limiar 0,15 SOL) - a transação falhou na SIMULAÇÃO (sem gastar SOL) com
+   `AnchorError ... InsufficientLiquidity (0x1791)`: **a compra inicial não pode ser maior que o
+   `migrationQuoteThreshold` do preset** - a curva não tem liquidez pra vender além do ponto de
+   migração. Isso vale pros presets de produção também (comprar >10 SOL de uma vez no lançamento
+   falharia do mesmo jeito) - **o app não valida isso hoje**, fica como item novo pra seção
+   "Riscos" abaixo.
+5. Corrigido esse valor (0,1 SOL, abaixo do limiar de teste) e o segundo lançamento ("DBCE2E") foi
+   confirmado: mint `3AvRwvoEtv5P4ZGD8siEC8tcmAHramJnmjC25w6ii5pY`, pool
+   `yqkZqUEmsekYPuHfJWGZ6URWvpLZE5imhBoyRkHBFNU`.
+6. **Achado real de calibração**: o progresso da curva NÃO é linear com o SOL depositado, do jeito
+   que a documentação sugere ("Quote Reserve ≥ Migration Quote Threshold"). Com um limiar
+   configurado de 0,15 SOL: 0,1 SOL comprado → 21,2% de progresso (não ~67% como uma razão linear
+   simples sugeriria); +0,03 SOL → 29,4%; +0,1 SOL → 44,2%. Ou seja, o limiar EFETIVO real ficou
+   bem mais alto que o valor configurado - provavelmente algum overhead/mínimo da curva que pesa
+   proporcionalmente mais em limiares pequenos. **Implicação prática**: limiares de teste muito
+   baixos (bem abaixo de 1 SOL) não são um bom proxy barato pra validar o comportamento dos
+   presets de produção (10 SOL) - a essa escala maior, o overhead deve ser proporcionalmente
+   desprezível, mas isso não foi confirmado de verdade (exigiria testar com os 10 SOL reais).
+7. Validado incrementalmente via uma rota/botão TEMPORÁRIOS (`POST /api/test/buy-more`, usando
+   `dbcClient.pool.swap` direto) - removidos do código depois do teste, não fazem parte da versão
+   final.
+
+**O que ficou sem executar de verdade** (parado por decisão consciente, não por bug): migração
+(`migrateToDammV2`) e saque de taxa (`claimCreatorTradingFee`/`claimPartnerTradingFee`). Completar
+a migração do pool de teste exigiria bem mais SOL do que o limiar configurado sugeria (item 6
+acima) - próximo do saldo inteiro da wallet de teste, sem margem de segurança. Decisão: parar
+antes de esgotar o saldo, já que essas duas funções são instruções bem mais simples (sem a
+matemática de curva que era o real ponto de dúvida) e já tinham sido conferidas com cuidado contra
+o IDL real do SDK numa rodada anterior (seção 3 - inclusive um bug de estrutura de dados
+`pool.poolState.isMigrated` foi achado e corrigido só de ler o código, antes de qualquer teste ao
+vivo). Migração de produção, de qualquer forma, é pra acontecer quando compradores reais cruzarem
+o limiar de 10 SOL - não é papel do time bancar isso.
+
+**Estado final da wallet de teste**: ~0,25 SOL restantes, mais os tokens DBCTEST/DBCE2E comprados
+nas duas curvas (que podem ser revendidos de volta pra SOL via swap reverso a qualquer momento,
+já que a curva funciona como AMM normal nos dois sentidos) - nada foi "perdido", só está alocado
+como liquidez/posição nas duas curvas de teste.
+
+**Achado secundário de UI**: `window.prompt()` não renderiza dentro do navegador embutido usado
+pra esse teste (Claude Browser pane) - mesma classe de problema que já tinha motivado
+`uiKit.js`/`confirmDialog` a substituir `window.alert`/`window.confirm` antes. Não chegou a virar
+código permanente (o recurso que usava foi removido no cleanup), mas fica registrado caso um
+recurso futuro precise de input de texto num modal - usar o padrão de `confirmDialog` em
+`public/uiKit.js`, não `window.prompt`.
+
 ## 6. Próximos passos sugeridos
 
-1. Validar os presets de curva contra a calculadora oficial da Meteora (fora
-   deste ambiente, onde `docs.meteora.ag`/`app.meteora.ag` não estão
-   bloqueados) e ajustar `DBC_CURVE_PRESETS`.
-2. Testar o fluxo inteiro numa devnet com uma wallet de teste: lançar,
-   comprar/vender na curva, migrar, sacar taxa - end-to-end, valores
-   pequenos.
-3. Depois de validado em devnet: primeiro lançamento real em mainnet com
-   valor pequeno, acompanhando de perto (mesmo processo usado pra validar
-   StonkFun/pump.fun originalmente).
+1. ~~Validar os presets de curva contra a calculadora oficial da Meteora~~ **FEITO em 17/09/2026**
+   (ver seção 5.4) - `docs.meteora.ag`/`github.com/MeteoraAg` já acessíveis, `DBC_CURVE_PRESETS`
+   ajustado.
+2. ~~Testar o fluxo inteiro (lançar, comprar/vender, migrar, sacar taxa) com valores pequenos~~
+   **PARCIALMENTE FEITO em 17/09/2026** (ver seção 5.5) - lançar + comprar + ler progresso
+   confirmados em mainnet real; migrar + sacar taxa ainda não executados de verdade (só revisão de
+   código/IDL).
+3. Adicionar validação de que a compra inicial (`firstBuySolUi`) não excede o
+   `migrationQuoteThreshold` do preset escolhido, com mensagem de erro clara - hoje só falha com o
+   erro cru da simulação (achado na seção 5.5, item 4).
+4. Quando um pool de produção real se aproximar do limiar de migração (compradores reais, não o
+   time): acompanhar de perto o primeiro `migrateToDammV2`/`claimCreatorTradingFee` de verdade -
+   ainda é a parte do ciclo nunca executada on-chain.

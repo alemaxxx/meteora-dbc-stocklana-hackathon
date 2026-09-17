@@ -48,16 +48,22 @@ function saveConfigs(list) {
   fs.writeFileSync(DBC_CONFIGS_FILE, JSON.stringify(list, null, 2));
 }
 
-// ATENÇÃO - números "chutados", NÃO confirmados: docs.meteora.ag ficou
-// bloqueado pelo proxy de rede desse ambiente (15/09/2026), então não deu
-// pra validar initialMarketCap/migrationMarketCap contra a calculadora
-// oficial da Meteora antes de escrever isso (diferente dos presets de
-// INFINITE_PRESETS/SCHEDULER_PRESETS em presets.js, que foram copiados
-// direto da interface oficial). Os nomes de função/parâmetro abaixo são
-// reais (extraídos do .d.ts do pacote instalado, v1.5.12), só os VALORES
-// de mercado precisam ser conferidos ao vivo (testnet, com o
-// simulador do app.meteora.ag/dbc) antes de usar com dinheiro de verdade -
-// ver seção "Riscos" do PLANO-DBC-MIGRACAO.md.
+// CONFIRMADO (17/09/2026) contra a config de referência oficial da própria
+// Meteora (github.com/MeteoraAg/meteora-invent, studio/config/dbc_config.jsonc,
+// buildCurveMode 0 - o mesmo modo usado abaixo) e contra a tabela de
+// "migration keepers" em docs.meteora.ag/developer-guides/dbc: o exemplo
+// oficial usa migrationQuoteThreshold: 10 (SOL) - o limiar canônico pra
+// pools cotadas em SOL. O valor anterior aqui (85 SOL) era o número
+// clássico de graduação do pump.fun, carregado por suposição e NUNCA
+// confirmado pro DBC - com o docs.meteora.ag acessível agora (estava
+// bloqueado pelo proxy de rede em 15/09/2026), confirmou-se que 85 estava
+// 8,5x acima do valor de referência, o que exigiria acumular bem mais SOL
+// de compras reais pra migrar. Ajustado pra 10 (mesmo valor do exemplo
+// oficial). O campo "initialMarketCap" que existia antes foi removido -
+// nunca era lido em lugar nenhum: só existe pros modos
+// buildCurveWithMarketCap/... (não usados aqui, ver buildConfigParameters
+// abaixo, que usa buildCurve puro com percentageSupplyOnMigration +
+// migrationQuoteThreshold).
 // ACHADO AO VIVO (16/09/2026, primeiro lançamento DBC de verdade -
 // NARWAVE, mint 5SxgYUr6yx1QLFajnY2JHChaekCmqWJo3Di34kBBS8Ei): taxa inicial
 // de 10% (preset "default-2h-linear") disparou o alerta automático de
@@ -72,22 +78,20 @@ function saveConfigs(list) {
 export const DBC_CURVE_PRESETS = [
   {
     id: "baixa-taxa-2h-linear",
-    label: "Baixa taxa (3%→0,5% em 2h, migra em ~85 SOL de market cap) - recomendado após achado do NARWAVE",
+    label: "Baixa taxa (3%→0,5% em 2h, migra em 10 SOL acumulados na curva) - recomendado após achado do NARWAVE",
     totalTokenSupply: 1_000_000_000,
     percentageSupplyOnMigration: 20,
-    initialMarketCap: 5,
-    migrationMarketCap: 85,
+    migrationQuoteThreshold: 10,
     startingFeeBps: 300, // 3% - abaixo do que costuma disparar "high tax" em scanner de terminal (GMGN etc)
     endingFeeBps: 50, // 0,5%
     schedulerDurationSeconds: 7200,
   },
   {
     id: "default-2h-linear",
-    label: "Padrão (taxa 10%→1% em 2h, migra em ~85 SOL de market cap) - dispara alerta de \"high tax\" no GMGN (achado no NARWAVE), use com cautela",
+    label: "Padrão (taxa 10%→1% em 2h, migra em 10 SOL acumulados na curva) - dispara alerta de \"high tax\" no GMGN (achado no NARWAVE), use com cautela",
     totalTokenSupply: 1_000_000_000,
     percentageSupplyOnMigration: 20, // 20% do supply migra pra pool DAMM v2, resto fica com quem comprou na curva
-    initialMarketCap: 5, // em unidades do quote token (SOL) - CHUTE, conferir
-    migrationMarketCap: 85, // idem - "85 SOL" é o número clássico do pump.fun, não confirmado pro DBC
+    migrationQuoteThreshold: 10, // SOL acumulado na curva pra liberar migração - confirmado contra dbc_config.jsonc oficial
     startingFeeBps: 1000, // 10%
     endingFeeBps: 100, // 1%
     schedulerDurationSeconds: 7200, // 2h, mesmo padrão já usado em presets.js (SCHEDULER_DURATION_SECONDS)
@@ -160,7 +164,7 @@ async function buildConfigParameters(preset, quoteMint) {
     },
     activationType: ActivationType.Timestamp, // mesma convenção já usada em poolCreator.js (activationType: 1)
     percentageSupplyOnMigration: preset.percentageSupplyOnMigration,
-    migrationQuoteThreshold: preset.migrationMarketCap, // ver ATENÇÃO acima - não confirmado
+    migrationQuoteThreshold: preset.migrationQuoteThreshold,
   });
 }
 
