@@ -680,6 +680,35 @@ rather than treating it as done.
 Next: register and submit the same project to Crypto World's Fair (Superteam Earn, deadline
 ~2026-10-12, see section 5.3) - not done yet, separate account/login needed there too.
 
+## 5.13. Crypto World's Fair submission - started, paused on a real prerequisite (2026-09-17)
+
+Created a Superteam Earn profile (`superteam.fun` → "Continue as Talent", skills: Blockchain,
+Frontend, Backend; socials: GitHub/X/Discord linked) and opened the submission form for the
+"Best use of Meteora's Dynamic Bonding Curve (DBC)" listing. **Found a real prerequisite before
+finishing**: several required fields on that form - `Link to Colosseum project`, `Link to your
+project's Colosseum profile`, and a yes/no question about a "Frontier Hackathon on Colosseum" -
+strongly imply the project needs to be registered and submitted on **Colosseum's own platform**
+(`colosseum.com`, the "Crypto World's Fair" hackathon itself, submissions due 2026-10-12, $840,000
+total prize pool across the whole hackathon) BEFORE this Superteam Earn side-track form can be
+completed honestly. The form also requires a pitch/Loom video link, which doesn't exist yet.
+("Frontier Hackathon" itself doesn't appear anywhere on `colosseum.com`'s Crypto World's Fair page
+- likely either a stock question Superteam Earn asks for every Colosseum-linked side track, or the
+name of an earlier Colosseum season; answer "No" when resuming unless it turns out to mean this
+same event.)
+
+**Decision**: closed the submission modal without submitting rather than filling required fields
+with placeholders (the form itself warns that non-compliant submissions can restrict future ones).
+Nothing was lost - the Superteam Earn profile is created and ready; the form itself wasn't
+submitted.
+
+**To resume this later**:
+1. Register on `colosseum.com` for Crypto World's Fair (separate account/login, not yet done).
+2. Submit this same project there - get the "Colosseum project" link and "Colosseum profile" link
+   the Superteam Earn form asks for.
+3. Record a short pitch/demo video (Loom or similar) - also a required field.
+4. Come back to `superteam.fun/earn/listing/meteora-dbc`, click Submit Now, and fill the form with
+   all of the above plus the same project name/description/GitHub/website used for Stocklana.
+
 ## 6. Suggested next steps
 
 1. ~~Validate the curve presets against Meteora's official calculator~~
