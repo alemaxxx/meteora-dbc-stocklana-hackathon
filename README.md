@@ -53,14 +53,18 @@ fixed a real bug the live test surfaced (the pool lookup right after confirming 
 retry loop, not just the mint's) and dropped the unused platform-wallet balance display per
 feedback.
 
-## Pyth-anchored curve preset (2026-09-17)
+## Five curve presets, plus one live-priced mode (2026-09-17)
 
-On top of the two fixed-SOL presets, there's a third mode: pick a real stock (**TSLA** or **QQQ** -
-see why only these two in `PLANO-DBC-MIGRACAO.md` section 5.6) and the curve's market-cap targets
-get computed from that stock's **live Pyth price**, not a guessed SOL number - the whole point of a
-tokenized-stock launchpad is price discovery grounded in something real. Needs a free `PYTH_API_KEY`
-(see `.env.example`) - without it, the app still works fine with just the two fixed presets.
-Confirmed live on mainnet: see section 5.6 of `PLANO-DBC-MIGRACAO.md`.
+- `baixa-taxa-2h-linear` (default) and `default-2h-linear` - the two original presets (see the real
+  finding below).
+- `flat-1pct`, `exponencial-2h`, `long-24h-linear` - three more fee shapes added straight from the
+  hackathon briefs' own "novel curve or fee configurations" ask ("Flat Curve, Exponential Curve, or
+  Long Curve" is close to verbatim from the Crypto World's Fair brief) - see section 5.9 of
+  `PLANO-DBC-MIGRACAO.md`.
+- **Pyth-anchored mode** - pick a real stock (**TSLA** or **QQQ** - see why only these two in
+  section 5.6) and the curve's market-cap targets get computed from that stock's **live Pyth
+  price**, not a guessed SOL number. Needs a free `PYTH_API_KEY` (see `.env.example`) - without it,
+  the app still works fine with just the five fixed presets. Confirmed live on mainnet: section 5.6.
 
 ## Real finding (2026-09-16)
 

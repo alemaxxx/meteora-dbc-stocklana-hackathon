@@ -97,6 +97,48 @@ export const DBC_CURVE_PRESETS = [
     endingFeeBps: 100, // 1%
     schedulerDurationSeconds: 7200, // 2h, same default already used in presets.js (SCHEDULER_DURATION_SECONDS)
   },
+  // Three more fee/curve shapes added 2026-09-17 in direct response to the
+  // Crypto World's Fair brief's own "ideas we'd love to see": "novel curve
+  // or fee configurations" naming "Flat Curve, Exponential Curve, or Long
+  // Curve" as examples - all three below map onto one of those verbatim,
+  // reusing the same 10 SOL threshold and 1B/20% supply split already
+  // validated for the two presets above (only the fee shape changes).
+  {
+    id: "flat-1pct",
+    label: "Flat curve (1% fee, never decays, migrates at 10 SOL accumulated in the curve) - simplest possible fee shape, no scheduler to reason about",
+    totalTokenSupply: 1_000_000_000,
+    percentageSupplyOnMigration: 20,
+    migrationQuoteThreshold: 10,
+    startingFeeBps: 100, // 1%, flat
+    endingFeeBps: 100,
+    // A real "no decay" fee needs numberOfPeriod/totalDuration at exactly
+    // ZERO, not just startingFeeBps === endingFeeBps over some nonzero
+    // duration - confirmed live against the installed SDK (v1.5.12):
+    // buildCurve rejects a matching start/end with a nonzero duration
+    // with "numberOfPeriod and totalDuration must both be zero".
+    schedulerDurationSeconds: 0,
+  },
+  {
+    id: "exponencial-2h",
+    label: "Exponential curve (5%→0.5% over 2h, decays fast then slow, migrates at 10 SOL accumulated in the curve) - front-loads the fee harder than the linear presets",
+    totalTokenSupply: 1_000_000_000,
+    percentageSupplyOnMigration: 20,
+    migrationQuoteThreshold: 10,
+    startingFeeBps: 500, // 5% - still below the ~10% GMGN "high tax" line, with headroom for exponential's faster initial drop
+    endingFeeBps: 50, // 0.5%
+    schedulerDurationSeconds: 7200,
+    baseFeeMode: BaseFeeMode.FeeSchedulerExponential, // SAME FeeSchedulerParams shape as linear - only this enum value differs (confirmed against the installed SDK's .d.ts)
+  },
+  {
+    id: "long-24h-linear",
+    label: "Long curve (3%→0.5% over 24h, migrates at 10 SOL accumulated in the curve) - same fee range as the low-fee preset, stretched over a full day instead of 2h",
+    totalTokenSupply: 1_000_000_000,
+    percentageSupplyOnMigration: 20,
+    migrationQuoteThreshold: 10,
+    startingFeeBps: 300,
+    endingFeeBps: 50,
+    schedulerDurationSeconds: 86400, // 24h instead of 7200 (2h) - the only thing that makes this "long"
+  },
 ];
 
 export function findDbcCurvePreset(id) {
@@ -111,7 +153,7 @@ export function findDbcCurvePreset(id) {
  * can't drift apart on anything except the numbers that actually define
  * the curve.
  */
-function sharedCurveConfig(quoteInfo, { startingFeeBps, endingFeeBps, schedulerDurationSeconds, totalTokenSupply = 1_000_000_000 }) {
+function sharedCurveConfig(quoteInfo, { startingFeeBps, endingFeeBps, schedulerDurationSeconds, baseFeeMode = BaseFeeMode.FeeSchedulerLinear, totalTokenSupply = 1_000_000_000 }) {
   return {
     token: {
       tokenType: TokenType.SPLToken, // new token, minted by DBC itself - no need for the Token-2022 that StonkFun/pump.fun sometimes require
@@ -123,7 +165,7 @@ function sharedCurveConfig(quoteInfo, { startingFeeBps, endingFeeBps, schedulerD
     },
     fee: {
       baseFeeParams: {
-        baseFeeMode: BaseFeeMode.FeeSchedulerLinear,
+        baseFeeMode,
         feeSchedulerParam: { startingFeeBps, endingFeeBps, numberOfPeriod: schedulerDurationSeconds, totalDuration: schedulerDurationSeconds },
       },
       dynamicFeeEnabled: true,

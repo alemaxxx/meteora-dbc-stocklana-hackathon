@@ -578,6 +578,31 @@ installed (this environment's browser still has no extension support). Results a
      multi-wallet picking itself still needs a real test with 2+ extensions installed (not done -
      only one real wallet, Phantom, has been tested against so far).
 
+## 5.9. Eleventh round (2026-09-17) - three new curve presets, scoped research continues
+
+The user asked to keep digging for ideas, explicitly scoped to what the two hackathons actually
+ask for - not generic launchpad features. Both briefs name **"novel curve or fee configurations"**
+as an idea, and the Crypto World's Fair one spells out examples almost verbatim: *"Flat Curve,
+Exponential Curve, or Long Curve."* Added all three as new presets, reusing the already-validated
+10 SOL threshold and 1B supply/20% split - only the fee shape changes:
+
+- `flat-1pct` - 1% fee, never decays.
+- `exponencial-2h` - 5%→0.5% over 2h using `BaseFeeMode.FeeSchedulerExponential` (confirmed against
+  the installed SDK's `.d.ts`: it takes the exact same `FeeSchedulerParams` shape as linear - only
+  the enum value differs, no new fields needed).
+- `long-24h-linear` - same 3%→0.5% range as the low-fee preset, stretched over 24h instead of 2h.
+
+**Real finding while validating** (same "run it for real before trusting it" discipline as
+elsewhere in this doc): tried the flat preset first with `startingFeeBps === endingFeeBps` over the
+same nonzero 7200s duration used by the other presets - `buildCurve` rejected it with `"numberOfPeriod
+and totalDuration must both be zero"`. A truly flat fee needs the scheduler duration set to exactly
+zero, not just matching start/end values over some duration. Fixed and re-validated with real
+`buildCurve` calls (no RPC needed) - all three new presets now build clean 2-segment curves, and a
+regression check confirmed the original two still do too.
+
+Not yet tested with a real transaction (only `buildCurve`'s own validation, offline) - same caution
+tier as the two original presets before their first live launch.
+
 ## 6. Suggested next steps
 
 1. ~~Validate the curve presets against Meteora's official calculator~~
