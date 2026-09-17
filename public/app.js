@@ -13,13 +13,39 @@
     confirmBtn: document.getElementById("launch-confirm-btn"),
     launchedRows: document.getElementById("launched-rows"),
     launchedEmpty: document.getElementById("launched-empty"),
+    walletConnectBtn: document.getElementById("wallet-connect-btn"),
   };
 
   let allPresets = [];
   let selectedPresetId = null;
   let selectedPythSymbol = null;
   let imageDataUrl = null;
+  let connectedWallet = null; // base58 pubkey of the browser wallet paying for launches - see wallet-connect() below
   const LARGE_SOL_THRESHOLD = 0.5; // same "fat finger" guard from the original Lançar Token Bot
+
+  // ---- wallet connect (Phantom-compatible `window.solana` provider) -
+  // launching pays from and is owned by THIS wallet, never the platform
+  // one (see PLANO-DBC-MIGRACAO.md section 5.7 for why this exists: the
+  // app used to have no auth at all, so anyone with the URL could spend
+  // the platform wallet's real SOL just by clicking Launch). ----
+  async function connectWallet() {
+    const provider = window.solana;
+    if (!provider) {
+      toast("No Solana wallet found - install Phantom (or another wallet exposing window.solana) and reload.", { type: "error", duration: 8000 });
+      return;
+    }
+    try {
+      const resp = await provider.connect();
+      connectedWallet = resp.publicKey.toBase58();
+      els.walletConnectBtn.textContent = shortAddr(connectedWallet);
+      els.walletConnectBtn.classList.add("is-connected");
+    } catch (err) {
+      toast(`Wallet connection failed: ${err.message}`, { type: "error" });
+    }
+  }
+  els.walletConnectBtn.addEventListener("click", () => {
+    if (!connectedWallet) connectWallet();
+  });
 
   function meteoraLink(poolAddress) {
     return `https://app.meteora.ag/dammv2/${poolAddress}`;
@@ -157,6 +183,11 @@
       els.error.hidden = false;
       return;
     }
+    if (!connectedWallet) {
+      els.error.textContent = "Connect a wallet first - it pays for and owns the new token.";
+      els.error.hidden = false;
+      return;
+    }
 
     let firstBuySolUi;
     const rawFirstBuy = els.firstBuy.value.trim();
@@ -177,26 +208,56 @@
     }
 
     const confirmed = await confirmDialog(
-      "This sends a real on-chain transaction (mint + Meteora DBC curve). Double-check name, symbol and values.",
+      `This sends a real on-chain transaction (mint + Meteora DBC curve), paid for by your connected wallet (${shortAddr(connectedWallet)}). Double-check name, symbol and values.`,
       { title: "Launch token?", confirmText: "Launch", danger: true }
     );
     if (!confirmed) return;
 
     els.confirmBtn.disabled = true;
-    els.confirmBtn.textContent = "Launching… (mint + DBC curve)";
+    els.confirmBtn.textContent = "Preparing…";
 
     try {
-      const res = await fetch("/api/launch", {
+      // Phase 1: server builds the transaction (paid for by connectedWallet)
+      // and partially signs it with the new mint's own required keypair -
+      // no SOL moves yet.
+      const prepRes = await fetch("/api/launch/prepare", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, symbol, imageDataUrl, presetId: selectedPresetId, pythSymbol: selectedPythSymbol, firstBuySolUi }),
+        body: JSON.stringify({
+          name,
+          symbol,
+          imageDataUrl,
+          presetId: selectedPresetId,
+          pythSymbol: selectedPythSymbol,
+          firstBuySolUi,
+          creatorPublicKey: connectedWallet,
+        }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      const prepData = await prepRes.json();
+      if (!prepRes.ok) throw new Error(prepData.error ?? `HTTP ${prepRes.status}`);
+
+      // Phase 2: the connected wallet completes the signature - this is
+      // the step the user actually approves in their wallet's popup.
+      els.confirmBtn.textContent = "Approve in your wallet…";
+      const txBytes = Uint8Array.from(atob(prepData.transactionBase64), (c) => c.charCodeAt(0));
+      const tx = solanaWeb3.Transaction.from(txBytes);
+      const signedTx = await window.solana.signTransaction(tx);
+      const signedBytes = signedTx.serialize();
+      let binary = "";
+      for (const b of signedBytes) binary += String.fromCharCode(b);
+      const signedTransactionBase64 = btoa(binary);
+
+      els.confirmBtn.textContent = "Confirming on-chain…";
+      const subRes = await fetch("/api/launch/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: prepData.id, signedTransactionBase64 }),
+      });
+      const data = await subRes.json();
+      if (!subRes.ok) throw new Error(data.error ?? `HTTP ${subRes.status}`);
 
       els.success.innerHTML = `Token launched! Mint: <span class="mono">${data.mint}</span> · Pool: <a href="${solscanLink(data.poolAddress)}" target="_blank" rel="noopener" class="sf-meteora-link">DBC curve ↗</a>`;
       els.success.hidden = false;
-      window.refreshWalletBalance?.();
       refreshLaunchedTokens();
     } catch (err) {
       els.error.textContent = err.message;

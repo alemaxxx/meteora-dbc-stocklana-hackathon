@@ -496,6 +496,55 @@ Server logs confirm the config was built from the live-fetched TSLA/SOL prices, 
 the whole flow reuses the existing preset-chip UI, just with a second, dynamically-loaded chip
 group and a live-fetched hint line instead of a static label.
 
+## 5.7. Ninth round (2026-09-17) - wallet-connect for launching (security fix + real product gap)
+
+The user asked a sharp question testing the demo: "this is a launchpad, shouldn't there be a wallet
+connect option, since someone else will test it?" That surfaced two separate problems at once:
+
+1. **A real security hole, not just a UX gap.** The app has zero authentication. Every action
+   (launch/migrate/claim) was signed and PAID FOR by the server's own `WALLET_PRIVATE_KEY`. Since
+   the Railway URL is public, **anyone who found it could click "Launch Token" and spend the
+   platform wallet's real SOL** - no login, no confirmation tied to their own funds, nothing. Of
+   the three actions, only launch was actually exploitable for real loss: migrate/claim already
+   send their proceeds to addresses fixed inside the on-chain config (the platform wallet either
+   way), so a stranger triggering them only wastes a trivial amount of their OWN gas to benefit the
+   platform - not something worth re-architecting for right now.
+2. **A real launchpad should let the person testing it pay from and own their own launch**, not
+   just watch the operator's wallet do it. Judges reading the code should be able to picture (or
+   try) launching with their own wallet, matching how pump.fun/any real launchpad works.
+
+**Fix, scoped to launch only** (chosen over doing this for migrate/claim too, given the time left
+before the hackathon deadline and that those two are legitimately creator-only actions - see point
+1): split the single server-signed `/api/launch` into two phases, so the CONNECTING browser wallet
+pays for and owns the new token instead of the platform wallet.
+
+- `POST /api/launch/prepare` - uploads the image/metadata to Arweave (still platform-funded, a
+  small shared infra cost, not part of this fix) and resolves/creates the DBC config (still
+  platform/"partner"-owned and cached exactly as before - only pool ownership moves, not the
+  curve's config), then builds the `createPoolWithFirstBuy` transaction with `payer`/`poolCreator`/
+  `firstBuyParam.buyer` all set to the connecting wallet's pubkey. The server partially signs ONLY
+  with the new mint's own required keypair (Solana requires a new account to co-sign its own
+  creation) and returns the transaction, unsigned by the creator, as base64.
+- The browser (`public/app.js`) loads `@solana/web3.js` from a CDN (`unpkg.com`, confirmed reachable
+  before adding it - no bundler in this project, so a UMD build is the only option), deserializes
+  the transaction, and asks the connected wallet (`window.solana.signTransaction`, Phantom-compatible
+  provider - scoped to Phantom for v1, extensible later) to complete the missing signature.
+- `POST /api/launch/submit` - takes the now fully-signed transaction back, sends and confirms it,
+  resolves the pool address exactly like the old single-phase flow did, and updates the "pending"
+  record `prepare` already saved into "success"/"error".
+- This maps cleanly onto DBC's own partner/creator role split (see dbcConfig.js) - the config
+  ("partner") stays with the platform, only the pool ("creator") and its payment move to whoever
+  connects. `tokenLauncher.js`'s initial-buy-vs-threshold validation was preserved unchanged, just
+  moved into the new `prepareTokenLaunch` phase.
+
+**Verified without a live signature** (this environment's browser has no wallet extension - Phantom
+etc. need a real browser to test the actual signing step): called `/api/launch/prepare` for real
+against the running server and decoded the returned transaction with `@solana/web3.js` - confirmed
+`feePayer` is the connecting wallet (not the platform one), and of the two required signatures, the
+mint's is already present while the creator's is correctly still empty, waiting on the browser
+wallet. **Still needs a real end-to-end test with an actual wallet extension** (Phantom, in a real
+browser) - flagged as the next thing to verify live, not yet done as of this round.
+
 ## 6. Suggested next steps
 
 1. ~~Validate the curve presets against Meteora's official calculator~~
@@ -517,3 +566,6 @@ group and a live-fetched hint line instead of a static label.
    buyers, not the team): closely watch the first real
    `migrateToDammV2`/`claimCreatorTradingFee` - still the part of the
    cycle never executed on-chain.
+5. Test the new wallet-connect launch flow (section 5.7) end to end with a real wallet extension
+   (Phantom) in an actual browser - this environment's sandboxed browser has none installed, so
+   only the unsigned-transaction structure was verified, not a full sign+submit.

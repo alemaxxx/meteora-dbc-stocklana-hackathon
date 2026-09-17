@@ -2,7 +2,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import { SOL_MINT } from "./config.js";
 import { uploadTokenAssets } from "./arweaveUpload.js";
-import { launchOnDbc } from "./dbcLaunchpad.js";
+import { prepareLaunchTransaction, submitLaunchTransaction } from "./dbcLaunchpad.js";
 import { findDbcCurvePreset } from "./dbcConfig.js";
 import { computePythAnchoredMarketCaps, isPythStockSymbolSupported } from "./pythPricing.js";
 
@@ -81,16 +81,23 @@ function extractErrorMessage(err) {
 }
 
 /**
- * Launches a new token directly on the Meteora DBC curve. Everything
- * typed on the form - doesn't depend on any detected candidate/wave (this
- * project doesn't have the original Lançar Token Bot's hype detector).
+ * Phase 1 of a wallet-connected launch: validates the form, uploads the
+ * image/metadata to Arweave (still platform-funded - see arweaveUpload.js
+ * comment), and builds the (not-yet-fully-signed) DBC transaction paid
+ * for by `creatorPublicKey`. Saves a "pending" record right away so the
+ * launch shows up in the table even before the browser wallet signs.
+ * Returns the transaction for the browser wallet to sign, plus the
+ * record id needed to complete it via confirmTokenLaunch below.
  */
-export async function launchToken({ name, symbol, imageDataUrl, presetId, pythSymbol, firstBuySolUi }) {
+export async function prepareTokenLaunch({ name, symbol, imageDataUrl, presetId, pythSymbol, firstBuySolUi, creatorPublicKey }) {
   if (!name || !symbol) {
     throw new Error("Provide the token's name and symbol.");
   }
   if (!imageDataUrl) {
     throw new Error("Choose an image for the token.");
+  }
+  if (!creatorPublicKey) {
+    throw new Error("Connect a wallet before launching - it pays for and owns the new token.");
   }
 
   // Two mutually exclusive curve modes: a fixed SOL preset (the two
@@ -101,10 +108,10 @@ export async function launchToken({ name, symbol, imageDataUrl, presetId, pythSy
     if (!isPythStockSymbolSupported(pythSymbol)) {
       throw new Error(`Unsupported Pyth-anchored symbol: "${pythSymbol}".`);
     }
-    // Fetched again (fresh) inside launchOnDbc/createPythAnchoredDbcConfig
-    // when the config actually gets created - this read is only used to
-    // validate the requested first buy below, a live price move between
-    // the two reads is expected and fine.
+    // Fetched again (fresh) inside prepareLaunchTransaction/
+    // createPythAnchoredDbcConfig when the config actually gets created -
+    // this read is only used to validate the requested first buy below, a
+    // live price move between the two reads is expected and fine.
     ({ migrationMarketCap: migrationThresholdForValidation } = await computePythAnchoredMarketCaps(pythSymbol));
   } else {
     const preset = findDbcCurvePreset(presetId);
@@ -134,6 +141,7 @@ export async function launchToken({ name, symbol, imageDataUrl, presetId, pythSy
     presetId: pythSymbol ? null : presetId,
     pythSymbol: pythSymbol ?? null,
     firstBuySolUi: Number(firstBuySolUi) || 0,
+    creatorPublicKey,
     dbcMigrated: false,
     createdAt: new Date().toISOString(),
     status: "pending",
@@ -143,50 +151,64 @@ export async function launchToken({ name, symbol, imageDataUrl, presetId, pythSy
     error: null,
   };
 
-  try {
-    // 1) Upload the image + metadata JSON to Arweave - the "uri" that
-    // goes on-chain in createPool (see dbcLaunchpad.js).
-    const { filePath, contentType } = saveImageToTempFile(imageDataUrl, record.id);
-    const { imageUrl, metadataUrl } = await uploadTokenAssets({
-      imagePath: filePath,
-      contentType,
-      name,
-      symbol,
-      description: pythSymbol
-        ? `${name} - launched via Meteora DBC, curve anchored to ${pythSymbol}'s live Pyth price.`
-        : `${name} - launched via Meteora DBC.`,
-    });
-    record.imageUrl = imageUrl;
+  // 1) Upload the image + metadata JSON to Arweave - the "uri" that goes
+  // on-chain in createPool (see dbcLaunchpad.js). Still funded by the
+  // platform wallet, not the connecting one - a deliberate, small,
+  // shared infra cost (see arweaveUpload.js), not part of the
+  // wallet-connect rework.
+  const { filePath, contentType } = saveImageToTempFile(imageDataUrl, record.id);
+  const { imageUrl, metadataUrl } = await uploadTokenAssets({
+    imagePath: filePath,
+    contentType,
+    name,
+    symbol,
+    description: pythSymbol
+      ? `${name} - launched via Meteora DBC, curve anchored to ${pythSymbol}'s live Pyth price.`
+      : `${name} - launched via Meteora DBC.`,
+  });
+  record.imageUrl = imageUrl;
 
-    // 2) Mint the token + initialize the DBC curve in a single
-    // transaction (createPoolWithFirstBuy) - optional initial buy.
-    const launched = await launchOnDbc({
-      name,
-      symbol,
-      metadataUri: metadataUrl,
-      presetId,
-      pythSymbol,
-      quoteMint: SOL_MINT,
-      firstBuySolUi,
-    });
-    record.mint = launched.mint;
-    record.poolAddress = launched.poolAddress; // DBC pool (pre-migration)
-    record.status = "success";
-  } catch (err) {
-    const message = extractErrorMessage(err);
-    console.error(`[tokenLauncher] failed to launch ${symbol}:`, err);
-    record.status = "error";
-    record.error = message;
-    // Same caution as the original bot: if the mint was already created
-    // on-chain before a later step failed, keep the address anyway -
-    // never lose that data just because something afterward went wrong.
-    if (err?.mint && !record.mint) record.mint = err.mint;
-  }
+  const { transactionBase64, mint } = await prepareLaunchTransaction({
+    name,
+    symbol,
+    metadataUri: metadataUrl,
+    presetId,
+    pythSymbol,
+    quoteMint: SOL_MINT,
+    firstBuySolUi,
+    creatorPublicKey,
+  });
+  record.mint = mint;
 
   const list = loadLaunchedTokens();
   list.unshift(record);
   saveLaunchedTokens(list);
 
+  return { id: record.id, transactionBase64, mint };
+}
+
+/**
+ * Phase 2: takes the transaction back once the browser wallet has signed
+ * it, submits it, and updates the "pending" record from
+ * prepareTokenLaunch above into "success" or "error".
+ */
+export async function confirmTokenLaunch({ id, signedTransactionBase64 }) {
+  const list = loadLaunchedTokens();
+  const record = list.find((t) => t.id === id);
+  if (!record) throw new Error(`Pending launch "${id}" not found - did you already confirm it?`);
+
+  try {
+    const result = await submitLaunchTransaction({ signedTransactionBase64, mint: record.mint, symbol: record.symbol });
+    record.poolAddress = result.poolAddress;
+    record.status = "success";
+  } catch (err) {
+    const message = extractErrorMessage(err);
+    console.error(`[tokenLauncher] failed to confirm launch of ${record.symbol}:`, err);
+    record.status = "error";
+    record.error = message;
+  }
+
+  saveLaunchedTokens(list);
   if (record.status === "error") throw new Error(record.error);
   return record;
 }

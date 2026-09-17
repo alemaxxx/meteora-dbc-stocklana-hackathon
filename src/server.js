@@ -5,7 +5,7 @@ import { config, SOL_MINT } from "./config.js";
 import { getWalletTokenBalance } from "./walletBalance.js";
 import { DBC_CURVE_PRESETS } from "./dbcConfig.js";
 import { getDbcCurveProgress, migrateDbcPoolIfReady, claimDbcFees } from "./dbcMigration.js";
-import { launchToken, getLaunchedTokens, markDbcPoolMigrated } from "./tokenLauncher.js";
+import { prepareTokenLaunch, confirmTokenLaunch, getLaunchedTokens, markDbcPoolMigrated } from "./tokenLauncher.js";
 import { PYTH_STOCK_SYMBOLS, computePythAnchoredMarketCaps } from "./pythPricing.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -55,27 +55,47 @@ export function startServer() {
     }
   });
 
-  // ---- Launch ----
-  // Sends a real on-chain transaction (mint + DBC curve) - only called
-  // when the user confirms on the form after reviewing
-  // name/symbol/image/preset.
-  app.post("/api/launch", async (req, res) => {
-    const { name, symbol, imageDataUrl, presetId, pythSymbol, firstBuySolUi } = req.body ?? {};
-    if (!name || !symbol || !imageDataUrl || !(presetId || pythSymbol)) {
-      return res.status(400).json({ error: "Provide name, symbol, imageDataUrl and either presetId or pythSymbol." });
+  // ---- Launch (wallet-connected, two phases - see PLANO-DBC-MIGRACAO.md
+  // section 5.7 for why: the connecting browser wallet pays for and owns
+  // the new token, the platform wallet never signs or spends here) ----
+
+  // Phase 1: builds the transaction (not yet fully signed) and returns it
+  // for the browser wallet to sign. No SOL moves yet.
+  app.post("/api/launch/prepare", async (req, res) => {
+    const { name, symbol, imageDataUrl, presetId, pythSymbol, firstBuySolUi, creatorPublicKey } = req.body ?? {};
+    if (!name || !symbol || !imageDataUrl || !(presetId || pythSymbol) || !creatorPublicKey) {
+      return res.status(400).json({ error: "Provide name, symbol, imageDataUrl, either presetId or pythSymbol, and creatorPublicKey (connect a wallet)." });
     }
     try {
-      const result = await launchToken({
+      const result = await prepareTokenLaunch({
         name,
         symbol,
         imageDataUrl,
         presetId,
         pythSymbol,
         firstBuySolUi: firstBuySolUi !== undefined ? Number(firstBuySolUi) : undefined,
+        creatorPublicKey,
       });
       res.json(result);
     } catch (err) {
-      console.error("Failed to launch token:", err);
+      console.error("Failed to prepare launch:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Phase 2: takes the transaction back once the browser wallet signed
+  // it, sends it, and confirms it - this is the step that actually
+  // spends the connecting wallet's SOL.
+  app.post("/api/launch/submit", async (req, res) => {
+    const { id, signedTransactionBase64 } = req.body ?? {};
+    if (!id || !signedTransactionBase64) {
+      return res.status(400).json({ error: "Provide id and signedTransactionBase64." });
+    }
+    try {
+      const result = await confirmTokenLaunch({ id, signedTransactionBase64 });
+      res.json(result);
+    } catch (err) {
+      console.error("Failed to submit launch:", err);
       res.status(500).json({ error: err.message });
     }
   });

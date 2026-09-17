@@ -1,8 +1,8 @@
 import BN from "bn.js";
-import { Keypair, PublicKey } from "@solana/web3.js";
+import { Keypair, PublicKey, Transaction } from "@solana/web3.js";
 import { connection, dbcClient } from "./connection.js";
-import { requireWalletKeypair, SOL_MINT } from "./config.js";
-import { sendAndConfirmWithRetry, waitForAccountVisible } from "./txHelpers.js";
+import { SOL_MINT } from "./config.js";
+import { waitForAccountVisible } from "./txHelpers.js";
 import { getOrCreateDbcConfig, createPythAnchoredDbcConfig } from "./dbcConfig.js";
 
 // Launch via Meteora DBC (Dynamic Bonding Curve) - see
@@ -20,11 +20,26 @@ import { getOrCreateDbcConfig, createPythAnchoredDbcConfig } from "./dbcConfig.j
 // reaches the threshold configured in the config (see dbcMigration.js) -
 // it's not synchronous with the launch.
 //
+// WALLET-CONNECT REWORK (2026-09-17, see PLANO-DBC-MIGRACAO.md section
+// 5.7): launching used to be entirely server-signed, with the server's
+// own WALLET_PRIVATE_KEY paying for every launch - since the app has no
+// authentication, that meant anyone who found the public URL could spend
+// the operator's real SOL just by clicking "Launch Token". Split into two
+// phases so the CONNECTING WALLET pays and signs its own launch instead:
+// prepareLaunchTransaction (server: builds the tx, partially signs with
+// the new mint's own required keypair, does NOT touch the creator's
+// signature) and submitLaunchTransaction (server: takes the tx back once
+// the browser wallet has completed the signature, sends + confirms it).
+// The DBC "config" (the curve's fee/curve recipe) still belongs to the
+// server/platform wallet as "partner" - only pool ownership ("creator")
+// and payment move to the connecting wallet, which maps cleanly onto
+// DBC's own partner/creator role split (see dbcConfig.js).
+//
 // CONFIRMED LIVE on mainnet (2026-09-16, NARWAVE launch, and again on
-// 2026-09-17 with a corrected preset) - method names/parameters match the
-// installed package's .d.ts (v1.5.12) and createPoolWithFirstBuy has been
-// exercised for real with a signed, confirmed transaction. See section 5
-// (NARWAVE) and 5.5 of PLANO-DBC-MIGRACAO.md for the live test reports.
+// 2026-09-17 with a corrected preset) for the OLD server-signed flow -
+// method names/parameters match the installed package's .d.ts (v1.5.12).
+// See section 5 (NARWAVE) and 5.5 of PLANO-DBC-MIGRACAO.md for those
+// live test reports, and 5.7 for this rework's own live test.
 
 function toRawAmount(uiAmount, decimals) {
   const [whole, frac = ""] = String(uiAmount).split(".");
@@ -34,26 +49,25 @@ function toRawAmount(uiAmount, decimals) {
 }
 
 /**
- * Launches a new token on the DBC curve. `firstBuySolUi` is optional -
- * like pump.fun/StonkFun's `buybackSolUi`, it gives an initial push by
- * buying from the creator right at creation, but unlike them it is NOT
- * required (the curve by itself is already the liquidity - the token
- * becomes buyable by anyone as soon as the pool exists, even without this
- * buy).
- *
- * `quoteMint`: only accepts whatever the config accepts
- * (getOrCreateDbcConfig creates a new config per preset+quote combination
- * the first time it's used).
+ * Builds (but does not fully sign) the createPoolWithFirstBuy transaction
+ * for a new DBC launch, paid for and owned by `creatorPublicKey` (the
+ * connected browser wallet), not the server. The server only
+ * partially-signs with the new mint's own keypair (required because
+ * Solana account creation needs the new account to authorize itself) -
+ * the connecting wallet still needs to add its own signature before this
+ * can be submitted (see submitLaunchTransaction below).
  *
  * `pythSymbol`: when set, ignores `presetId` and anchors the curve to that
  * symbol's live Pyth price instead (see dbcConfig.js/pythPricing.js) -
- * always creates a fresh config, never cached.
+ * always creates a fresh config, never cached. Config creation itself is
+ * still server-signed (the config belongs to the platform, see above).
  *
- * Returns the new token's mint and the DBC pool address ("virtual" pool -
- * pre-migration; see dbcMigration.js for the final DAMM v2 address).
+ * Returns a base64-encoded, partially-signed transaction plus the new
+ * mint's address (needed by the client to know what it's about to
+ * create, and by submitLaunchTransaction afterward).
  */
-export async function launchOnDbc({ name, symbol, metadataUri, presetId, pythSymbol, quoteMint = SOL_MINT, firstBuySolUi }) {
-  const wallet = requireWalletKeypair();
+export async function prepareLaunchTransaction({ name, symbol, metadataUri, presetId, pythSymbol, quoteMint = SOL_MINT, firstBuySolUi, creatorPublicKey }) {
+  const creator = new PublicKey(creatorPublicKey);
   const config = pythSymbol
     ? await createPythAnchoredDbcConfig(pythSymbol, quoteMint)
     : await getOrCreateDbcConfig(presetId, quoteMint);
@@ -65,8 +79,8 @@ export async function launchOnDbc({ name, symbol, metadataUri, presetId, pythSym
     name,
     symbol,
     uri: metadataUri,
-    payer: wallet.publicKey,
-    poolCreator: wallet.publicKey,
+    payer: creator,
+    poolCreator: creator,
     config,
     baseMint: baseMintKeypair.publicKey,
   };
@@ -79,24 +93,45 @@ export async function launchOnDbc({ name, symbol, metadataUri, presetId, pythSym
     createPoolParam,
     firstBuyParam: hasFirstBuy
       ? {
-          buyer: wallet.publicKey,
+          buyer: creator,
           buyAmount: toRawAmount(firstBuySolUi, 9), // quote in SOL in most cases - if this ever accepts a quote != SOL for the initial buy, adjust decimals here
-          minimumAmountOut: new BN(0), // no slippage guard on the first buy (we're the ones buying on the freshly created curve, price is deterministic) - revisit if this ever comes from outside
+          minimumAmountOut: new BN(0), // no slippage guard on the first buy (the creator is buying on the freshly created curve, price is deterministic) - revisit if this ever comes from outside
           referralTokenAccount: null,
         }
       : undefined,
   });
 
-  const signature = await sendAndConfirmWithRetry(connection, tx, hasFirstBuy ? [wallet, baseMintKeypair] : [wallet, baseMintKeypair]);
-  const mint = baseMintKeypair.publicKey.toBase58();
+  const { blockhash } = await connection.getLatestBlockhash("confirmed");
+  tx.recentBlockhash = blockhash;
+  tx.feePayer = creator;
+  tx.partialSign(baseMintKeypair); // only the mint's own signature - the creator's is still missing
+
+  return {
+    transactionBase64: tx.serialize({ requireAllSignatures: false }).toString("base64"),
+    mint: baseMintKeypair.publicKey.toBase58(),
+  };
+}
+
+/**
+ * Takes a transaction built by prepareLaunchTransaction, now fully signed
+ * (mint keypair from the server + creator wallet from the browser),
+ * sends and confirms it, then resolves the DBC pool address the same way
+ * the old single-phase flow did.
+ */
+export async function submitLaunchTransaction({ signedTransactionBase64, mint, symbol }) {
+  const tx = Transaction.from(Buffer.from(signedTransactionBase64, "base64"));
+  const signature = await connection.sendRawTransaction(tx.serialize());
+  await connection.confirmTransaction(signature, "confirmed");
+
+  const mintPubkey = new PublicKey(mint);
 
   // The DBC pool address doesn't come back from createPoolWithFirstBuy
   // (only the Transaction) - derive/confirm it by reading it back via
   // getPoolByBaseMint, with the same RPC-propagation patience used in
   // getMintInfo/waitForAccountVisible (the mint just confirmed, it might
   // not be visible yet on another replica).
-  await waitForAccountVisible(connection, baseMintKeypair.publicKey);
-  const poolAccount = await dbcClient.state.getPoolByBaseMint(baseMintKeypair.publicKey);
+  await waitForAccountVisible(connection, mintPubkey);
+  const poolAccount = await dbcClient.state.getPoolByBaseMint(mintPubkey);
   if (!poolAccount) {
     const err = new Error(`Token ${symbol} created on DBC (mint ${mint}, tx ${signature}) but couldn't find the pool yet - check on-chain.`);
     err.mint = mint;

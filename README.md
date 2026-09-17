@@ -22,9 +22,10 @@ migrate.
 ## What it does
 
 1. **Launches a token on the curve** (official SDK's `createPoolWithFirstBuy`) - mints the token
-   and initializes the bonding curve in a single transaction. The curve already IS the liquidity:
-   anyone can buy/sell as soon as the token exists, with no need for any initial buy from the
-   creator (optional).
+   and initializes the bonding curve in a single transaction, **paid for and owned by your
+   connected wallet** (Phantom - click "Connect Wallet" first), not the platform's. The curve
+   already IS the liquidity: anyone can buy/sell as soon as the token exists, with no need for any
+   initial buy from the creator (optional).
 2. **Tracks the curve's progress** - how far it is from reaching the chosen preset's migration
    threshold.
 3. **Migrates to a real DAMM v2 pool**, on explicit click, once the curve completes - never
@@ -35,6 +36,18 @@ migrate.
 None of this happens on its own: every action (launch, migrate, withdraw) requires a click +
 explicit confirmation. No volume generator, no wave detection, no AI name/image suggestion - just
 the DBC flow.
+
+## Wallet-connect for launching (2026-09-17)
+
+Launching used to be entirely server-signed (the platform's own wallet paid for every launch) -
+since the app has no login, that meant anyone with the URL could spend the operator's real SOL just
+by clicking "Launch Token". Now the connecting browser wallet pays for and owns the new token
+instead (see `PLANO-DBC-MIGRACAO.md` section 5.7): the server builds the transaction and only
+partially signs it (it still has to co-sign the new token's own mint creation), then your wallet
+completes the signature before anything gets sent. Migrating and claiming fees are unchanged -
+those stay creator-only actions on the platform side (see section 5.7 for why that's fine, not a
+leftover gap). Needs a Phantom-compatible wallet (`window.solana`) - **not yet tested with a real
+wallet extension**, only the unsigned-transaction structure was verified.
 
 ## Pyth-anchored curve preset (2026-09-17)
 

@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
+  <script src="https://unpkg.com/@solana/web3.js@1.95.3/lib/index.iife.min.js"></script>
 </head>
 <body>
   <div class="app">
@@ -22,15 +23,21 @@
           the configured threshold. Focused cut of the <a href="https://github.com/alemaxxx/lauch-token" target="_blank" rel="noopener">Lançar Token Bot</a>.
         </p>
       </div>
-      <div class="stat" id="wallet-balance-stat" title="SOL balance of the configured wallet (WALLET_PRIVATE_KEY)">
-        <span class="stat__label">wallet balance</span>
-        <span class="stat__value" id="wallet-balance-value">—</span>
+      <div class="topbar__right">
+        <div class="stat" title="Platform wallet - covers config/metadata costs, never pays for your launch">
+          <span class="stat__label">platform wallet</span>
+          <span class="stat__value" id="wallet-balance-value">—</span>
+        </div>
+        <button type="button" class="btn-secondary" id="wallet-connect-btn">Connect Wallet</button>
       </div>
     </header>
 
     <section class="panel">
       <h2 class="panel__title">Launch new token</h2>
-      <p class="panel__subtitle">Never automatic - only sends the transaction when you confirm below.</p>
+      <p class="panel__subtitle">
+        Never automatic - only sends the transaction when you confirm below. Launching pays from
+        <strong>your connected wallet</strong>, not ours - connect one to launch.
+      </p>
 
       <div class="image-row">
         <img id="launch-image" class="image-preview" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 84 84'%3E%3Crect width='84' height='84' fill='%23171c25'/%3E%3Cpath d='M28 52l10-12 8 9 6-7 12 14H28z' fill='%232a3140'/%3E%3Ccircle cx='32' cy='30' r='5' fill='%232a3140'/%3E%3C/svg%3E" alt="Token image preview" />

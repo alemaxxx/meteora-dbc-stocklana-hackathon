@@ -51,6 +51,8 @@ html, body {
 .stat { display: flex; flex-direction: column; gap: 3px; align-items: flex-end; }
 .stat__label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint); }
 .stat__value { font-size: 14px; font-weight: 600; color: var(--text); font-family: var(--font-mono); }
+.topbar__right { display: flex; align-items: center; gap: 16px; }
+#wallet-connect-btn.is-connected { border-color: var(--accent-mine); color: var(--accent-mine); }
 
 /* ---- copy button (wallet/mint address) ---- */
 .copy-btn {
