@@ -16,15 +16,15 @@ import { requireWalletKeypair } from "./config.js";
 import { getMintInfo } from "./tokenInfo.js";
 import { sendAndConfirmWithRetry } from "./txHelpers.js";
 
-// Etapa "config" do DBC (Dynamic Bonding Curve) - ver PLANO-DBC-MIGRACAO.md
-// pro desenho completo. Um "config" é uma conta SEPARADA do pool: define o
-// formato da curva (taxa, supply, limiar de migração pra DAMM v2, etc) e é
-// FEITO PRA SER REUSADO - a própria Meteora recomenda um config por
-// combinação de (quote token + regras de taxa/curva), não um por token
-// lançado. Criar um novo custa uma transação + rent; reusar não custa nada
-// além da leitura. Por isso esse arquivo cacheia o endereço criado em
-// data/dbc-configs.json, do mesmo jeito que tokenLauncher.js cacheia
-// lançamentos em data/launched-tokens.json.
+// DBC (Dynamic Bonding Curve) "config" step - see PLANO-DBC-MIGRACAO.md for
+// the full design. A "config" is a SEPARATE account from the pool: it
+// defines the curve's shape (fee, supply, DAMM v2 migration threshold,
+// etc) and is MEANT TO BE REUSED - Meteora itself recommends one config
+// per (quote token + fee/curve rules) combination, not one per launched
+// token. Creating a new one costs a transaction + rent; reusing costs
+// nothing beyond a read. That's why this file caches the created address
+// in data/dbc-configs.json, the same way tokenLauncher.js caches launches
+// in data/launched-tokens.json.
 
 const DBC_CONFIGS_FILE = new URL("../data/dbc-configs.json", import.meta.url);
 
@@ -48,53 +48,52 @@ function saveConfigs(list) {
   fs.writeFileSync(DBC_CONFIGS_FILE, JSON.stringify(list, null, 2));
 }
 
-// CONFIRMADO (17/09/2026) contra a config de referência oficial da própria
-// Meteora (github.com/MeteoraAg/meteora-invent, studio/config/dbc_config.jsonc,
-// buildCurveMode 0 - o mesmo modo usado abaixo) e contra a tabela de
-// "migration keepers" em docs.meteora.ag/developer-guides/dbc: o exemplo
-// oficial usa migrationQuoteThreshold: 10 (SOL) - o limiar canônico pra
-// pools cotadas em SOL. O valor anterior aqui (85 SOL) era o número
-// clássico de graduação do pump.fun, carregado por suposição e NUNCA
-// confirmado pro DBC - com o docs.meteora.ag acessível agora (estava
-// bloqueado pelo proxy de rede em 15/09/2026), confirmou-se que 85 estava
-// 8,5x acima do valor de referência, o que exigiria acumular bem mais SOL
-// de compras reais pra migrar. Ajustado pra 10 (mesmo valor do exemplo
-// oficial). O campo "initialMarketCap" que existia antes foi removido -
-// nunca era lido em lugar nenhum: só existe pros modos
-// buildCurveWithMarketCap/... (não usados aqui, ver buildConfigParameters
-// abaixo, que usa buildCurve puro com percentageSupplyOnMigration +
-// migrationQuoteThreshold).
-// ACHADO AO VIVO (16/09/2026, primeiro lançamento DBC de verdade -
-// NARWAVE, mint 5SxgYUr6yx1QLFajnY2JHChaekCmqWJo3Di34kBBS8Ei): taxa inicial
-// de 10% (preset "default-2h-linear") disparou o alerta automático de
-// "high tax" no GMGN (mostrou "Dex 9.83%" ~2min depois do lançamento, e
-// GMGN marcou com bandeira de segurança) - terminal de trade costuma
-// rejeitar/alertar token com taxa alta assim, de propósito (heurística
-// contra honeypot), o que espanta comprador de verdade mesmo o token
-// sendo legítimo. Supply (1B) e o resto da config bateram certinho -
-// só a taxa inicial que era alta demais pra esse efeito colateral.
-// Por isso o preset "baixa-taxa" abaixo, SEM apagar o original (dá pra
-// comparar os dois lançamentos lado a lado).
+// CONFIRMED (2026-09-17) against Meteora's own official reference config
+// (github.com/MeteoraAg/meteora-invent, studio/config/dbc_config.jsonc,
+// buildCurveMode 0 - the same mode used below) and against the "migration
+// keepers" table in docs.meteora.ag/developer-guides/dbc: the official
+// example uses migrationQuoteThreshold: 10 (SOL) - the canonical threshold
+// for SOL-quoted pools. The previous value here (85 SOL) was pump.fun's
+// classic graduation number, carried over by assumption and NEVER
+// confirmed for DBC - with docs.meteora.ag reachable now (it was blocked
+// by this environment's network proxy on 2026-09-15), confirmed that 85
+// was 8.5x above the reference value, which would require accumulating
+// far more real SOL to migrate. Adjusted to 10 (same value as the official
+// example). The "initialMarketCap" field that used to be here was
+// removed - it was never read anywhere: it only exists for the
+// buildCurveWithMarketCap/... modes (not used here, see
+// buildConfigParameters below, which uses plain buildCurve with
+// percentageSupplyOnMigration + migrationQuoteThreshold).
+// LIVE FINDING (2026-09-16, first real DBC launch - NARWAVE, mint
+// 5SxgYUr6yx1QLFajnY2JHChaekCmqWJo3Di34kBBS8Ei): the 10% starting fee
+// (preset "default-2h-linear") triggered GMGN's automatic "high tax"
+// alert (showed "Dex 9.83%" ~2min after launch, flagged by GMGN's
+// security check) - trading terminals tend to flag/reject tokens with a
+// fee that high on purpose (anti-honeypot heuristic), which scares off
+// real buyers even though the token is legitimate. Supply (1B) and the
+// rest of the config matched exactly - only the starting fee was too high
+// for this side effect. Hence the "low-fee" preset below, without
+// deleting the original (lets you compare both launches side by side).
 export const DBC_CURVE_PRESETS = [
   {
     id: "baixa-taxa-2h-linear",
-    label: "Baixa taxa (3%→0,5% em 2h, migra em 10 SOL acumulados na curva) - recomendado após achado do NARWAVE",
+    label: "Low fee (3%→0.5% over 2h, migrates at 10 SOL accumulated in the curve) - recommended after the NARWAVE finding",
     totalTokenSupply: 1_000_000_000,
     percentageSupplyOnMigration: 20,
     migrationQuoteThreshold: 10,
-    startingFeeBps: 300, // 3% - abaixo do que costuma disparar "high tax" em scanner de terminal (GMGN etc)
-    endingFeeBps: 50, // 0,5%
+    startingFeeBps: 300, // 3% - below what usually triggers "high tax" on terminal scanners (GMGN etc)
+    endingFeeBps: 50, // 0.5%
     schedulerDurationSeconds: 7200,
   },
   {
     id: "default-2h-linear",
-    label: "Padrão (taxa 10%→1% em 2h, migra em 10 SOL acumulados na curva) - dispara alerta de \"high tax\" no GMGN (achado no NARWAVE), use com cautela",
+    label: "Default (10%→1% fee over 2h, migrates at 10 SOL accumulated in the curve) - triggers GMGN's \"high tax\" alert (found on NARWAVE), use with caution",
     totalTokenSupply: 1_000_000_000,
-    percentageSupplyOnMigration: 20, // 20% do supply migra pra pool DAMM v2, resto fica com quem comprou na curva
-    migrationQuoteThreshold: 10, // SOL acumulado na curva pra liberar migração - confirmado contra dbc_config.jsonc oficial
+    percentageSupplyOnMigration: 20, // 20% of the supply migrates to the DAMM v2 pool, the rest stays with whoever bought on the curve
+    migrationQuoteThreshold: 10, // SOL accumulated in the curve to unlock migration - confirmed against the official dbc_config.jsonc
     startingFeeBps: 1000, // 10%
     endingFeeBps: 100, // 1%
-    schedulerDurationSeconds: 7200, // 2h, mesmo padrão já usado em presets.js (SCHEDULER_DURATION_SECONDS)
+    schedulerDurationSeconds: 7200, // 2h, same default already used in presets.js (SCHEDULER_DURATION_SECONDS)
   },
 ];
 
@@ -103,22 +102,22 @@ export function findDbcCurvePreset(id) {
 }
 
 /**
- * Monta os ConfigParameters (curva + taxas + migração) a partir de um preset
- * + o quote escolhido - usa buildCurve, que faz toda a matemática de
- * sqrtPrice/liquidity pra gente (equivalente ao preparePoolCreationParams
- * que poolCreator.js já usa pro DAMM v2, só que do lado do DBC).
+ * Builds the ConfigParameters (curve + fees + migration) from a preset +
+ * the chosen quote - uses buildCurve, which does all the sqrtPrice/
+ * liquidity math for us (equivalent to the preparePoolCreationParams that
+ * poolCreator.js already uses for DAMM v2, just on the DBC side).
  */
 async function buildConfigParameters(preset, quoteMint) {
   const quoteInfo = await getMintInfo(connection, quoteMint);
 
   return buildCurve({
     token: {
-      tokenType: TokenType.SPLToken, // token novo, mintado pelo próprio DBC - sem necessidade do Token-2022 que StonkFun/pump.fun às vezes exigem
+      tokenType: TokenType.SPLToken, // new token, minted by DBC itself - no need for the Token-2022 that StonkFun/pump.fun sometimes require
       tokenBaseDecimal: TokenDecimal.SIX,
-      tokenQuoteDecimal: quoteInfo.decimals, // precisa bater com o decimals REAL do quote (SPYx = 8, SOL = 9, USDC/USDT = 6)
-      tokenAuthorityOption: TokenAuthorityOption.Immutable, // sem mint/update authority sobrando com a gente depois de lançado - mesmo espírito do "direct" (mintNewToken já revoga authority, ver tokenMinter.js)
+      tokenQuoteDecimal: quoteInfo.decimals, // needs to match the quote's REAL decimals (SPYx = 8, SOL = 9, USDC/USDT = 6)
+      tokenAuthorityOption: TokenAuthorityOption.Immutable, // no mint/update authority left with us after launch - same spirit as "direct" (mintNewToken already revokes authority, see tokenMinter.js)
       totalTokenSupply: preset.totalTokenSupply,
-      leftover: 0, // nada retido de propósito - todo o supply que não migra fica com quem comprou na curva
+      leftover: 0, // nothing withheld on purpose - all supply that doesn't migrate stays with whoever bought on the curve
     },
     fee: {
       baseFeeParams: {
@@ -131,71 +130,72 @@ async function buildConfigParameters(preset, quoteMint) {
         },
       },
       dynamicFeeEnabled: true,
-      collectFeeMode: CollectFeeMode.QuoteToken, // taxa sempre no quote (SOL/SPYx/...), nunca no token novo - mais previsível pra sacar depois (ver dbcMigration.js)
-      creatorTradingFeePercentage: 100, // 100% da taxa de criador fica com a gente (não tem parceiro terceiro nesse projeto)
+      collectFeeMode: CollectFeeMode.QuoteToken, // fee always in the quote (SOL/SPYx/...), never in the new token - more predictable to withdraw later (see dbcMigration.js)
+      creatorTradingFeePercentage: 100, // 100% of the creator fee stays with us (no third-party partner in this project)
       poolCreationFee: 0,
       enableFirstSwapWithMinFee: false,
     },
     migration: {
-      migrationOption: MigrationOption.MET_DAMM_V2, // V1 tá deprecated pra config novo
-      migrationFeeOption: MigrationFeeOption.FixedBps100, // 1% de taxa na pool DAMM v2 pós-migração - meio-termo, revisitar
-      migrationFee: { feePercentage: 0, creatorFeePercentage: 0 }, // sem taxa EXTRA de migração além da acima
+      migrationOption: MigrationOption.MET_DAMM_V2, // V1 is deprecated for new configs
+      migrationFeeOption: MigrationFeeOption.FixedBps100, // 1% fee on the post-migration DAMM v2 pool - middle ground, revisit
+      migrationFee: { feePercentage: 0, creatorFeePercentage: 0 }, // no EXTRA migration fee beyond the one above
     },
     liquidityDistribution: {
-      // 100% da liquidez de migração fica travada (permanent locked) em nome
-      // do creator - sem isso, dá pra sacar a liquidez inteira da pool
-      // recém-migrada e rugar; não é o que esse bot faz nos outros métodos
-      // (createInfinitePool também trava via posição NFT, nunca dá approve
-      // de remoção livre).
+      // 100% of the migration liquidity is permanently locked in the
+      // creator's name - without this, the entire liquidity of the
+      // freshly migrated pool could be withdrawn and rugged; that's not
+      // what this bot does in the other methods (createInfinitePool also
+      // locks via an NFT position, never grants free-removal approval).
       partnerLiquidityPercentage: 0,
       partnerPermanentLockedLiquidityPercentage: 0,
       creatorLiquidityPercentage: 0,
       creatorPermanentLockedLiquidityPercentage: 100,
     },
     lockedVesting: {
-      // Sem vesting nenhum sobre o supply que fica de fora da migração -
-      // mesmo comportamento que "direct" já tem hoje (supply inteiro líquido,
-      // sem cadeado).
+      // No vesting at all on the supply left out of migration - same
+      // behavior "direct" already has today (entire supply liquid, no
+      // lock).
       totalLockedVestingAmount: 0,
       numberOfVestingPeriod: 0,
       cliffUnlockAmount: 0,
       totalVestingDuration: 0,
       cliffDurationFromMigrationTime: 0,
     },
-    activationType: ActivationType.Timestamp, // mesma convenção já usada em poolCreator.js (activationType: 1)
+    activationType: ActivationType.Timestamp, // same convention already used in poolCreator.js (activationType: 1)
     percentageSupplyOnMigration: preset.percentageSupplyOnMigration,
     migrationQuoteThreshold: preset.migrationQuoteThreshold,
   });
 }
 
 /**
- * Devolve o endereço de um config já criado (cache local) pra essa
- * combinação (preset, quote), criando um novo on-chain só na primeira vez.
- * Nunca cria dois configs pro mesmo par preset+quote - sempre reusa.
+ * Returns the address of an already-created config (local cache) for this
+ * (preset, quote) combination, creating a new one on-chain only the first
+ * time. Never creates two configs for the same preset+quote pair - always
+ * reuses.
  */
 export async function getOrCreateDbcConfig(presetId, quoteMint) {
   const preset = findDbcCurvePreset(presetId);
-  if (!preset) throw new Error(`Preset de curva DBC desconhecido: "${presetId}".`);
+  if (!preset) throw new Error(`Unknown DBC curve preset: "${presetId}".`);
 
   const list = loadConfigs();
   const cached = list.find((c) => c.presetId === presetId && c.quoteMint === quoteMint);
   if (cached) return new PublicKey(cached.configAddress);
 
   const wallet = requireWalletKeypair();
-  const configKeypair = Keypair.generate(); // conta nova - endereço do config é aleatório, não determinístico (ao contrário da pool "customizável" do DAMM v2 em poolCreator.js)
+  const configKeypair = Keypair.generate(); // new account - the config address is random, not deterministic (unlike the "customizable" DAMM v2 pool in poolCreator.js)
   const configParams = await buildConfigParameters(preset, quoteMint);
 
   const tx = await dbcClient.partner.createConfig({
     ...configParams,
     config: configKeypair.publicKey,
-    feeClaimer: wallet.publicKey, // sacamos a taxa de "partner" (dono do config) E de "creator" (dono do pool) - somos as duas partes aqui
+    feeClaimer: wallet.publicKey, // we withdraw the fee as both "partner" (config owner) AND "creator" (pool owner) - we're both parties here
     leftoverReceiver: wallet.publicKey,
     quoteMint: new PublicKey(quoteMint),
     payer: wallet.publicKey,
   });
 
   const signature = await sendAndConfirmWithRetry(connection, tx, [wallet, configKeypair]);
-  console.log(`[dbcConfig] config novo criado pra preset "${presetId}" / quote ${quoteMint}: ${configKeypair.publicKey.toBase58()} (tx ${signature})`);
+  console.log(`[dbcConfig] new config created for preset "${presetId}" / quote ${quoteMint}: ${configKeypair.publicKey.toBase58()} (tx ${signature})`);
 
   list.push({
     presetId,

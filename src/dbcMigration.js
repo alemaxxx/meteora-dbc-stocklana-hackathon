@@ -5,52 +5,61 @@ import { connection, dbcClient } from "./connection.js";
 import { requireWalletKeypair } from "./config.js";
 import { sendAndConfirmWithRetry } from "./txHelpers.js";
 
-// Segunda metade do ciclo de vida de um pool DBC - ver PLANO-DBC-MIGRACAO.md.
-// Ao contrário do fluxo atual (createInfinitePool, em poolCreator.js), a
-// pool DAMM v2 aqui NÃO é criada no lançamento: ela só passa a existir
-// quando a curva "completa" (atinge o migrationQuoteThreshold configurado
-// em dbcConfig.js) e alguém - qualquer um, não precisa ser o criador -
-// chama migrateToDammV2. Esse arquivo cobre: checar se um pool tá pronto,
-// migrar, e sacar as taxas acumuladas (de criador e de "partner" - somos os
-// dois, ver dbcConfig.js).
+// Second half of a DBC pool's lifecycle - see PLANO-DBC-MIGRACAO.md.
+// Unlike the current flow (createInfinitePool, in poolCreator.js), the
+// DAMM v2 pool here is NOT created at launch time: it only comes into
+// existence once the curve "completes" (reaches the migrationQuoteThreshold
+// configured in dbcConfig.js) and someone - anyone, not necessarily the
+// creator - calls migrateToDammV2. This file covers: checking whether a
+// pool is ready, migrating, and withdrawing accumulated fees (both
+// "creator" and "partner" - we're both, see dbcConfig.js).
 //
-// NUNCA TESTADO AO VIVO - mesma ressalva de dbcLaunchpad.js.
+// getDbcCurveProgress CONFIRMED LIVE on mainnet (2026-09-17, see
+// PLANO-DBC-MIGRACAO.md section 5.5). migrateDbcPoolIfReady/claimDbcFees
+// are still NEVER TESTED LIVE - stopped short of a full migration in that
+// same test run due to the test wallet's budget (see section 5.5); their
+// account structure was carefully checked against the SDK's real IDL in
+// an earlier round (section 3), including a real bug found and fixed
+// purely from reading the code (pool.poolState.isMigrated, not
+// pool.isMigrated).
 
-// migrationFeeOption tem que ser IGUAL ao usado na criação do config (ver
-// dbcConfig.js - hoje fixo em FixedBps100) - cada opção de taxa de migração
-// tem uma conta de config da DAMM v2 PRÓPRIA e pré-definida pela Meteora
-// (DAMM_V2_MIGRATION_FEE_ADDRESS, exportado pelo próprio SDK - índice bate
-// com o enum MigrationFeeOption, confirmado lendo o pacote instalado,
-// v1.5.12). Se um dia dbcConfig.js passar a variar migrationFeeOption por
-// preset, isso aqui precisa ler o mesmo valor do preset em vez de fixo.
+// migrationFeeOption has to be THE SAME ONE used when creating the config
+// (see dbcConfig.js - fixed today at FixedBps100) - each migration fee
+// option has its OWN, Meteora-predefined DAMM v2 config account
+// (DAMM_V2_MIGRATION_FEE_ADDRESS, exported by the SDK itself - index
+// matches the MigrationFeeOption enum, confirmed by reading the installed
+// package, v1.5.12). If dbcConfig.js ever varies migrationFeeOption per
+// preset, this needs to read the same value from the preset instead of a
+// fixed constant.
 const MIGRATION_FEE_OPTION = MigrationFeeOption.FixedBps100;
 
 /**
- * Progresso da curva (0 a 1) em cima do quote token acumulado - 1 = pronto
- * pra migrar. Só leitura, não assina nada.
+ * Curve progress (0 to 1) based on accumulated quote token - 1 = ready to
+ * migrate. Read-only, doesn't sign anything.
  */
 export async function getDbcCurveProgress(poolAddress) {
   return dbcClient.state.getPoolQuoteTokenCurveProgress(new PublicKey(poolAddress));
 }
 
 /**
- * Migra um pool DBC completo pra uma pool DAMM v2 de verdade - equivalente
- * "automático" do createInfinitePool de poolCreator.js, só que aqui quem
- * decide o preço/liquidez inicial da pool nova é a própria curva que já
- * rodou, não um depósito manual nosso. Não faz nada (e não gasta SOL) se o
- * pool ainda não atingiu o limiar - checa isMigrated antes de tentar.
+ * Migrates a completed DBC pool to a real DAMM v2 pool - the "automatic"
+ * equivalent of poolCreator.js's createInfinitePool, except here the
+ * initial price/liquidity of the new pool is decided by the curve that
+ * already ran, not by a manual deposit from us. Does nothing (and spends
+ * no SOL) if the pool hasn't reached the threshold yet - checks
+ * isMigrated first.
  */
 export async function migrateDbcPoolIfReady(poolAddress) {
   const wallet = requireWalletKeypair();
   const poolPubkey = new PublicKey(poolAddress);
 
-  // getPool devolve a conta Anchor CRUA - o IDL tem "virtualPool" como um
-  // wrapper de UM campo (poolState), então os campos de verdade (isMigrated,
-  // baseMint, config, ...) ficam em pool.poolState, não no objeto raiz
-  // (confirmado lendo o IDL do pacote instalado, v1.5.12 - fácil de errar
-  // essa camada a mais).
+  // getPool returns the raw Anchor account - the IDL has "virtualPool" as
+  // a wrapper around a SINGLE field (poolState), so the real fields
+  // (isMigrated, baseMint, config, ...) live under pool.poolState, not on
+  // the root object (confirmed by reading the installed package's IDL,
+  // v1.5.12 - an easy layer to get wrong).
   const pool = await dbcClient.state.getPool(poolPubkey);
-  if (!pool) throw new Error(`Pool DBC ${poolAddress} não encontrado on-chain.`);
+  if (!pool) throw new Error(`DBC pool ${poolAddress} not found on-chain.`);
   if (pool.poolState.isMigrated) {
     return { migrated: false, alreadyMigrated: true };
   }
@@ -67,41 +76,43 @@ export async function migrateDbcPoolIfReady(poolAddress) {
     dammConfig,
   });
 
-  // Duas posições NFT novas (mesmo padrão de positionNftKeypair já usado em
-  // poolCreator.js pro DAMM v2 "customizável") - a própria SDK monta os dois
-  // no mesmo Keypair.generate() internamente, só devolve pra gente assinar.
+  // Two new NFT positions (same pattern as the positionNftKeypair already
+  // used in poolCreator.js for the "customizable" DAMM v2) - the SDK
+  // itself builds both via Keypair.generate() internally, it just hands
+  // them back for us to sign.
   const signature = await sendAndConfirmWithRetry(connection, transaction, [wallet, firstPositionNftKeypair, secondPositionNftKeypair]);
-  console.log(`[dbcMigration] pool ${poolAddress} migrado pra DAMM v2 (tx ${signature})`);
+  console.log(`[dbcMigration] pool ${poolAddress} migrated to DAMM v2 (tx ${signature})`);
 
-  // Endereço da pool DAMM v2 nova é determinístico (PDA derivada de
-  // dammConfig + os dois mints - mesma família de deriveCustomizablePoolAddress
-  // já usada em poolCreator.js) - calcula só pra devolver pra UI, sem
-  // depender de nenhum retorno extra do migrateToDammV2 (que só devolve a
-  // Transaction). Se ISSO aqui falhar por qualquer motivo, a migração em si
-  // JÁ ACONTECEU (a transação acima já confirmou) - nunca reporta erro pro
-  // usuário por causa disso, só loga e devolve sem o endereço.
+  // The new DAMM v2 pool's address is deterministic (a PDA derived from
+  // dammConfig + the two mints - same family as deriveCustomizablePoolAddress
+  // already used in poolCreator.js) - computed just to hand back to the
+  // UI, without depending on any extra return value from migrateToDammV2
+  // (which only returns the Transaction). If THIS part fails for any
+  // reason, the migration itself has ALREADY HAPPENED (the transaction
+  // above already confirmed) - never report an error to the user because
+  // of this, just log it and return without the address.
   let newPoolAddress = null;
   try {
     const poolConfig = await dbcClient.state.getPoolConfig(pool.poolState.config);
     newPoolAddress = deriveDammV2PoolAddress(dammConfig, pool.poolState.baseMint, poolConfig.quoteMint).toBase58();
   } catch (err) {
-    console.warn(`[dbcMigration] migração de ${poolAddress} confirmada (tx ${signature}), mas não consegui calcular o endereço da pool DAMM v2 nova:`, err.message);
+    console.warn(`[dbcMigration] migration of ${poolAddress} confirmed (tx ${signature}), but couldn't compute the new DAMM v2 pool address:`, err.message);
   }
 
   return { migrated: true, signature, newPoolAddress };
 }
 
 /**
- * Saca as taxas de negociação acumuladas na curva - de criador E de
- * "partner" (config), já que somos as duas partes (ver feeClaimer/creator em
- * dbcConfig.js). maxBaseAmount/maxQuoteAmount = BN máximo (U64) sacam tudo
- * que tiver disponível, mesma convenção de "0 = não sacar esse lado" que a
- * própria doc do SDK descreve pro lado que a gente NÃO quiser sacar.
+ * Withdraws accumulated trading fees from the curve - both "creator" and
+ * "partner" (config), since we're both parties (see feeClaimer/creator in
+ * dbcConfig.js). maxBaseAmount/maxQuoteAmount = max BN (U64) withdraw
+ * everything available, same "0 = don't withdraw this side" convention
+ * the SDK's own docs describe for the side you don't want to withdraw.
  */
 export async function claimDbcFees(poolAddress) {
   const wallet = requireWalletKeypair();
   const poolPubkey = new PublicKey(poolAddress);
-  const maxAmount = new BN("18446744073709551615"); // U64_MAX - "sacar tudo"
+  const maxAmount = new BN("18446744073709551615"); // U64_MAX - "withdraw everything"
 
   const creatorTx = await dbcClient.creator.claimCreatorTradingFee({
     creator: wallet.publicKey,
@@ -121,6 +132,6 @@ export async function claimDbcFees(poolAddress) {
   });
   const partnerSignature = await sendAndConfirmWithRetry(connection, partnerTx, [wallet]);
 
-  console.log(`[dbcMigration] taxas do pool ${poolAddress} sacadas (creator tx ${creatorSignature}, partner tx ${partnerSignature})`);
+  console.log(`[dbcMigration] fees for pool ${poolAddress} withdrawn (creator tx ${creatorSignature}, partner tx ${partnerSignature})`);
   return { creatorSignature, partnerSignature };
 }

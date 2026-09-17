@@ -7,9 +7,10 @@ const connection = new Connection(config.rpcUrl, "confirmed");
 const NATIVE_SOL = "So11111111111111111111111111111111111111112";
 
 /**
- * Retorna o saldo da wallet configurada pra um token. Se for SOL, le o
- * saldo nativo (nao a conta de wSOL, ja que e isso que o usuario de fato
- * possui e o SDK embrulha automaticamente na hora de criar a pool).
+ * Returns the configured wallet's balance for a token. For SOL, reads the
+ * native balance (not the wSOL account, since that's what the user
+ * actually holds and the SDK wraps it automatically when creating the
+ * pool).
  */
 export async function getWalletTokenBalance(mintAddress) {
   if (mintAddress === NATIVE_SOL) {
@@ -30,10 +31,10 @@ export async function getWalletTokenBalance(mintAddress) {
     return {
       balance: Number(bal.value.uiAmountString ?? bal.value.uiAmount ?? 0),
       decimals,
-      raw: bal.value.amount, // string do valor inteiro exato (sem ponto flutuante)
+      raw: bal.value.amount, // exact integer value as a string (no floating point)
     };
   } catch {
-    // conta ainda nao existe = saldo zero
+    // account doesn't exist yet = zero balance
     return { balance: 0, decimals, raw: "0" };
   }
 }

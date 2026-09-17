@@ -16,8 +16,8 @@ function sleep(ms) {
 }
 
 /**
- * Descobre os decimais e o token program (classico ou Token2022) de um mint,
- * necessario pra montar a transacao de criacao de pool corretamente.
+ * Finds a mint's decimals and token program (classic or Token2022),
+ * needed to build the pool-creation transaction correctly.
  */
 export async function getMintInfo(connection, mintAddress) {
   const key = mintAddress.toString();
@@ -25,12 +25,12 @@ export async function getMintInfo(connection, mintAddress) {
 
   const mintPubkey = new PublicKey(mintAddress);
 
-  // Um mint RECÉM-criado (mesma transação, segundos atrás) pode ainda não
-  // ter propagado pra essa leitura, principalmente com a RPC sobrecarregada
-  // (ver conversa de 12/09/2026 - "Custom: 6025"/CRYTGLOW, mesma causa
-  // raiz) - insiste um pouco antes de desistir. Pra um mint que realmente
-  // não existe (endereço errado, rede errada), só atrasa o erro em uns
-  // segundos, sem custo real.
+  // A JUST-created mint (same transaction, seconds ago) might not have
+  // propagated to this read yet, especially with an overloaded RPC (see
+  // the 2026-09-12 conversation - "Custom: 6025"/CRYTGLOW, same root
+  // cause) - retry a bit before giving up. For a mint that genuinely
+  // doesn't exist (wrong address, wrong network), this only delays the
+  // error by a few seconds, at no real cost.
   let accountInfo = null;
   for (let i = 0; i < 6; i++) {
     accountInfo = await connection.getAccountInfo(mintPubkey);
@@ -38,7 +38,7 @@ export async function getMintInfo(connection, mintAddress) {
     await sleep(2000);
   }
   if (!accountInfo) {
-    throw new Error(`Mint ${key} não encontrado on-chain.`);
+    throw new Error(`Mint ${key} not found on-chain.`);
   }
 
   const programId = accountInfo.owner.equals(TOKEN_2022_PROGRAM_ID)
@@ -47,17 +47,17 @@ export async function getMintInfo(connection, mintAddress) {
 
   const mintInfo = await getMint(connection, mintPubkey, undefined, programId);
 
-  // `mint` (o objeto bruto retornado por getMint, com os dados de extensão
-  // do Token-2022 quando existirem) + `currentEpoch` vão direto pro
-  // preparePoolCreationParams da Meteora (ver poolCreator.js) - é a própria
-  // SDK deles que já sabe descontar a taxa de transferência (Token-2022,
-  // ex: StonkFun exigindo 1%/3% em alguns lançamentos - conversa de
-  // 12/09/2026) igual o programa on-chain faz, sem a gente ter que
-  // recalcular na mão. Pra um mint sem essa extensão, a própria função da
-  // Meteora ignora e não muda nada.
-  // Token clássico (TOKEN_PROGRAM_ID) nunca tem extensão nenhuma - só vale
-  // a pena gastar mais uma chamada de RPC pra saber a época atual quando o
-  // mint é Token-2022 (único que pode ter taxa de transferência).
+  // `mint` (the raw object returned by getMint, with Token-2022 extension
+  // data when present) + `currentEpoch` go straight into Meteora's
+  // preparePoolCreationParams (see poolCreator.js) - their own SDK already
+  // knows how to deduct the transfer fee (Token-2022, e.g. StonkFun
+  // requiring 1%/3% on some launches - 2026-09-12 conversation) the same
+  // way the on-chain program does, without us having to recompute it by
+  // hand. For a mint without that extension, Meteora's own function just
+  // ignores it and changes nothing.
+  // A classic token (TOKEN_PROGRAM_ID) never has any extension - only
+  // worth spending an extra RPC call to find the current epoch when the
+  // mint is Token-2022 (the only one that can have a transfer fee).
   const currentEpoch = programId.equals(TOKEN_2022_PROGRAM_ID) ? (await connection.getEpochInfo()).epoch : 0;
 
   const result = { decimals: mintInfo.decimals, programId, mint: mintInfo, currentEpoch };

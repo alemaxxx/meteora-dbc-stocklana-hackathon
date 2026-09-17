@@ -1,411 +1,453 @@
-> **Nota deste recorte (16/09/2026)**: este documento foi escrito no contexto do
-> [Lançar Token Bot](https://github.com/alemaxxx/lauch-token) original (bot maior, com detecção de
-> onda StonkFun/pump.fun). Este repositório (`Meteora DBC Launchpad`) extrai só a parte DBC descrita
-> aqui, num app menor e mais focado - README.md deste repo documenta o que mudou na extração
-> (sem detecção de onda, formulário manual, sem sugestão por IA). O histórico de decisões e achados
-> abaixo (incluindo o achado real da taxa "high tax" no GMGN) é o mesmo, só o "como se usa" muda.
+> **Note on this cut (2026-09-16)**: this document was written in the context of the original
+> [Lançar Token Bot](https://github.com/alemaxxx/lauch-token) (a larger bot, with StonkFun/pump.fun
+> wave detection). This repository (`Meteora DBC Launchpad`) extracts only the DBC part described
+> here, into a smaller, more focused app - this repo's README.md documents what changed in the
+> extraction (no wave detection, manual form, no AI suggestion). The history of decisions and
+> findings below (including the real "high tax" finding on GMGN) is the same, only the "how it's
+> used" changes.
 
-# Avaliação: Meteora DBC (Dynamic Bonding Curve) pro Lançar Token Bot
+# Evaluation: Meteora DBC (Dynamic Bonding Curve) for the Lançar Token Bot
 
-Escrito em 15/09/2026, em cima do anúncio da Meteora sobre o hackathon
-**Stocklana** (ações tokenizadas na Solana, $5.000 USDC pro melhor uso do
-DBC - ver `hackathons.solana.com/hackathons/stocklana`). Este bot já mira
-exatamente esse público (quote temático SPYx/GPRO, ver `quoteThemes.js`),
-então este documento avalia trocar a bonding curve de terceiro
-(StonkFun/pump.fun) por uma bonding curve NATIVA da Meteora.
+Written on 2026-09-15, on top of Meteora's announcement about the
+**Stocklana** hackathon (tokenized stocks on Solana, $5,000 USDC for the best
+use of DBC - see `hackathons.solana.com/hackathons/stocklana`). This bot
+already targets exactly that audience (thematic quote SPYx/GPRO, see
+`quoteThemes.js`), so this document evaluates swapping the third-party
+bonding curve (StonkFun/pump.fun) for a NATIVE Meteora bonding curve.
 
-## 1. Onde estamos hoje
+## 1. Where we are today
 
-O "Lançar Token" tem três caminhos (`launchMethod` em `tokenLauncher.js`):
+"Lançar Token" has three paths (`launchMethod` in `tokenLauncher.js`):
 
-| Método | Bonding curve | Pool final |
+| Method | Bonding curve | Final pool |
 |---|---|---|
-| `direct` | nenhuma - minta 100% do supply pra gente | DAMM v2 "Infinite" (`poolCreator.js`) |
-| `stonkfun` | Raydium LaunchLab, via StonkFun (só SOL) | DAMM v2 "Infinite" |
-| `pumpfun` | programa do pump.fun (`@pump-fun/pump-sdk`) | DAMM v2 "Infinite" |
+| `direct` | none - mints 100% of the supply to us | DAMM v2 "Infinite" (`poolCreator.js`) |
+| `stonkfun` | Raydium LaunchLab, via StonkFun (SOL only) | DAMM v2 "Infinite" |
+| `pumpfun` | pump.fun's program (`@pump-fun/pump-sdk`) | DAMM v2 "Infinite" |
 
-Os dois últimos dependem de infraestrutura de terceiro pra bonding curve -
-já foi a fonte de vários bugs "achados ao vivo" documentados em
-`PLANO-NOVO-BOT-LANCAR-TOKEN.md` (curve rule da StonkFun, `Transaction too
-large` no pump.fun, propagação de RPC entre mint e recompra). A pool final,
-nos três casos, é sempre DAMM v2 via `@meteora-ag/cp-amm-sdk`
+The last two depend on third-party infrastructure for the bonding curve -
+already the source of several "found live" bugs documented in
+`PLANO-NOVO-BOT-LANCAR-TOKEN.md` (StonkFun's curve rule, `Transaction too
+large` on pump.fun, RPC propagation between mint and buyback). The final
+pool, in all three cases, is always DAMM v2 via `@meteora-ag/cp-amm-sdk`
 (`createInfinitePool`).
 
-## 2. O que o DBC muda
+## 2. What DBC changes
 
-DBC é uma bonding curve **da própria Meteora**, com migração automática pra
-DAMM v2 embutida no protocolo. Ele substitui, num pacote só, a bonding curve
-de terceiro (StonkFun/pump.fun) E a criação manual da pool DAMM v2
-(`createInfinitePool`):
+DBC is a bonding curve **from Meteora itself**, with automatic migration to
+DAMM v2 built into the protocol. It replaces, in a single package, the
+third-party bonding curve (StonkFun/pump.fun) AND the manual creation of
+the DAMM v2 pool (`createInfinitePool`):
 
-- **Lançar** = mintar o token + inicializar a curva, numa transação (SDK:
-  `createPoolWithFirstBuy`, com compra inicial opcional).
-- **Negociar** = qualquer um compra/vende direto na curva - ela É a
-  liquidez, não precisamos comprar um quote token e parear manualmente como
-  hoje.
-- **Migrar** = quando a curva atinge o limiar configurado, uma pool DAMM v2
-  de verdade é criada automaticamente - qualquer um pode disparar isso
-  (`migrateToDammV2`), não precisa ser a gente.
-- **Sacar taxa** = como somos "creator" E "partner" (dono da curva), sacamos
-  dos dois lados (`claimCreatorTradingFee`/`claimPartnerTradingFee`).
+- **Launch** = mint the token + initialize the curve, in one transaction
+  (SDK: `createPoolWithFirstBuy`, with an optional initial buy).
+- **Trade** = anyone buys/sells directly on the curve - it IS the
+  liquidity, we don't need to buy a quote token and pair it manually like
+  today.
+- **Migrate** = once the curve reaches the configured threshold, a real
+  DAMM v2 pool is created automatically - anyone can trigger this
+  (`migrateToDammV2`), it doesn't have to be us.
+- **Withdraw fees** = since we're both "creator" AND "partner" (curve
+  owner), we withdraw from both sides
+  (`claimCreatorTradingFee`/`claimPartnerTradingFee`).
 
-Ou seja: elimina a dependência do StonkFun/pump.fun pra quem lança pela
-curva, e a pool final continua sendo Meteora (DAMM v2), só que criada pelo
-próprio protocolo em vez de por nós manualmente.
+In other words: it eliminates the StonkFun/pump.fun dependency for whoever
+launches via the curve, and the final pool is still Meteora (DAMM v2),
+just created by the protocol itself instead of by us manually.
 
-## 3. SDK - o que foi confirmado de verdade
+## 3. SDK - what was actually confirmed
 
-`docs.meteora.ag` ficou **bloqueado pelo proxy de rede** desse ambiente -
-tudo abaixo foi confirmado instalando o pacote de verdade
-(`@meteora-ag/dynamic-bonding-curve-sdk@1.5.12`) num diretório à parte e
-lendo o `.d.ts`/IDL publicados, não uma página resumida por IA. Onde isso
-importa (ex: `DAMM_V2_MIGRATION_FEE_ADDRESS`), rodei o código real pra
-confirmar o valor, não só o tipo.
+`docs.meteora.ag` was **blocked by this environment's network proxy** -
+everything below was confirmed by installing the real package
+(`@meteora-ag/dynamic-bonding-curve-sdk@1.5.12`) in a separate directory
+and reading the published `.d.ts`/IDL, not an AI-summarized page. Where it
+mattered (e.g. `DAMM_V2_MIGRATION_FEE_ADDRESS`), I ran the real code to
+confirm the value, not just the type.
 
 ```
 import { DynamicBondingCurveClient } from "@meteora-ag/dynamic-bonding-curve-sdk";
 const client = DynamicBondingCurveClient.create(connection, "confirmed");
 ```
 
-Quatro "services" no client (equivalente ao `CpAmm` que `poolCreator.js` já
-usa, só que dividido por papel):
+Four "services" on the client (equivalent to the `CpAmm` that
+`poolCreator.js` already uses, just split by role):
 
-- `client.partner` - dono do **config** (a "receita" da curva): `createConfig`,
+- `client.partner` - owns the **config** (the curve's "recipe"): `createConfig`,
   `createConfigAndPool`, `claimPartnerTradingFee`, `partnerWithdrawSurplus`.
-- `client.creator` - dono do **pool**: `createPool`, `createPoolWithFirstBuy`,
+- `client.creator` - owns the **pool**: `createPool`, `createPoolWithFirstBuy`,
   `claimCreatorTradingFee`, `creatorWithdrawSurplus`.
 - `client.pool` - trading: `swap`, `swap2`, `swapQuote`.
 - `client.migration` - `migrateToDammV2`, `createLocker`, `withdrawLeftover`.
-- `client.state` - só leitura: `getPool`, `getPoolByBaseMint`,
+- `client.state` - read-only: `getPool`, `getPoolByBaseMint`,
   `getPoolQuoteTokenCurveProgress`, `getPoolFeeBreakdown`.
 
-`buildCurve`/`buildCurveWithMarketCap` (função solta, não é método do
-client) fazem a matemática de sqrtPrice/liquidez da curva - equivalente ao
-`preparePoolCreationParams` que `poolCreator.js` já usa pro DAMM v2, só que
-do lado do DBC. Validei rodando `buildCurve` de verdade (fora deste repo,
-sem RPC) com os números do preset abaixo - a função aceita e devolve uma
-curva de 2 pontos sem erro de validação.
+`buildCurve`/`buildCurveWithMarketCap` (a standalone function, not a client
+method) does the curve's sqrtPrice/liquidity math - equivalent to the
+`preparePoolCreationParams` that `poolCreator.js` already uses for DAMM v2,
+just on the DBC side. Validated by running `buildCurve` for real (outside
+this repo, no RPC) with the numbers from the preset below - the function
+accepts and returns a 2-point curve with no validation error.
 
-**Achado que evita um risco real**: `migrateToDammV2` pede um `dammConfig`
-(conta de config da DAMM v2 - programa DIFERENTE do "customizável" que
-`poolCreator.js` usa hoje, que não precisa de config nenhum). Cheguei a
-temer que isso exigisse descobrir esse endereço na mão. Não precisa: o
-próprio SDK exporta `DAMM_V2_MIGRATION_FEE_ADDRESS` (array de 7 endereços
-públicos, um por valor do enum `MigrationFeeOption`) - confirmei rodando o
-código que os índices batem exatamente com o enum. `dbcMigration.js` usa
-`DAMM_V2_MIGRATION_FEE_ADDRESS[MigrationFeeOption.FixedBps100]` direto.
+**Finding that avoids a real risk**: `migrateToDammV2` requires a
+`dammConfig` (a DAMM v2 config account - a DIFFERENT program from the
+"customizable" one `poolCreator.js` uses today, which needs no config at
+all). I was afraid this would require finding that address by hand. It
+doesn't: the SDK itself exports `DAMM_V2_MIGRATION_FEE_ADDRESS` (an array
+of 7 public addresses, one per value of the `MigrationFeeOption` enum) - I
+confirmed by running the code that the indices match the enum exactly.
+`dbcMigration.js` uses
+`DAMM_V2_MIGRATION_FEE_ADDRESS[MigrationFeeOption.FixedBps100]` directly.
 
-## 4. Estado atual (15/09/2026, segunda rodada) - LIGADO, mas BETA
+## 4. Current state (2026-09-15, second round) - WIRED UP, but BETA
 
-Primeira rodada só tinha os módulos soltos (`dbcConfig.js`/`dbcLaunchpad.js`/
-`dbcMigration.js`), sem ligar em nada. Essa segunda rodada liga tudo de
-ponta a ponta - dá pra lançar via DBC pela própria tela - mas continua
-**nunca testado com dinheiro de verdade** (ver seção 5). Nada dos métodos
-`direct`/`stonkfun`/`pumpfun` foi alterado em comportamento - só adição de
-branches novas, sempre gated por `launchMethod === "dbc"`/`isDbcLaunch`.
+The first round only had the standalone modules (`dbcConfig.js`/
+`dbcLaunchpad.js`/`dbcMigration.js`), wired into nothing. This second round
+wires everything end to end - you can launch via DBC right from the
+screen - but it's still **never tested with real money** (see section 5).
+None of the `direct`/`stonkfun`/`pumpfun` methods had their behavior
+changed - only new branches added, always gated by
+`launchMethod === "dbc"`/`isDbcLaunch`.
 
 - **`src/connection.js`**: `export const dbcClient`.
-- **`src/dbcConfig.js`**: presets de curva (`DBC_CURVE_PRESETS`) +
-  `getOrCreateDbcConfig(presetId, quoteMint)` (cria e cacheia em
+- **`src/dbcConfig.js`**: curve presets (`DBC_CURVE_PRESETS`) +
+  `getOrCreateDbcConfig(presetId, quoteMint)` (creates and caches in
   `data/dbc-configs.json`).
-- **`src/dbcLaunchpad.js`**: `launchOnDbc(...)` - minta + inicia a curva.
+- **`src/dbcLaunchpad.js`**: `launchOnDbc(...)` - mints + starts the curve.
 - **`src/dbcMigration.js`**: `getDbcCurveProgress`, `migrateDbcPoolIfReady`
-  (agora também calcula e devolve `newPoolAddress` - deriva o endereço da
-  pool DAMM v2 nova via `deriveDammV2PoolAddress`, exportado pelo próprio
-  SDK; se a derivação falhar por qualquer motivo, NÃO reporta erro pro
-  usuário - a migração em si já confirmou na transação anterior, só o
-  endereço bonito fica faltando) e `claimDbcFees`.
-- **`src/tokenLauncher.js`**: `launchTokenFromCandidate` ganhou
-  `launchMethod: "dbc"` - branch própria que pula comprar quote/criar pool
-  DAMM v2 manualmente (a curva já é liquidez) e chama `launchOnDbc`
-  direto. Quote travado em SOL (mesmo motivo do StonkFun, só que aqui é
-  porque os presets de curva não convertem preço entre quotes - ver
-  comentário no código). Novo `export function markDbcPoolMigrated(id,
-  newPoolAddress)` - atualiza o registro depois de migrar.
-- **`src/server.js`**: rota de lançamento aceita `presetId`/`firstBuySolUi`
-  e pula a validação de taxa/curva do DAMM v2 quando `launchMethod === "dbc"`
-  (testado - regressão dos outros três métodos confirmada sem mudança de
-  comportamento). Rotas novas: `GET /api/hype/dbc-presets`, `GET
+  (now also computes and returns `newPoolAddress` - derives the new DAMM
+  v2 pool's address via `deriveDammV2PoolAddress`, exported by the SDK
+  itself; if the derivation fails for any reason, it does NOT report an
+  error to the user - the migration itself already confirmed in the
+  previous transaction, only the pretty address is missing) and
+  `claimDbcFees`.
+- **`src/tokenLauncher.js`**: `launchTokenFromCandidate` gained
+  `launchMethod: "dbc"` - its own branch that skips buying a quote/
+  manually creating a DAMM v2 pool (the curve is already liquidity) and
+  calls `launchOnDbc` directly. Quote locked to SOL (same reason as
+  StonkFun, except here it's because the curve presets don't convert
+  price between quotes - see the comment in the code). New `export
+  function markDbcPoolMigrated(id, newPoolAddress)` - updates the record
+  after migrating.
+- **`src/server.js`**: the launch route accepts `presetId`/`firstBuySolUi`
+  and skips DAMM v2's fee/curve validation when `launchMethod === "dbc"`
+  (tested - regression of the other three methods confirmed with no
+  behavior change). New routes: `GET /api/hype/dbc-presets`, `GET
   .../:id/dbc-progress`, `POST .../:id/dbc-migrate`, `POST
-  .../:id/dbc-claim-fees` - todas MANUAIS (sob clique), nunca automáticas.
-- **`public/index.html`/`public/hype.js`**: chip "Meteora DBC (beta)" na
-  tela de lançamento (preset da curva + compra inicial opcional, em vez dos
-  campos de taxa/curva do DAMM v2 que não se aplicam); avisos visuais de
-  BETA + `window.confirm` extra antes de lançar; na aba Tokens Lançados,
-  linhas `dbc` ganham botões "Ver progresso"/"Migrar pra DAMM v2"/"Sacar
-  taxas DBC" em vez do link direto "abrir na Meteora" (a pool, antes de
-  migrar, não é uma pool DAMM v2 - link separado pro Solscan até migrar).
+  .../:id/dbc-claim-fees` - all MANUAL (click-triggered), never automatic.
+- **`public/index.html`/`public/hype.js`**: "Meteora DBC (beta)" chip on
+  the launch screen (curve preset + optional initial buy, instead of the
+  DAMM v2 fee/curve fields that don't apply); visual BETA warnings +
+  extra `window.confirm` before launching; in the Launched Tokens tab,
+  `dbc` rows get "View progress"/"Migrate to DAMM v2"/"Withdraw DBC fees"
+  buttons instead of the direct "open on Meteora" link (the pool, before
+  migrating, isn't a DAMM v2 pool - separate Solscan link until it
+  migrates).
 
-### O que foi validado nesta rodada (sem RPC/wallet - esse ambiente não tem)
+### What was validated this round (no RPC/wallet - this environment doesn't have any)
 
-- Todos os módulos (`dbcConfig.js`, `dbcLaunchpad.js`, `dbcMigration.js`,
-  `tokenLauncher.js`, `server.js`) importam sem erro com as dependências
-  de verdade instaladas (`npm install` rodado, `@meteora-ag/dynamic-
-  bonding-curve-sdk@1.5.12` real, não mockado).
-- `node --check` limpo em todos os arquivos alterados (`.js`) e servidor
-  sobe de verdade numa porta local.
-- Todas as rotas HTTP novas testadas via `curl` contra o servidor rodando
-  de verdade (404 correto pra token inexistente, presets retornam JSON
-  válido, `launch` valida `presetId` obrigatório pra `dbc`).
-- **Regressão confirmada**: os três métodos antigos (`direct`/`stonkfun`/
-  `pumpfun`) continuam validando exatamente igual a antes (testei os
-  mesmos erros de validação via `curl`, resultado idêntico ao pré-DBC).
-- Corrigido durante essa verificação (achado ANTES de qualquer teste ao
-  vivo, lendo o IDL real do SDK): a conta `virtualPool` devolvida por
-  `getPool` vem envelopada num campo `poolState` (`pool.poolState.
-  isMigrated`, não `pool.isMigrated` como o rascunho original tinha) -
-  confirmado comparando com o uso interno do próprio SDK
-  (`getPoolMigrationQuoteThreshold` usa `pool.poolState.config`).
-- IDs de todo elemento novo referenciado em `hype.js` conferidos contra o
-  HTML (script automatizado, sem nenhum órfão).
+- All modules (`dbcConfig.js`, `dbcLaunchpad.js`, `dbcMigration.js`,
+  `tokenLauncher.js`, `server.js`) import without error with the real
+  dependencies installed (`npm install` run, real
+  `@meteora-ag/dynamic-bonding-curve-sdk@1.5.12`, not mocked).
+- Clean `node --check` on every changed file (`.js`) and the server boots
+  for real on a local port.
+- All new HTTP routes tested via `curl` against the actually running
+  server (correct 404 for a nonexistent token, presets return valid JSON,
+  `launch` requires `presetId` for `dbc`).
+- **Regression confirmed**: the three old methods (`direct`/`stonkfun`/
+  `pumpfun`) still validate exactly the same as before (tested the same
+  validation errors via `curl`, result identical to pre-DBC).
+- Fixed during this check (found BEFORE any live test, by reading the
+  SDK's real IDL): the `virtualPool` account returned by `getPool` comes
+  wrapped in a `poolState` field (`pool.poolState.isMigrated`, not
+  `pool.isMigrated` as the original draft had) - confirmed by comparing
+  against the SDK's own internal usage (`getPoolMigrationQuoteThreshold`
+  uses `pool.poolState.config`).
+- IDs of every new element referenced in `hype.js` checked against the
+  HTML (automated script, no orphans).
 
-**O que isso NÃO prova**: nenhuma transação foi assinada/enviada de
-verdade. `buildCurve`/`createConfig`/`createPoolWithFirstBuy`/
-`migrateToDammV2` continuam sem confirmação em devnet/mainnet.
+**What this does NOT prove**: no transaction was actually signed/sent.
+`buildCurve`/`createConfig`/`createPoolWithFirstBuy`/`migrateToDammV2`
+remain unconfirmed on devnet/mainnet.
 
-## 5. Riscos / o que falta antes de usar com dinheiro de verdade
+## 5. Risks / what's needed before using real money
 
-1. ~~**Números da curva não validados**~~ **RESOLVIDO em 17/09/2026 (ver seção 5.4)** -
-   `migrationQuoteThreshold` (antigo `migrationMarketCap`) estava em 85 SOL (placeholder do
-   pump.fun); confirmado contra a config oficial da Meteora (`meteora-invent/dbc_config.jsonc`) e
-   corrigido pra 10 SOL nos dois presets. `totalTokenSupply`/`percentageSupplyOnMigration` já
-   batiam certo. A UI continua com aviso de BETA + confirmação extra, por cautela geral (não só
-   por esse item específico).
-2. **`migrationFeeOption` fixo** (`FixedBps100` = 1%) em dois arquivos
-   (`dbcConfig.js` e `dbcMigration.js`) - se um dia isso virar configurável
-   por preset, os dois precisam ler do mesmo lugar (hoje é uma constante
-   solta em cada arquivo, de propósito simples pro primeiro corte).
-3. **Nada testado com transação real.** Todo o resto do bot tem bugs reais
-   documentados e corrigidos em cima de testes com dinheiro de verdade
-   (`PLANO-NOVO-BOT-LANCAR-TOKEN.md`). Este código bate com a assinatura
-   real do SDK instalado e passou nos smoke tests da seção 4, mas nenhuma
-   transação foi assinada/enviada (esse ambiente não tem RPC/wallet).
-   **Testar em devnet, com valores pequenos, antes de mainnet.**
-4. **Migração/claim são manuais, de propósito** - `dbc-migrate`/
-   `dbc-claim-fees` só rodam sob clique explícito na aba Tokens Lançados,
-   nunca em background. Isso é uma escolha deliberada (cautela > cobertura
-   automática num código não testado), não uma limitação a corrigir - se
-   um dia quiser automatizar, adicionar um job é reaproveitar
-   `migrateDbcPoolIfReady` como está.
-5. **Quote travado em SOL** - ver comentário em `tokenLauncher.js`. Suportar
-   SPYx/outros exigiria ajustar os presets pro valor de mercado de cada
-   quote antes.
+1. ~~**Curve numbers not validated**~~ **RESOLVED on 2026-09-17 (see section 5.4)** -
+   `migrationQuoteThreshold` (formerly `migrationMarketCap`) was at 85 SOL
+   (a pump.fun placeholder); confirmed against Meteora's official config
+   (`meteora-invent/dbc_config.jsonc`) and corrected to 10 SOL in both
+   presets. `totalTokenSupply`/`percentageSupplyOnMigration` already
+   matched. The UI still shows the BETA warning + extra confirmation, out
+   of general caution (not just for this specific item).
+2. **Fixed `migrationFeeOption`** (`FixedBps100` = 1%) in two files
+   (`dbcConfig.js` and `dbcMigration.js`) - if this ever becomes
+   configurable per preset, both need to read from the same place (today
+   it's a standalone constant in each file, deliberately simple for the
+   first cut).
+3. **Nothing tested with a real transaction.** The rest of the bot has
+   real bugs documented and fixed on top of tests with real money
+   (`PLANO-NOVO-BOT-LANCAR-TOKEN.md`). This code matches the installed
+   SDK's real signature and passed the smoke tests in section 4, but no
+   transaction has been signed/sent (this environment has no RPC/wallet).
+   **Test on devnet, with small values, before mainnet.**
+4. **Migration/claim are manual, on purpose** - `dbc-migrate`/
+   `dbc-claim-fees` only run on explicit click in the Launched Tokens tab,
+   never in the background. This is a deliberate choice (caution over
+   automatic coverage on untested code), not a limitation to fix - if
+   automation is ever wanted, adding a job just means reusing
+   `migrateDbcPoolIfReady` as-is.
+5. **Quote locked to SOL** - see the comment in `tokenLauncher.js`.
+   Supporting SPYx/others would require adjusting the presets to each
+   quote's market value first.
 
-## 5.1. Terceira rodada (15/09/2026, madrugada) - polimento visual + validação com Playwright
+## 5.1. Third round (2026-09-15, overnight) - visual polish + Playwright validation
 
-Usuário foi dormir pedindo "trabalhe na perfeição" e "frontend lindo", com uma
-regra clara: nada de transação real até ele acordar (nem em devnet - testei,
-esse ambiente não tem saída de rede pra `api.devnet.solana.com` também, só
-`docs.meteora.ag` foi bloqueado antes). Sem conseguir testar contra chain de
-verdade, usei o tempo pra:
+The user went to sleep asking to "work toward perfection" and a
+"beautiful frontend," with one clear rule: no real transaction until they
+woke up (not even on devnet - tested it, this environment has no network
+path to `api.devnet.solana.com` either, only `docs.meteora.ag` was
+blocked before). Unable to test against a real chain, used the time to:
 
-1. **`public/uiKit.js` (novo)** - toast + modal de confirmação reutilizáveis,
-   estética igual ao resto do app. Substituiu TODOS os `window.alert`/
-   `window.confirm` nativos que existiam na tela (os 4 que eu tinha
-   acabado de adicionar pro DBC, MAIS os 2 que já existiam desde antes -
-   "valor grande, tem certeza?" em `solAmountForSpyx`/`buybackSolUi`,
-   achados ao vivo em 12/09/2026 - mesmo texto/comportamento, só a
-   aparência mudou pra combinar com o resto do app).
-2. **Saldo da wallet no topo** (`GET /api/wallet/balance`, novo) - usa
-   `getWalletTokenBalance` que já existia mas não tinha rota nenhuma.
-   Atualiza sozinho a cada 30s + na hora depois de qualquer ação que
-   gasta/recebe SOL (lançamento, qualquer saque de taxa).
-3. **Testei de verdade num navegador** (Playwright + Chromium, instalado só
-   pra essa validação, sem custo) - não só `node --check`. Isso achou um
-   bug REAL que a leitura do código sozinha não pegou: a célula "Pool" de
-   uma linha DBC ainda não migrada tinha 3 botões que corriam juntos numa
-   linha só e cortavam (herdavam `white-space: nowrap` do `<td>`) -
-   corrigido com uma classe `.dbc-actions` (flex column). Também troquei o
-   emoji ⚠ do pill "Meteora DBC" por texto simples ("· BETA") - emoji pode
-   virar um quadrado vazio em navegador sem fonte de emoji colorida.
-4. **Validei o fluxo inteiro na tela** (mock de candidato + mock de
-   `fetch`, sem gastar nada): abrir modal → trocar pro chip DBC → campos
-   certos aparecem/somem → confirm de BETA aparece → erro do backend
-   (candidato inexistente, esperado no mock) aparece formatado certo. Fez
-   uma chamada de verdade pro backend (que tentou e falhou por falta de
-   rede - comportamento correto, só a rede que não existe aqui).
-5. Também simulei registros de lançamento (`data/launched-tokens.json`
-   temporário, **apagado depois do teste** - nunca ficou no Git, a pasta
-   `data/` é ignorada) pra ver a aba Tokens Lançados com token DBC migrado,
-   não migrado, e com erro - foi assim que o bug do item 3 apareceu.
+1. **`public/uiKit.js` (new)** - reusable toast + confirmation modal, same
+   look as the rest of the app. Replaced ALL native `window.alert`/
+   `window.confirm` calls that existed on the screen (the 4 I had just
+   added for DBC, PLUS the 2 that already existed before - "large value,
+   are you sure?" in `solAmountForSpyx`/`buybackSolUi`, found live on
+   2026-09-12 - same text/behavior, only the look changed to match the
+   rest of the app).
+2. **Wallet balance at the top** (`GET /api/wallet/balance`, new) - uses
+   `getWalletTokenBalance`, which already existed but had no route.
+   Refreshes itself every 30s + right away after any action that spends/
+   receives SOL (launch, any fee withdrawal).
+3. **Actually tested in a browser** (Playwright + Chromium, installed just
+   for this validation, at no cost) - not just `node --check`. This found
+   a REAL bug that reading the code alone had missed: an unmigrated DBC
+   row's "Pool" cell had 3 buttons running together on one line and
+   getting cut off (inherited `white-space: nowrap` from the `<td>`) -
+   fixed with a `.dbc-actions` class (flex column). Also swapped the ⚠
+   emoji on the "Meteora DBC" pill for plain text ("· BETA") - an emoji
+   can render as an empty box on a browser without a colored emoji font.
+4. **Validated the whole flow on screen** (mocked candidate + mocked
+   `fetch`, at no cost): open modal → switch to the DBC chip → the right
+   fields appear/disappear → the BETA confirm shows up → the backend
+   error (nonexistent candidate, expected in the mock) shows up correctly
+   formatted. Made a real call to the backend (which tried and failed for
+   lack of network - correct behavior, only the network doesn't exist
+   here).
+5. Also simulated launch records (`data/launched-tokens.json`, temporary,
+   **deleted after the test** - never made it into Git, the `data/`
+   folder is ignored) to see the Launched Tokens tab with a migrated DBC
+   token, a non-migrated one, and one with an error - that's how the bug
+   in item 3 showed up.
 
-**Screenshots dessa validação não foram commitados** (ficaram só no
-scratchpad da sessão) - qualquer um pode reproduzir do zero seguindo o
-passo 4/5 acima.
+**Screenshots from this validation weren't committed** (they stayed only
+in the session's scratchpad) - anyone can reproduce it from scratch by
+following step 4/5 above.
 
-## 5.2. Quarta rodada (16/09/2026) - primeiro lançamento real + prazo do hackathon estendido
+## 5.2. Fourth round (2026-09-16) - first real launch + extended hackathon deadline
 
-**Prazo do Stocklana estendido pra 25/09, 16h ET** (pool total subiu pra
-$120k+, trilha da Meteora continua em $5.000 USDC) - dá mais tempo pra
-validar com calma. Submissão é pelo próprio `hackathons.solana.com`
-(auto-serviço - registro, trilha e envio tudo lá).
+**Stocklana's deadline extended to 09-25, 4pm ET** (total pool went up to
+$120k+, Meteora's track stays at $5,000 USDC) - gives more time to
+validate calmly. Submission is through `hackathons.solana.com` itself
+(self-service - registration, track and submission all there).
 
-**Primeiro lançamento DBC de verdade, em produção**: NARWAVE, mint
-`5SxgYUr6yx1QLFajnY2JHChaekCmqWJo3Di34kBBS8Ei`, em cima de um candidato
-real detectado (tema "narrative", 16 tokens parecidos). Confirmou que
-`createPoolWithFirstBuy`, o supply (1B, bateu exato com o preset) e o
-resto da config funcionam de ponta a ponta em mainnet.
+**First real DBC launch, in production**: NARWAVE, mint
+`5SxgYUr6yx1QLFajnY2JHChaekCmqWJo3Di34kBBS8Ei`, on top of a real detected
+candidate ("narrative" theme, 16 similar tokens). Confirmed that
+`createPoolWithFirstBuy`, the supply (1B, matched the preset exactly) and
+the rest of the config work end to end on mainnet.
 
-**Achado real que virou correção**: ~2min depois do lançamento, o GMGN
-mostrou "⚠ Security check High tax rate now (9.83%)" - a taxa do preset
-"default-2h-linear" (10% inicial, decaindo) é alta o suficiente pra
-disparar o alerta automático de "high tax" que terminais de trade usam
-como heurística anti-honeypot. Terminal marcando assim espanta comprador
-de verdade, mesmo o token sendo legítimo. Adicionado um segundo preset,
-**"baixa-taxa-2h-linear"** (3%→0,5%), validado com `buildCurve` de verdade
-(sem erro) - vira o padrão selecionado na tela; o preset original continua
-disponível (rotulado com o aviso), pra quem quiser comparar os dois
-lançamentos lado a lado.
+**Real finding that turned into a fix**: ~2min after launch, GMGN showed
+"⚠ Security check High tax rate now (9.83%)" - the "default-2h-linear"
+preset's fee (10% starting, decaying) is high enough to trigger the
+automatic "high tax" alert that trading terminals use as an anti-honeypot
+heuristic. A terminal flagging it like that scares off real buyers, even
+though the token is legitimate. Added a second preset,
+**"baixa-taxa-2h-linear"** (3%→0.5%), validated with real `buildCurve`
+(no error) - becomes the default selected on screen; the original preset
+stays available (labeled with the warning), for anyone who wants to
+compare the two launches side by side.
 
-Isso também vira material de pitch pro hackathon - o próprio post da
-Meteora convida a "reimagine tokenized stock launches with new curves,
-fee models, quote assets, graduation mechanics, price discovery": esse
-ciclo (lançar → observar comportamento real → ajustar o modelo de taxa)
-é exatamente isso, só que baseado em dado real, não teoria.
+This also becomes pitch material for the hackathon - Meteora's own post
+invites people to "reimagine tokenized stock launches with new curves,
+fee models, quote assets, graduation mechanics, price discovery": this
+cycle (launch → observe real behavior → adjust the fee model) is exactly
+that, just based on real data, not theory.
 
-## 5.3. Quinta rodada (17/09/2026) - segunda competição confirmada: Crypto World's Fair
+## 5.3. Fifth round (2026-09-17) - second competition confirmed: Crypto World's Fair
 
-Post da Meteora no Discord (17/09/2026, 09:56) anunciou uma segunda track "Best Use of Meteora
-DBC", desta vez dentro do **Crypto World's Fair** da Colosseum, com sidetrack via Superteam Earn
-(`superteam.fun/earn/listing/meteora-dbc`). Confirmado no navegador (X/Twitter + página do
-Superteam Earn + página do Stocklana) que são **dois eventos diferentes**, não uma substituição:
+A Meteora post on Discord (2026-09-17, 09:56) announced a second "Best Use
+of Meteora DBC" track, this time inside Colosseum's **Crypto World's
+Fair**, with a sidetrack via Superteam Earn
+(`superteam.fun/earn/listing/meteora-dbc`). Confirmed in the browser
+(X/Twitter + the Superteam Earn page + the Stocklana page) that these are
+**two different events**, not a replacement:
 
 | | Stocklana | Crypto World's Fair |
 |---|---|---|
-| Organizador | Solana Foundation | Colosseum (via Superteam Earn) |
-| Prêmio da track Meteora DBC | $5.000 USDC (prêmio único) | $20.000 USDC (5 vencedores: $10k/$5k/$3k/$1,5k/$500) |
-| Prazo de submissão | 25/09/2026, 16h ET | ~12/10/2026 (25 dias a partir de 17/09) |
-| Anúncio dos vencedores | até 02/10/2026 | até 31/10/2026 |
+| Organizer | Solana Foundation | Colosseum (via Superteam Earn) |
+| Meteora DBC track prize | $5,000 USDC (single prize) | $20,000 USDC (5 winners: $10k/$5k/$3k/$1.5k/$500) |
+| Submission deadline | 2026-09-25, 4pm ET | ~2026-10-12 (25 days from 09-17) |
+| Winners announced | by 2026-10-02 | by 2026-10-31 |
 
-A própria página do Stocklana orienta: **"Taking it further after Stocklana? Colosseum's World's
-Fair is the next stop"** (`colosseum.com/worldsfair`) - confirma que não é concorrência, é
-continuação. Estratégia: submeter no Stocklana no prazo (25/09) e continuar evoluindo o mesmo
-código pro Crypto World's Fair antes de 12/10.
+Stocklana's own page states: **"Taking it further after Stocklana?
+Colosseum's World's Fair is the next stop"** (`colosseum.com/worldsfair`)
+- confirms it's not competition, it's continuation. Strategy: submit to
+Stocklana on time (09-25) and keep evolving the same code for Crypto
+World's Fair before 10-12.
 
-Critérios de julgamento do Crypto World's Fair (mais detalhados que o do Stocklana): profundidade
-da integração com o stack Meteora, execução técnica, originalidade (se o caso de uso sobrevive ao
-"meme-stock meta" atual), potencial de impacto, e tração/volume real em mainnet - reforça o
-princípio já seguido aqui de "working code on mainnet beats slides". Ideias sugeridas pelo próprio
-edital que valem considerar: curvas não-lineares (flat/exponential/long curve), fluxos combinando
-DBC + DAMM v2 + DLMM, e um "marketplace" de presets de config DBC.
+Crypto World's Fair's judging criteria (more detailed than Stocklana's):
+depth of integration with the Meteora stack, technical execution,
+originality (whether the use case survives the current "meme-stock
+meta"), impact potential, and real mainnet traction/volume - reinforces
+the principle already followed here of "working code on mainnet beats
+slides." Ideas suggested by the brief itself worth considering:
+non-linear curves (flat/exponential/long curve), flows combining DBC +
+DAMM v2 + DLMM, and a "marketplace" of DBC config presets.
 
-## 5.4. Sexta rodada (17/09/2026) - limiar de migração corrigido (85 SOL → 10 SOL)
+## 5.4. Sixth round (2026-09-17) - migration threshold fixed (85 SOL → 10 SOL)
 
-Com `docs.meteora.ag`/`github.com/MeteoraAg` acessíveis (bloqueados nas rodadas anteriores),
-validei de verdade o `migrationMarketCap` que a seção 5, item 1, já marcava como risco. Comparei
-`dbcConfig.js` contra a config de referência oficial da própria Meteora
-(`github.com/MeteoraAg/meteora-invent`, `studio/config/dbc_config.jsonc`, `buildCurveMode: 0` -
-o mesmo modo que este projeto usa) e contra a tabela de "migration keepers" em
-`docs.meteora.ag/developer-guides/dbc`:
+With `docs.meteora.ag`/`github.com/MeteoraAg` reachable (blocked in
+earlier rounds), actually validated the `migrationMarketCap` that section
+5, item 1, already flagged as a risk. Compared `dbcConfig.js` against
+Meteora's own official reference config
+(`github.com/MeteoraAg/meteora-invent`, `studio/config/dbc_config.jsonc`,
+`buildCurveMode: 0` - the same mode this project uses) and against the
+"migration keepers" table at `docs.meteora.ag/developer-guides/dbc`:
 
-- `totalTokenSupply` (1B) e `percentageSupplyOnMigration` (20%) bateram certinho com o exemplo
-  oficial - nenhuma mudança necessária.
-- `migrationMarketCap: 85` (SOL) estava **8,5x acima** do valor de referência oficial
-  (`migrationQuoteThreshold: 10`) - confirma a suspeita antiga: "85 SOL" era mesmo só o número
-  clássico de graduação do pump.fun, nunca validado pro DBC. A tabela de migration keepers também
-  lista **10 SOL** como o limiar canônico pra pools cotadas em SOL. Corrigido pra 10 nos dois
+- `totalTokenSupply` (1B) and `percentageSupplyOnMigration` (20%) matched
+  the official example exactly - no change needed.
+- `migrationMarketCap: 85` (SOL) was **8.5x above** the official reference
+  value (`migrationQuoteThreshold: 10`) - confirms the old suspicion: "85
+  SOL" really was just pump.fun's classic graduation number, never
+  validated for DBC. The migration keepers table also lists **10 SOL** as
+  the canonical threshold for SOL-quoted pools. Corrected to 10 in both
   presets.
-- Achado secundário: o campo `initialMarketCap` que existia nos dois presets nunca era lido em
-  lugar nenhum - `buildCurve` (o modo usado aqui) só aceita `percentageSupplyOnMigration` e
-  `migrationQuoteThreshold`; `initialMarketCap`/`migrationMarketCap` só existem nos modos
-  `buildCurveWithMarketCap`/`buildCurveWithTwoSegments`/etc, que este projeto não usa. Campo morto,
-  removido. O campo `migrationMarketCap` também foi renomeado pra `migrationQuoteThreshold` (nome
-  real do parâmetro do SDK) - o nome antigo era enganoso, sugeria conversão de market cap que nunca
-  existiu: o valor sempre foi um total bruto de SOL acumulado na curva.
+- Secondary finding: the `initialMarketCap` field that existed in both
+  presets was never read anywhere - `buildCurve` (the mode used here)
+  only accepts `percentageSupplyOnMigration` and
+  `migrationQuoteThreshold`; `initialMarketCap`/`migrationMarketCap` only
+  exist in the `buildCurveWithMarketCap`/`buildCurveWithTwoSegments`/etc
+  modes, which this project doesn't use. Dead field, removed. The
+  `migrationMarketCap` field was also renamed to `migrationQuoteThreshold`
+  (the SDK parameter's real name) - the old name was misleading, it
+  suggested a market-cap conversion that never existed: the value was
+  always a raw total of SOL accumulated in the curve.
 
-**Efeito prático**: com o limiar em 10 SOL (era 85), a curva completa com bem menos volume real de
-compra - mais fácil de alcançar migração de verdade dentro da janela do hackathon, e mais alinhado
-com o critério de julgamento "Traction/Volume... prefer projects who have gone live on mainnet"
-citado na seção 5.3.
+**Practical effect**: with the threshold at 10 SOL (was 85), the curve
+completes with much less real buying volume - easier to reach a real
+migration within the hackathon's window, and more aligned with the
+"Traction/Volume... prefer projects who have gone live on mainnet"
+judging criterion cited in section 5.3.
 
-**O que isso NÃO muda**: `startingFeeBps`/`endingFeeBps` dos dois presets (3%→0,5% e 10%→1%)
-continuam os mesmos - esses vieram de um achado ao vivo real (GMGN/NARWAVE), não de suposição, e
-não têm equivalente na config de referência genérica da Meteora pra comparar.
+**What this does NOT change**: `startingFeeBps`/`endingFeeBps` for both
+presets (3%→0.5% and 10%→1%) stay the same - those came from a real live
+finding (GMGN/NARWAVE), not a guess, and have no equivalent in Meteora's
+generic reference config to compare against.
 
-## 5.5. Sétima rodada (17/09/2026) - teste end-to-end real em mainnet (parcial)
+## 5.5. Seventh round (2026-09-17) - real end-to-end test on mainnet (partial)
 
-Devnet estava genuinamente bloqueado no momento do teste: a RPC pública (`api.devnet.solana.com`)
-recusou airdrop (limite diário do IP esgotado), o próprio `faucet.solana.com` pede explicitamente
-que agentes de IA não usem o formulário web (indica CLI/PoW-faucet/validador local como
-alternativa), e não havia Solana CLI nem Rust/cargo instalados nessa máquina pra rodar um
-validador local com o programa DBC clonado. Diante disso, o usuário mandou 0,5 SOL de verdade pra
-uma wallet de teste nova (`7cGPyHxdgMZiocrMKHXkJSaPi965Cb6wgnGmUJh4Cn1s`, gerada só pra isso,
-chave só neste ambiente local em `.env`, nunca no Git) e o teste foi feito em **mainnet real, com
-valor pequeno**, seguindo a mesma lógica de cautela já usada pro NARWAVE. Rodado localmente
-(`npm start` contra `http://localhost:3000`, nunca contra o Railway de produção), acompanhado ao
-vivo pelo usuário no navegador.
+Devnet was genuinely blocked at the time of testing: the public RPC
+(`api.devnet.solana.com`) refused the airdrop (the IP's daily limit was
+exhausted), `faucet.solana.com` itself explicitly asks AI agents not to
+use the web form (points to CLI/PoW-faucet/local validator as
+alternatives), and this machine had neither the Solana CLI nor Rust/cargo
+installed to run a local validator with the DBC program cloned in. Given
+that, the user sent 0.5 real SOL to a new test wallet
+(`7cGPyHxdgMZiocrMKHXkJSaPi965Cb6wgnGmUJh4Cn1s`, generated just for this,
+key only in this local environment's `.env`, never in Git) and the test
+was done on **real mainnet, with a small amount**, following the same
+cautious logic already used for NARWAVE. Run locally (`npm start` against
+`http://localhost:3000`, never against the production Railway instance),
+watched live by the user in the browser.
 
-Antes disso, corrigido um gap de setup: o repo não tinha `.gitignore` nem `.env.example` (o README
-já citava os dois) - adicionados ambos.
+Before that, fixed a setup gap: the repo had neither `.gitignore` nor
+`.env.example` (the README already referenced both) - both added.
 
-**O que foi confirmado on-chain de verdade:**
+**What was confirmed on-chain for real:**
 
-1. **`createConfig`** - config novo criado pro preset `baixa-taxa-2h-linear` (o de produção, já com
-   `migrationQuoteThreshold: 10` corrigido): `BoFmVZ24TCZQ6SZV3vYNDD6yzssUwT7GbUzJsXrKTPXw`.
-2. **`createPoolWithFirstBuy`** - lançamento real "DBCTEST", compra inicial 0,05 SOL: mint
-   `4JJvXvCRuAuEhjg2okBqkTkBvQHGvx9Dw2RGCgSEwoxJ`, pool
-   `Ey79FuyaJDjoAeAMM36uXKR345WPwAaJi4Hk75pfdXvg`. Confirma que o preset de produção corrigido
-   funciona de ponta a ponta em mainnet.
-3. **`getPoolQuoteTokenCurveProgress`** (leitura) - reportou 0,677% pro DBCTEST (compra de 0,05 SOL
-   contra limiar de 10 SOL) - bate com o esperado.
-4. **Achado real de protocolo**: tentei uma segunda compra inicial de 0,2 SOL contra um preset de
-   teste (limiar 0,15 SOL) - a transação falhou na SIMULAÇÃO (sem gastar SOL) com
-   `AnchorError ... InsufficientLiquidity (0x1791)`: **a compra inicial não pode ser maior que o
-   `migrationQuoteThreshold` do preset** - a curva não tem liquidez pra vender além do ponto de
-   migração. Isso vale pros presets de produção também (comprar >10 SOL de uma vez no lançamento
-   falharia do mesmo jeito) - **o app não valida isso hoje**, fica como item novo pra seção
-   "Riscos" abaixo.
-5. Corrigido esse valor (0,1 SOL, abaixo do limiar de teste) e o segundo lançamento ("DBCE2E") foi
-   confirmado: mint `3AvRwvoEtv5P4ZGD8siEC8tcmAHramJnmjC25w6ii5pY`, pool
+1. **`createConfig`** - a new config created for the `baixa-taxa-2h-linear`
+   preset (the production one, already with the corrected
+   `migrationQuoteThreshold: 10`): `BoFmVZ24TCZQ6SZV3vYNDD6yzssUwT7GbUzJsXrKTPXw`.
+2. **`createPoolWithFirstBuy`** - real launch "DBCTEST", 0.05 SOL initial
+   buy: mint `4JJvXvCRuAuEhjg2okBqkTkBvQHGvx9Dw2RGCgSEwoxJ`, pool
+   `Ey79FuyaJDjoAeAMM36uXKR345WPwAaJi4Hk75pfdXvg`. Confirms the corrected
+   production preset works end to end on mainnet.
+3. **`getPoolQuoteTokenCurveProgress`** (read) - reported 0.677% for
+   DBCTEST (0.05 SOL bought against a 10 SOL threshold) - matches
+   expectations.
+4. **Real protocol finding**: tried a second initial buy of 0.2 SOL
+   against a test preset (0.15 SOL threshold) - the transaction failed at
+   SIMULATION (no SOL spent) with `AnchorError ... InsufficientLiquidity
+   (0x1791)`: **the initial buy can't be larger than the preset's
+   `migrationQuoteThreshold`** - the curve has no liquidity to sell beyond
+   the migration point. This applies to the production presets too
+   (buying >10 SOL at once at launch would fail the same way) - **the app
+   doesn't validate this today**, becomes a new item in the "Risks"
+   section below.
+5. Fixed that value (0.1 SOL, below the test threshold) and the second
+   launch ("DBCE2E") was confirmed: mint
+   `3AvRwvoEtv5P4ZGD8siEC8tcmAHramJnmjC25w6ii5pY`, pool
    `yqkZqUEmsekYPuHfJWGZ6URWvpLZE5imhBoyRkHBFNU`.
-6. **Achado real de calibração**: o progresso da curva NÃO é linear com o SOL depositado, do jeito
-   que a documentação sugere ("Quote Reserve ≥ Migration Quote Threshold"). Com um limiar
-   configurado de 0,15 SOL: 0,1 SOL comprado → 21,2% de progresso (não ~67% como uma razão linear
-   simples sugeriria); +0,03 SOL → 29,4%; +0,1 SOL → 44,2%. Ou seja, o limiar EFETIVO real ficou
-   bem mais alto que o valor configurado - provavelmente algum overhead/mínimo da curva que pesa
-   proporcionalmente mais em limiares pequenos. **Implicação prática**: limiares de teste muito
-   baixos (bem abaixo de 1 SOL) não são um bom proxy barato pra validar o comportamento dos
-   presets de produção (10 SOL) - a essa escala maior, o overhead deve ser proporcionalmente
-   desprezível, mas isso não foi confirmado de verdade (exigiria testar com os 10 SOL reais).
-7. Validado incrementalmente via uma rota/botão TEMPORÁRIOS (`POST /api/test/buy-more`, usando
-   `dbcClient.pool.swap` direto) - removidos do código depois do teste, não fazem parte da versão
-   final.
+6. **Real calibration finding**: curve progress is NOT linear with the SOL
+   deposited, the way the documentation suggests ("Quote Reserve ≥
+   Migration Quote Threshold"). With a configured threshold of 0.15 SOL:
+   0.1 SOL bought → 21.2% progress (not ~67% as a simple linear ratio
+   would suggest); +0.03 SOL → 29.4%; +0.1 SOL → 44.2%. In other words,
+   the real EFFECTIVE threshold ended up much higher than the configured
+   value - likely some curve overhead/minimum that weighs proportionally
+   more on small thresholds. **Practical implication**: very low test
+   thresholds (well below 1 SOL) aren't a good cheap proxy for validating
+   the behavior of the production presets (10 SOL) - at that larger
+   scale, the overhead should be proportionally negligible, but this
+   wasn't confirmed for real (would require testing with the real 10
+   SOL).
+7. Validated incrementally via a TEMPORARY route/button
+   (`POST /api/test/buy-more`, using `dbcClient.pool.swap` directly) -
+   removed from the code after the test, not part of the final version.
 
-**O que ficou sem executar de verdade** (parado por decisão consciente, não por bug): migração
-(`migrateToDammV2`) e saque de taxa (`claimCreatorTradingFee`/`claimPartnerTradingFee`). Completar
-a migração do pool de teste exigiria bem mais SOL do que o limiar configurado sugeria (item 6
-acima) - próximo do saldo inteiro da wallet de teste, sem margem de segurança. Decisão: parar
-antes de esgotar o saldo, já que essas duas funções são instruções bem mais simples (sem a
-matemática de curva que era o real ponto de dúvida) e já tinham sido conferidas com cuidado contra
-o IDL real do SDK numa rodada anterior (seção 3 - inclusive um bug de estrutura de dados
-`pool.poolState.isMigrated` foi achado e corrigido só de ler o código, antes de qualquer teste ao
-vivo). Migração de produção, de qualquer forma, é pra acontecer quando compradores reais cruzarem
-o limiar de 10 SOL - não é papel do time bancar isso.
+**What was left unexecuted for real** (stopped by a deliberate decision,
+not a bug): migration (`migrateToDammV2`) and fee withdrawal
+(`claimCreatorTradingFee`/`claimPartnerTradingFee`). Completing the test
+pool's migration would have required far more SOL than the configured
+threshold suggested (item 6 above) - close to the test wallet's entire
+balance, with no safety margin. Decision: stop before draining the
+balance, since these two functions are much simpler instructions (without
+the curve math that was the real point of doubt) and had already been
+carefully checked against the SDK's real IDL in an earlier round (section
+3 - including a data-structure bug, `pool.poolState.isMigrated`, found
+and fixed purely by reading the code, before any live test). Production
+migration, either way, is meant to happen when real buyers cross the 10
+SOL threshold - it's not the team's job to fund that.
 
-**Estado final da wallet de teste**: ~0,25 SOL restantes, mais os tokens DBCTEST/DBCE2E comprados
-nas duas curvas (que podem ser revendidos de volta pra SOL via swap reverso a qualquer momento,
-já que a curva funciona como AMM normal nos dois sentidos) - nada foi "perdido", só está alocado
-como liquidez/posição nas duas curvas de teste.
+**Final state of the test wallet**: ~0.25 SOL remaining, plus the
+DBCTEST/DBCE2E tokens bought on both curves (which can be sold back to
+SOL via a reverse swap at any time, since the curve works as a normal AMM
+in both directions) - nothing was "lost," it's just allocated as
+liquidity/position in the two test curves.
 
-**Achado secundário de UI**: `window.prompt()` não renderiza dentro do navegador embutido usado
-pra esse teste (Claude Browser pane) - mesma classe de problema que já tinha motivado
-`uiKit.js`/`confirmDialog` a substituir `window.alert`/`window.confirm` antes. Não chegou a virar
-código permanente (o recurso que usava foi removido no cleanup), mas fica registrado caso um
-recurso futuro precise de input de texto num modal - usar o padrão de `confirmDialog` em
-`public/uiKit.js`, não `window.prompt`.
+**Secondary UI finding**: `window.prompt()` doesn't render inside the
+embedded browser used for this test (Claude Browser pane) - the same
+class of problem that had already motivated `uiKit.js`/`confirmDialog` to
+replace `window.alert`/`window.confirm` before. It didn't end up as
+permanent code (the feature that used it was removed during cleanup), but
+it's recorded here in case a future feature needs text input in a modal -
+use the `confirmDialog` pattern in `public/uiKit.js`, not `window.prompt`.
 
-## 6. Próximos passos sugeridos
+## 6. Suggested next steps
 
-1. ~~Validar os presets de curva contra a calculadora oficial da Meteora~~ **FEITO em 17/09/2026**
-   (ver seção 5.4) - `docs.meteora.ag`/`github.com/MeteoraAg` já acessíveis, `DBC_CURVE_PRESETS`
-   ajustado.
-2. ~~Testar o fluxo inteiro (lançar, comprar/vender, migrar, sacar taxa) com valores pequenos~~
-   **PARCIALMENTE FEITO em 17/09/2026** (ver seção 5.5) - lançar + comprar + ler progresso
-   confirmados em mainnet real; migrar + sacar taxa ainda não executados de verdade (só revisão de
-   código/IDL).
-3. Adicionar validação de que a compra inicial (`firstBuySolUi`) não excede o
-   `migrationQuoteThreshold` do preset escolhido, com mensagem de erro clara - hoje só falha com o
-   erro cru da simulação (achado na seção 5.5, item 4).
-4. Quando um pool de produção real se aproximar do limiar de migração (compradores reais, não o
-   time): acompanhar de perto o primeiro `migrateToDammV2`/`claimCreatorTradingFee` de verdade -
-   ainda é a parte do ciclo nunca executada on-chain.
+1. ~~Validate the curve presets against Meteora's official calculator~~
+   **DONE on 2026-09-17** (see section 5.4) - `docs.meteora.ag`/
+   `github.com/MeteoraAg` now reachable, `DBC_CURVE_PRESETS` adjusted.
+2. ~~Test the whole flow (launch, buy/sell, migrate, withdraw fees) with
+   small values~~ **PARTIALLY DONE on 2026-09-17** (see section 5.5) -
+   launch + buy + read progress confirmed on real mainnet; migrate +
+   withdraw fees still not executed for real (only code/IDL review).
+3. Add validation that the initial buy (`firstBuySolUi`) doesn't exceed
+   the chosen preset's `migrationQuoteThreshold`, with a clear error
+   message - today it only fails with the raw simulation error (found in
+   section 5.5, item 4).
+4. Once a real production pool approaches its migration threshold (real
+   buyers, not the team): closely watch the first real
+   `migrateToDammV2`/`claimCreatorTradingFee` - still the part of the
+   cycle never executed on-chain.

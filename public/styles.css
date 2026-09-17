@@ -1,6 +1,6 @@
-/* Paleta/tipografia idênticas ao Lançar Token Bot original
-   (github.com/alemaxxx/lauch-token) - de propósito, pra manter a
-   identidade visual entre o bot completo e esse recorte focado em DBC. */
+/* Palette/typography identical to the original Lançar Token Bot
+   (github.com/alemaxxx/lauch-token) - on purpose, to keep the visual
+   identity between the full bot and this DBC-focused cut. */
 :root {
   --bg: #0a0d12;
   --panel: #12161d;
@@ -52,7 +52,7 @@ html, body {
 .stat__label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint); }
 .stat__value { font-size: 14px; font-weight: 600; color: var(--text); font-family: var(--font-mono); }
 
-/* ---- botão de copiar (endereço de wallet/mint) ---- */
+/* ---- copy button (wallet/mint address) ---- */
 .copy-btn {
   display: inline-flex; align-items: center; justify-content: center;
   width: 20px; height: 20px; padding: 0; margin-left: 2px;
@@ -173,7 +173,7 @@ table.grid { width: 100%; border-collapse: collapse; min-width: 640px; }
   .stat { align-items: flex-start; }
 }
 
-/* ---- modal de confirmação (uiKit.js) + toast ---- */
+/* ---- confirmation modal (uiKit.js) + toast ---- */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 100; }
 .modal {
   width: 100%; max-width: 420px; background: var(--panel); border: 1px solid var(--border);

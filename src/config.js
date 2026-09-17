@@ -6,18 +6,18 @@ function required(name) {
   const value = process.env[name];
   if (!value) {
     throw new Error(
-      `Variavel de ambiente ${name} nao definida. Copie .env.example para .env e preencha.`
+      `Environment variable ${name} is not set. Copy .env.example to .env and fill it in.`
     );
   }
   return value;
 }
 
-// Extraído do Lançar Token Bot (github.com/alemaxxx/lauch-token) - versão
-// enxuta pra esse projeto, focado só no fluxo Meteora DBC. Sem
-// VOLUME_WALLET_PRIVATE_KEY/JUPITER_API_KEY/OPENAI_API_KEY - nenhuma
-// dessas peças do bot original é usada aqui (sem gerador de volume, sem
-// swap via Jupiter - a compra inicial na curva sempre usa SOL puro - e sem
-// sugestão de imagem por IA, só upload manual).
+// Extracted from the Lançar Token Bot (github.com/alemaxxx/lauch-token) -
+// a lean version for this project, focused only on the Meteora DBC flow.
+// No VOLUME_WALLET_PRIVATE_KEY/JUPITER_API_KEY/OPENAI_API_KEY - none of
+// those pieces from the original bot are used here (no volume generator,
+// no Jupiter swap - the initial buy on the curve always uses plain SOL -
+// and no AI image suggestion, just manual upload).
 const rawKey = required("WALLET_PRIVATE_KEY");
 export const wallet = Keypair.fromSecretKey(bs58.decode(rawKey));
 

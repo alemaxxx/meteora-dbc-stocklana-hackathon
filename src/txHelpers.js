@@ -1,22 +1,22 @@
-// Ajuda a enviar transação Solana de forma resistente a "block height
-// exceeded" (o horário de validade do blockhash expira antes de
-// confirmar) - erro comum e TEMPORÁRIO da rede (congestionamento, RPC
-// lento), não um bug do nosso código. Achado em 11/09/2026, no primeiro
-// lançamento de token de verdade pelo "Lançar Token". Em vez de desistir
-// na primeira falha, busca um blockhash NOVO e tenta de novo.
+// Helps send a Solana transaction resilient to "block height exceeded"
+// (the blockhash's validity window expires before confirming) - a common
+// and TEMPORARY network error (congestion, slow RPC), not a bug in our
+// code. Found on 2026-09-11, during "Lançar Token"'s first real token
+// launch. Instead of giving up on the first failure, fetches a NEW
+// blockhash and tries again.
 
 function isExpiryError(err) {
   const msg = err?.message ?? "";
   return msg.includes("block height exceeded") || msg.includes("has expired") || msg.includes("blockhash not found");
 }
 
-// RPC/API sobrecarregada (429) - achado ao vivo em 12/09/2026: o scanner
-// de pools do Auto Buy (roda a cada 5s, independente do toggle) mais a
-// observação StonkFun/pump.fun já deixam a RPC perto do limite o tempo
-// todo, e um lançamento (rajada de chamadas concentrada) cai bem em cima
-// disso. Algumas SDKs (Raydium incluída) rejeitam com objetos que não são
-// `Error` de verdade (`.message` vem `undefined`) - por isso confere o
-// JSON inteiro como último recurso, não só `.message`.
+// Overloaded RPC/API (429) - found live on 2026-09-12: Auto Buy's pool
+// scanner (runs every 5s regardless of the toggle) plus StonkFun/pump.fun
+// monitoring already keep the RPC near its limit at all times, and a
+// launch (a concentrated burst of calls) lands right on top of that. Some
+// SDKs (Raydium included) reject with objects that aren't real `Error`
+// instances (`.message` comes back `undefined`) - that's why this checks
+// the whole JSON as a last resort, not just `.message`.
 function isRateLimitError(err) {
   const msg = err?.message || err?.error?.message || "";
   if (/429|too many requests/i.test(msg)) return true;
@@ -28,13 +28,13 @@ function isRateLimitError(err) {
 }
 
 /**
- * Executa `fn` (recebe o número da tentativa, 1-based) e tenta de novo,
- * com espera fixa entre tentativas, enquanto `isRetryable(err)` disser que
- * vale a pena - útil pra operações inteiras (não só o envio de uma
- * transação) que podem falhar por RPC/API sobrecarregada em algum ponto no
- * meio do caminho, ex: lançar um token pela StonkFun/pump.fun.
+ * Runs `fn` (receives the attempt number, 1-based) and retries, with a
+ * fixed wait between attempts, as long as `isRetryable(err)` says it's
+ * worth it - useful for whole operations (not just sending a single
+ * transaction) that can fail from an overloaded RPC/API somewhere along
+ * the way, e.g. launching a token via StonkFun/pump.fun.
  */
-export async function retryWithDelay(fn, { attempts = 3, delayMs = 4000, isRetryable = () => true, label = "operação" } = {}) {
+export async function retryWithDelay(fn, { attempts = 3, delayMs = 4000, isRetryable = () => true, label = "operation" } = {}) {
   let lastError;
   for (let attempt = 1; attempt <= attempts; attempt++) {
     try {
@@ -42,7 +42,7 @@ export async function retryWithDelay(fn, { attempts = 3, delayMs = 4000, isRetry
     } catch (err) {
       lastError = err;
       if (attempt === attempts || !isRetryable(err)) throw err;
-      console.warn(`[txHelpers] ${label}: tentativa ${attempt}/${attempts} falhou - esperando ${delayMs}ms antes de tentar de novo...`, err);
+      console.warn(`[txHelpers] ${label}: attempt ${attempt}/${attempts} failed - waiting ${delayMs}ms before retrying...`, err);
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
   }
@@ -50,16 +50,17 @@ export async function retryWithDelay(fn, { attempts = 3, delayMs = 4000, isRetry
 }
 
 /**
- * Assina e envia uma Transaction (legacy, não VersionedTransaction) já
- * montada com as instruções - preenche/atualiza feePayer e recentBlockhash
- * a cada tentativa (uma Transaction pode ser re-assinada quantas vezes
- * quiser, cada .sign() recalcula tudo do zero em cima do recentBlockhash
- * atual). O primeiro item de `signers` é sempre o fee payer, mesma
- * convenção já usada no resto do projeto.
+ * Signs and sends an already-built Transaction (legacy, not
+ * VersionedTransaction) with its instructions - fills/refreshes feePayer
+ * and recentBlockhash on every attempt (a Transaction can be re-signed as
+ * many times as needed, each .sign() recomputes everything from scratch
+ * on top of the current recentBlockhash). The first item in `signers` is
+ * always the fee payer, same convention already used across the project.
  *
- * Só tenta de novo quando o erro é claramente de expiração - qualquer
- * outro erro (saldo insuficiente, conta já existe, etc) sobe na hora,
- * repetir não ia resolver e só atrasaria o retorno do erro real.
+ * Only retries when the error is clearly an expiry - any other error
+ * (insufficient balance, account already exists, etc) bubbles up
+ * immediately, since retrying wouldn't fix it and would only delay
+ * surfacing the real error.
  */
 export async function sendAndConfirmWithRetry(connection, transaction, signers, { maxAttempts = 3, commitment = "confirmed", rateLimitDelayMs = 3000 } = {}) {
   let lastError;
@@ -78,10 +79,10 @@ export async function sendAndConfirmWithRetry(connection, transaction, signers, 
       const rateLimited = isRateLimitError(err);
       if ((!isExpiryError(err) && !rateLimited) || attempt === maxAttempts) throw err;
       if (rateLimited) {
-        console.warn(`[txHelpers] tentativa ${attempt}/${maxAttempts} tomou rate limit (429) - esperando ${rateLimitDelayMs}ms antes de tentar de novo...`);
+        console.warn(`[txHelpers] attempt ${attempt}/${maxAttempts} hit a rate limit (429) - waiting ${rateLimitDelayMs}ms before retrying...`);
         await new Promise((resolve) => setTimeout(resolve, rateLimitDelayMs));
       } else {
-        console.warn(`[txHelpers] tentativa ${attempt}/${maxAttempts} expirou (blockhash vencido) - buscando um horário novo e tentando de novo...`);
+        console.warn(`[txHelpers] attempt ${attempt}/${maxAttempts} expired (stale blockhash) - fetching a new one and retrying...`);
       }
     }
   }
@@ -89,15 +90,16 @@ export async function sendAndConfirmWithRetry(connection, transaction, signers, 
 }
 
 /**
- * Espera uma conta recém-criada (numa transação ANTERIOR, já confirmada)
- * ficar visível pra essa RPC antes de montar a próxima transação que
- * depende dela - achado ao vivo em 13/09/2026 (dois casos reais no mesmo
- * dia: "IncorrectProgramId" na criação da ATA em tokenMinter.js,
- * "AccountNotInitialized" (base_mint) na recompra em pumpfunLaunchpad.js) -
- * a segunda transação simulava contra uma réplica de RPC que ainda não
- * tinha visto a primeira confirmar, mesmo standing commitment "confirmed".
- * Mesmo padrão de paciência já usado em getMintInfo (tokenInfo.js) - só
- * generalizado pra qualquer conta, não só mint.
+ * Waits for a freshly created account (in a PREVIOUS, already-confirmed
+ * transaction) to become visible to this RPC before building the next
+ * transaction that depends on it - found live on 2026-09-13 (two real
+ * cases the same day: "IncorrectProgramId" creating the ATA in
+ * tokenMinter.js, "AccountNotInitialized" (base_mint) on the buyback in
+ * pumpfunLaunchpad.js) - the second transaction was simulating against an
+ * RPC replica that hadn't yet seen the first one confirm, even with
+ * "confirmed" commitment. Same patience pattern already used in
+ * getMintInfo (tokenInfo.js) - just generalized to any account, not only
+ * a mint.
  */
 export async function waitForAccountVisible(connection, pubkey, { attempts = 6, delayMs = 2000 } = {}) {
   for (let i = 0; i < attempts; i++) {

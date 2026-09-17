@@ -5,12 +5,12 @@ import { uploadTokenAssets } from "./arweaveUpload.js";
 import { launchOnDbc } from "./dbcLaunchpad.js";
 import { findDbcCurvePreset } from "./dbcConfig.js";
 
-// Orquestração do lançamento - versão enxuta do tokenLauncher.js do Lançar
-// Token Bot (github.com/alemaxxx/lauch-token), cortando tudo que não é
-// Meteora DBC: sem candidato de onda (nome/símbolo/imagem vêm do
-// formulário, digitados por quem lança), sem StonkFun/pump.fun/mint
-// direto, sem sugestão por IA. O que sobra é só a etapa 1 (upload pra
-// Arweave) + a etapa DBC do arquivo original.
+// Launch orchestration - a lean version of the Lançar Token Bot's
+// tokenLauncher.js (github.com/alemaxxx/lauch-token), cutting everything
+// that isn't Meteora DBC: no wave candidate (name/symbol/image come from
+// the form, typed in by whoever is launching), no
+// StonkFun/pump.fun/direct mint, no AI suggestion. What's left is just
+// step 1 (Arweave upload) + the DBC step from the original file.
 
 const LAUNCHED_TOKENS_FILE = new URL("../data/launched-tokens.json", import.meta.url);
 const IMAGES_DIR = new URL("../data/images/", import.meta.url);
@@ -42,22 +42,22 @@ const CUSTOM_IMAGE_MIME_TO_EXT = {
   "image/webp": "webp",
   "image/gif": "gif",
 };
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB - mesmo teto do Lançar Token Bot original
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB - same cap as the original Lançar Token Bot
 
 /**
- * Salva a imagem escolhida no formulário (upload ou Ctrl+V, chega como
- * data URL - "data:image/png;base64,...") num arquivo temporário, pra
- * poder subir pro Arweave.
+ * Saves the image chosen on the form (upload or Ctrl+V, arrives as a data
+ * URL - "data:image/png;base64,...") to a temp file, so it can be
+ * uploaded to Arweave.
  */
 function saveImageToTempFile(dataUrl, fileId) {
   const match = /^data:(image\/(?:png|jpeg|webp|gif));base64,(.+)$/.exec(dataUrl ?? "");
   if (!match) {
-    throw new Error("Imagem inválida - formatos aceitos: PNG, JPEG, WEBP, GIF.");
+    throw new Error("Invalid image - accepted formats: PNG, JPEG, WEBP, GIF.");
   }
   const [, contentType, base64] = match;
   const buffer = Buffer.from(base64, "base64");
   if (buffer.length > MAX_IMAGE_BYTES) {
-    throw new Error(`Imagem grande demais (${(buffer.length / 1024 / 1024).toFixed(1)}MB) - máximo de 5MB.`);
+    throw new Error(`Image too large (${(buffer.length / 1024 / 1024).toFixed(1)}MB) - 5MB max.`);
   }
   ensureDataDirs();
   const ext = CUSTOM_IMAGE_MIME_TO_EXT[contentType];
@@ -67,7 +67,7 @@ function saveImageToTempFile(dataUrl, fileId) {
 }
 
 function extractErrorMessage(err) {
-  if (!err) return "Erro desconhecido (nenhum detalhe disponível).";
+  if (!err) return "Unknown error (no details available).";
   if (typeof err === "string") return err;
   if (err.message) return err.message;
   if (err.error?.message) return err.error.message;
@@ -80,20 +80,20 @@ function extractErrorMessage(err) {
 }
 
 /**
- * Lança um token novo direto na curva do Meteora DBC. Tudo digitado no
- * formulário - não depende de nenhum candidato/onda detectada (esse
- * projeto não tem o detector de hype do Lançar Token Bot original).
+ * Launches a new token directly on the Meteora DBC curve. Everything
+ * typed on the form - doesn't depend on any detected candidate/wave (this
+ * project doesn't have the original Lançar Token Bot's hype detector).
  */
 export async function launchToken({ name, symbol, imageDataUrl, presetId, firstBuySolUi }) {
   if (!name || !symbol) {
-    throw new Error("Informe nome e símbolo do token.");
+    throw new Error("Provide the token's name and symbol.");
   }
   if (!imageDataUrl) {
-    throw new Error("Escolha uma imagem pro token.");
+    throw new Error("Choose an image for the token.");
   }
   const preset = findDbcCurvePreset(presetId);
   if (!preset) {
-    throw new Error(`Preset de curva desconhecido: "${presetId}".`);
+    throw new Error(`Unknown curve preset: "${presetId}".`);
   }
 
   const record = {
@@ -114,20 +114,20 @@ export async function launchToken({ name, symbol, imageDataUrl, presetId, firstB
   };
 
   try {
-    // 1) Sobe a imagem + JSON de metadata pra Arweave - o "uri" que vai
-    // on-chain no createPool (ver dbcLaunchpad.js).
+    // 1) Upload the image + metadata JSON to Arweave - the "uri" that
+    // goes on-chain in createPool (see dbcLaunchpad.js).
     const { filePath, contentType } = saveImageToTempFile(imageDataUrl, record.id);
     const { imageUrl, metadataUrl } = await uploadTokenAssets({
       imagePath: filePath,
       contentType,
       name,
       symbol,
-      description: `${name} - lançado via Meteora DBC.`,
+      description: `${name} - launched via Meteora DBC.`,
     });
     record.imageUrl = imageUrl;
 
-    // 2) Minta o token + inicializa a curva DBC numa transação só
-    // (createPoolWithFirstBuy) - compra inicial opcional.
+    // 2) Mint the token + initialize the DBC curve in a single
+    // transaction (createPoolWithFirstBuy) - optional initial buy.
     const launched = await launchOnDbc({
       name,
       symbol,
@@ -137,16 +137,16 @@ export async function launchToken({ name, symbol, imageDataUrl, presetId, firstB
       firstBuySolUi,
     });
     record.mint = launched.mint;
-    record.poolAddress = launched.poolAddress; // pool DBC (pré-migração)
+    record.poolAddress = launched.poolAddress; // DBC pool (pre-migration)
     record.status = "success";
   } catch (err) {
     const message = extractErrorMessage(err);
-    console.error(`[tokenLauncher] falha ao lançar ${symbol}:`, err);
+    console.error(`[tokenLauncher] failed to launch ${symbol}:`, err);
     record.status = "error";
     record.error = message;
-    // Mesma cautela do bot original: se o mint já foi criado on-chain
-    // antes de uma etapa seguinte falhar, guarda o endereço mesmo assim -
-    // nunca perde esse dado só porque algo depois deu errado.
+    // Same caution as the original bot: if the mint was already created
+    // on-chain before a later step failed, keep the address anyway -
+    // never lose that data just because something afterward went wrong.
     if (err?.mint && !record.mint) record.mint = err.mint;
   }
 
@@ -163,8 +163,8 @@ export function getLaunchedTokens() {
 }
 
 /**
- * Atualiza o registro depois que dbcMigration.js migra a curva pra DAMM v2
- * de verdade - ver rota /dbc-migrate em server.js.
+ * Updates the record after dbcMigration.js actually migrates the curve to
+ * DAMM v2 - see the /dbc-migrate route in server.js.
  */
 export function markDbcPoolMigrated(id, newPoolAddress) {
   const list = loadLaunchedTokens();

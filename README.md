@@ -1,86 +1,88 @@
 # Meteora DBC Launchpad
 
-Submissão pra trilha **Meteora** de dois hackathons, com o mesmo código:
+Submission for the **Meteora** track of two hackathons, with the same code:
 
-1. **Stocklana** (`hackathons.solana.com/hackathons/stocklana`) - track "Best Use of Meteora DBC",
-   $5.000 USDC, prazo **25/09/2026, 16h ET** (estendido).
+1. **Stocklana** (`hackathons.solana.com/hackathons/stocklana`) - "Best Use of Meteora DBC" track,
+   $5,000 USDC, deadline **2026-09-25, 4pm ET** (extended).
 2. **Crypto World's Fair** (Colosseum, via Superteam Earn - `superteam.fun/earn/listing/meteora-dbc`) -
-   track "Best use of Meteora DBC", $20.000 USDC entre 5 vencedores ($10k/$5k/$3k/$1,5k/$500), prazo
-   **~12/10/2026** (vencedores anunciados até 31/10/2026).
+   "Best use of Meteora DBC" track, $20,000 USDC across 5 winners ($10k/$5k/$3k/$1.5k/$500), deadline
+   **~2026-10-12** (winners announced by 2026-10-31).
 
-A própria página do Stocklana aponta o Crypto World's Fair como continuação natural ("Taking it
-further after Stocklana? Colosseum's World's Fair is the next stop") - não são concorrentes entre si,
-dá pra submeter no Stocklana primeiro e evoluir o mesmo projeto pro Crypto World's Fair depois.
+Stocklana's own page points to Crypto World's Fair as the natural continuation ("Taking it
+further after Stocklana? Colosseum's World's Fair is the next stop") - they aren't competing with
+each other, so it's possible to submit to Stocklana first and keep evolving the same project for
+Crypto World's Fair afterward.
 
-Extraído do [Lançar Token Bot](https://github.com/alemaxxx/lauch-token) - um bot maior que detecta
-ondas de hype no StonkFun/pump.fun e lança tokens em cima delas. Esse projeto aqui é só a parte
-**Meteora DBC** (Dynamic Bonding Curve), sem a detecção de onda: um formulário direto - nome,
-símbolo, imagem, preset de curva - e o resto é automático até a curva estar pronta pra migrar.
+Extracted from the [Lançar Token Bot](https://github.com/alemaxxx/lauch-token) - a larger bot that
+detects hype waves on StonkFun/pump.fun and launches tokens on top of them. This project here is
+just the **Meteora DBC** (Dynamic Bonding Curve) part, without the wave detection: a direct
+form - name, symbol, image, curve preset - and the rest is automatic until the curve is ready to
+migrate.
 
-## O que faz
+## What it does
 
-1. **Lança um token na curva** (`createPoolWithFirstBuy` do SDK oficial) - minta o token e inicializa
-   a bonding curve numa transação só. A curva já É a liquidez: qualquer um compra/vende assim que
-   o token existe, sem precisar de nenhuma compra inicial do criador (opcional).
-2. **Acompanha o progresso** da curva - quanto falta pra atingir o limiar de migração do preset
-   escolhido.
-3. **Migra pra uma pool DAMM v2 de verdade**, sob clique explícito, quando a curva completar - nunca
-   automático.
-4. **Saca as taxas de negociação** acumuladas (creator + partner - a wallet configurada é as duas
-   partes).
+1. **Launches a token on the curve** (official SDK's `createPoolWithFirstBuy`) - mints the token
+   and initializes the bonding curve in a single transaction. The curve already IS the liquidity:
+   anyone can buy/sell as soon as the token exists, with no need for any initial buy from the
+   creator (optional).
+2. **Tracks the curve's progress** - how far it is from reaching the chosen preset's migration
+   threshold.
+3. **Migrates to a real DAMM v2 pool**, on explicit click, once the curve completes - never
+   automatic.
+4. **Withdraws accumulated trading fees** (creator + partner - the configured wallet is both
+   parties).
 
-Nada disso acontece sozinho: cada ação (lançar, migrar, sacar) exige um clique + confirmação
-explícita. Sem gerador de volume, sem detecção de onda, sem sugestão de nome/imagem por IA - só o
-fluxo DBC.
+None of this happens on its own: every action (launch, migrate, withdraw) requires a click +
+explicit confirmation. No volume generator, no wave detection, no AI name/image suggestion - just
+the DBC flow.
 
-## Achado real (16/09/2026)
+## Real finding (2026-09-16)
 
-O primeiro lançamento de teste (mint `5SxgYUr6yx1QLFajnY2JHChaekCmqWJo3Di34kBBS8Ei`, feito no
-Lançar Token Bot original antes desse recorte existir) usou uma taxa inicial de 10% - e ~2 minutos
-depois o GMGN (terminal de trade) marcou o token com "Security check — High tax rate now (9.83%)":
-taxa alta o suficiente pra disparar a heurística anti-honeypot que scanners de terminal usam,
-espantando comprador de verdade mesmo o token sendo legítimo. Por isso os dois presets em
-`src/dbcConfig.js`:
+The first test launch (mint `5SxgYUr6yx1QLFajnY2JHChaekCmqWJo3Di34kBBS8Ei`, done on the original
+Lançar Token Bot before this cut existed) used a 10% starting fee - and ~2 minutes later GMGN (a
+trading terminal) flagged the token with "Security check — High tax rate now (9.83%)": a fee high
+enough to trigger the anti-honeypot heuristic that terminal scanners use, scaring off real buyers
+even though the token is legitimate. Hence the two presets in `src/dbcConfig.js`:
 
-| Preset | Taxa (inicial → final, 2h) | Observação |
+| Preset | Fee (starting → ending, 2h) | Note |
 |---|---|---|
-| `baixa-taxa-2h-linear` (padrão) | 3% → 0,5% | abaixo do limiar que costuma disparar alerta |
-| `default-2h-linear` | 10% → 1% | disparou "high tax" no GMGN - mantido pra comparação |
+| `baixa-taxa-2h-linear` (default) | 3% → 0.5% | below the threshold that usually triggers the alert |
+| `default-2h-linear` | 10% → 1% | triggered "high tax" on GMGN - kept for comparison |
 
-## Rodando localmente
+## Running locally
 
 ```bash
 npm install
-cp .env.example .env   # preencha RPC_URL e WALLET_PRIVATE_KEY
+cp .env.example .env   # fill in RPC_URL and WALLET_PRIVATE_KEY
 npm start
 ```
 
-Abre em `http://localhost:3000`.
+Opens at `http://localhost:3000`.
 
-## Variáveis de ambiente
+## Environment variables
 
-Só duas obrigatórias - ver `.env.example`. Nenhum valor real deve ir pro Git. Em produção
-(Railway), cole os valores direto no painel de variáveis do serviço.
+Only two are required - see `.env.example`. No real value should ever go into Git. In production
+(Railway), paste the values directly into the service's variables panel.
 
-## O que já foi testado em mainnet de verdade (17/09/2026)
+## What has already been tested for real on mainnet (2026-09-17)
 
-Com uma wallet de teste isolada (não a de produção): `createConfig`, `createPoolWithFirstBuy` (com
-o preset de produção já corrigido) e leitura de progresso da curva - todos confirmados on-chain.
-Migração e saque de taxa ainda não foram executados de verdade (só revisão de código/IDL) - ver
-seção 5.5 do `PLANO-DBC-MIGRACAO.md` pro relato completo, incluindo dois achados reais de
-protocolo: (1) a compra inicial não pode exceder o limiar de migração do preset (a curva não tem
-liquidez além desse ponto), e (2) o progresso da curva não é linear com o SOL depositado - limiares
-de teste muito baixos (bem abaixo de 1 SOL) não são um bom proxy barato pros presets de produção.
+With an isolated test wallet (not the production one): `createConfig`, `createPoolWithFirstBuy`
+(with the already-corrected production preset) and reading curve progress - all confirmed
+on-chain. Migration and fee withdrawal haven't been executed for real yet (only code/IDL review) -
+see section 5.5 of `PLANO-DBC-MIGRACAO.md` for the full report, including two real protocol
+findings: (1) the initial buy can't exceed the preset's migration threshold (the curve has no
+liquidity beyond that point), and (2) curve progress isn't linear with the SOL deposited - very
+low test thresholds (well below 1 SOL) aren't a good cheap proxy for the production presets.
 
-## O que ainda falta validar
+## What's still left to validate
 
-- **Migração e saque de taxa** (`migrateToDammV2`/`claimCreatorTradingFee`/`claimPartnerTradingFee`)
-  - nunca executados com transação real ainda (ver acima).
-- **Validação client/server-side de que a compra inicial não excede o limiar de migração** - hoje
-  só falha com o erro cru da simulação on-chain.
-- **Quote travado em SOL** - os presets definem o limiar em unidades do próprio quote token, sem
-  converter preço; suportar outro quote (USDC, um xStock) exigiria calibrar os presets pro valor de
-  mercado de cada um antes.
+- **Migration and fee withdrawal** (`migrateToDammV2`/`claimCreatorTradingFee`/`claimPartnerTradingFee`)
+  - never executed with a real transaction yet (see above).
+- **Client/server-side validation that the initial buy doesn't exceed the migration threshold** -
+  today it only fails with the raw on-chain simulation error.
+- **Quote locked to SOL** - the presets define the threshold in units of the quote token itself,
+  with no price conversion; supporting another quote (USDC, an xStock) would require calibrating
+  the presets to each one's market value first.
 
-Ver `PLANO-DBC-MIGRACAO.md` pro histórico completo de decisões e achados (herdado do projeto
-original, com o que é específico deste recorte adicionado no topo).
+See `PLANO-DBC-MIGRACAO.md` for the full history of decisions and findings (inherited from the
+original project, with what's specific to this cut added at the top).

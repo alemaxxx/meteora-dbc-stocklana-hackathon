@@ -1,16 +1,16 @@
-// Kit de UI compartilhado (toast + modal de confirmação) - carregado ANTES
-// de hype.js/volumeBotPanel.js/main.js (ver index.html), expõe window.toast
-// e window.confirmDialog como globais simples, mesmo padrão dos outros
-// scripts da tela (sem módulos, sem build step).
+// Shared UI kit (toast + confirmation modal) - loaded BEFORE main.js/app.js
+// (see index.html), exposes window.toast and window.confirmDialog as
+// simple globals, same pattern as the other scripts on the page (no
+// modules, no build step).
 //
-// Motivo de existir (15/09/2026): o resto do app já dava feedback inline
-// (.modal__error/.modal__success, pills, botões que mudam de texto) - só o
-// fluxo do Meteora DBC (BETA) usava window.alert/window.confirm nativos,
-// que destoam MUITO visualmente do resto (janela do navegador, sem
-// nenhum estilo). Generalizado aqui pra também cobrir os dois
-// window.confirm de "valor grande, tem certeza?" que já existiam desde
-// antes (achado ao vivo em 12/09/2026) - mesmo texto/comportamento, só a
-// aparência muda.
+// Why this exists (2026-09-15): the rest of the app already gave inline
+// feedback (.modal__error/.modal__success, pills, buttons that change
+// text) - only the Meteora DBC flow (BETA) used native
+// window.alert/window.confirm, which clash A LOT visually with the rest
+// (bare browser window, no styling). Generalized here to also cover the
+// two "large value, are you sure?" window.confirm calls that already
+// existed before (found live on 2026-09-12) - same text/behavior, only the
+// look changes.
 (function () {
   const ICONS = {
     success: '<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="1.5"/><path d="M6 10.5l2.5 2.5L14 7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
@@ -19,17 +19,17 @@
     info: '<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="1.5"/><path d="M10 9v4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="10" cy="6.3" r="1" fill="currentColor"/></svg>',
   };
 
-  // Scripts ficam no fim do <body> (ver index.html) - o body já existe
-  // nesse ponto, mesmo padrão de injeção direta que o fees-modal de
-  // hype.js já usa (document.body.insertAdjacentHTML), sem precisar
-  // esperar DOMContentLoaded.
+  // Scripts sit at the end of <body> (see index.html) - the body already
+  // exists at this point, same direct-injection pattern already used
+  // elsewhere (document.body.insertAdjacentHTML), no need to wait for
+  // DOMContentLoaded.
   document.body.insertAdjacentHTML("beforeend", '<div class="toast-stack" role="status" aria-live="polite"></div>');
   const stack = document.querySelector(".toast-stack");
 
   /**
-   * Mostra uma notificação temporária, canto inferior direito. `type`:
-   * "success" | "error" | "warning" | "info" (padrão). `duration` em ms,
-   * 0 = não some sozinha (só no clique do X).
+   * Shows a temporary notification, bottom-right corner. `type`:
+   * "success" | "error" | "warning" | "info" (default). `duration` in ms,
+   * 0 = doesn't auto-dismiss (only on the X click).
    */
   function toast(message, { type = "info", duration = 5000 } = {}) {
     const el = document.createElement("div");
@@ -37,9 +37,9 @@
     el.innerHTML = `
       <span class="toast__icon">${ICONS[type] ?? ICONS.info}</span>
       <span class="toast__msg"></span>
-      <button type="button" class="toast__close" aria-label="Fechar">×</button>
+      <button type="button" class="toast__close" aria-label="Close">×</button>
     `;
-    el.querySelector(".toast__msg").textContent = message; // textContent de propósito - message pode conter endereço/erro cru, nunca HTML
+    el.querySelector(".toast__msg").textContent = message; // textContent on purpose - message may contain a raw address/error, never HTML
     stack.appendChild(el);
     requestAnimationFrame(() => el.classList.add("is-visible"));
 
@@ -50,8 +50,8 @@
     };
     el.querySelector(".toast__close").addEventListener("click", remove);
     if (duration > 0) timer = setTimeout(remove, duration);
-    // Pausa a auto-remoção enquanto o mouse tá em cima - notificação de erro
-    // longa não deve sumir bem na hora que o usuário for ler.
+    // Pause auto-removal while the mouse is over it - a long error
+    // notification shouldn't vanish right as the user goes to read it.
     el.addEventListener("mouseenter", () => timer && clearTimeout(timer));
     el.addEventListener("mouseleave", () => {
       if (duration > 0) timer = setTimeout(remove, 1500);
@@ -60,11 +60,11 @@
   }
 
   /**
-   * Modal de confirmação assíncrono - substitui window.confirm() com a
-   * mesma estética de .modal-overlay/.modal já usada no resto do app.
-   * Resolve `true` (confirmou) ou `false` (cancelou/Esc/clicou fora).
+   * Async confirmation modal - replaces window.confirm() with the same
+   * look as the .modal-overlay/.modal already used elsewhere in the app.
+   * Resolves `true` (confirmed) or `false` (cancelled/Esc/clicked outside).
    */
-  function confirmDialog(message, { title = "Confirmar ação", confirmText = "Confirmar", cancelText = "Cancelar", danger = false } = {}) {
+  function confirmDialog(message, { title = "Confirm action", confirmText = "Confirm", cancelText = "Cancel", danger = false } = {}) {
     return new Promise((resolve) => {
       const overlay = document.createElement("div");
       overlay.className = "modal-overlay confirm-overlay";
