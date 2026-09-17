@@ -665,6 +665,21 @@ confirmation that NARWAVE really was launched with the old, unconfirmed 85 SOL t
 5.4's finding) before the fix to 10 SOL landed the next day. The historical record and the live
 chain data agree.
 
+## 5.12. Submitted to Stocklana (2026-09-17)
+
+Registered and submitted on `hackathons.solana.com/hackathons/stocklana`, competing in both
+eligible tracks: **Best Use of Meteora DBC** ($5,000) and **Best use of Pyth market data** (3
+months of Pyth Pro access) - the other three sponsor tracks (PreStocks, Tessera, Clawpump) each
+require integrating that sponsor's own product specifically, which this project doesn't do, so
+they were deliberately left unchecked rather than checking boxes it doesn't honestly qualify for.
+Submission text mirrors the README/this document's own findings - see `Full Description` on the
+submitted project page for the exact wording. Edits are allowed until submissions close
+(2026-09-25, 4pm ET), so this isn't final - the plan is to keep improving the same submission
+rather than treating it as done.
+
+Next: register and submit the same project to Crypto World's Fair (Superteam Earn, deadline
+~2026-10-12, see section 5.3) - not done yet, separate account/login needed there too.
+
 ## 6. Suggested next steps
 
 1. ~~Validate the curve presets against Meteora's official calculator~~
