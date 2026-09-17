@@ -7,6 +7,7 @@ import { DBC_CURVE_PRESETS } from "./dbcConfig.js";
 import { getDbcCurveProgress, migrateDbcPoolIfReady, claimDbcFees } from "./dbcMigration.js";
 import { prepareTokenLaunch, confirmTokenLaunch, getLaunchedTokens, markDbcPoolMigrated } from "./tokenLauncher.js";
 import { PYTH_STOCK_SYMBOLS, computePythAnchoredMarketCaps } from "./pythPricing.js";
+import { getPublicPoolInfo } from "./dbcPoolInfo.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, "..", "public");
@@ -148,6 +149,25 @@ export function startServer() {
       res.json({ ok: true, result });
     } catch (err) {
       console.error("Failed to claim fees:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ---- Public developer API - "Data Streams or Developer Tooling for
+  // trading terminals and builders" from the Crypto World's Fair brief.
+  // Works for ANY DBC pool on-chain, not just ones this app launched -
+  // CORS is opened just for this one route so external trading
+  // terminals/dashboards can call it directly from a browser, unlike
+  // every other route here (which are same-origin, for this app's own
+  // UI only). Read-only, no wallet needed. ----
+  app.get("/api/dbc-pool/:address", async (req, res) => {
+    res.set("Access-Control-Allow-Origin", "*");
+    try {
+      const info = await getPublicPoolInfo(req.params.address);
+      if (!info) return res.status(404).json({ error: "No DBC pool found for that address (tried as both a pool address and a base mint)." });
+      res.json(info);
+    } catch (err) {
+      console.error("Failed to read public pool info:", err);
       res.status(500).json({ error: err.message });
     }
   });

@@ -639,6 +639,32 @@ branch of `dbcMigration.js` that's never run even once - on top of `migrateDbcPo
 recommended as the first thing to test for real; the five other presets remain the better choice
 until this one gets its own live migration test.
 
+## 5.11. Thirteenth round (2026-09-17) - public developer API for any DBC pool
+
+Last of this scoped-research pass's brief-literal ideas: **"Data Streams or Developer Tooling for
+trading terminals and builders to easily plug-and-play when building a launchpad."** Added
+`GET /api/dbc-pool/:address` (new `src/dbcPoolInfo.js`) - a read-only, CORS-open endpoint that
+works for **any** Meteora DBC pool on-chain, not just ones this app launched. Accepts either a pool
+address or a base mint (tries both), returns base/quote mint, migration status, live curve
+progress, migration threshold, and unclaimed/lifetime fee metrics. No wallet, no auth needed - pure
+public read, the same spirit as a block explorer's API. CORS is opened only for this one route
+(`Access-Control-Allow-Origin: *`) - every other route in this app stays same-origin, meant only
+for this app's own UI.
+
+**Real finding while building it**: `dbcClient.state.getPool(address)` does NOT return `null` for
+an address that exists but isn't a virtual pool account - it THROWS ("Invalid account
+discriminator"), since Anchor's typed account fetcher rejects a discriminator mismatch as an error,
+not a miss. The "try as a pool address, fall back to base mint" logic needed a `try/catch`, not an
+`if (!pool)` check, around the first attempt. Confirmed the fix against a REAL production pool -
+NARWAVE (`5SxgYUr6yx1QLFajnY2JHChaekCmqWJo3Di34kBBS8Ei`, launched 2026-09-16, see section 5.2) -
+using its base mint, and separately using its pool address, both resolving correctly.
+
+**Bonus confirmation from real on-chain data**: NARWAVE's on-chain `migrationQuoteThreshold` came
+back as `"85000000000"` (85,000,000,000 lamports = exactly 85 SOL) - independent, on-chain
+confirmation that NARWAVE really was launched with the old, unconfirmed 85 SOL threshold (section
+5.4's finding) before the fix to 10 SOL landed the next day. The historical record and the live
+chain data agree.
+
 ## 6. Suggested next steps
 
 1. ~~Validate the curve presets against Meteora's official calculator~~

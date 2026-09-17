@@ -23,9 +23,9 @@ migrate.
 
 1. **Launches a token on the curve** (official SDK's `createPoolWithFirstBuy`) - mints the token
    and initializes the bonding curve in a single transaction, **paid for and owned by your
-   connected wallet** (Phantom - click "Connect Wallet" first), not the platform's. The curve
-   already IS the liquidity: anyone can buy/sell as soon as the token exists, with no need for any
-   initial buy from the creator (optional).
+   connected wallet** (click "Connect Wallet" first - Phantom, Solflare, Backpack, any Wallet
+   Standard wallet), not the platform's. The curve already IS the liquidity: anyone can buy/sell as
+   soon as the token exists, with no need for any initial buy from the creator (optional).
 2. **Tracks the curve's progress** - how far it is from reaching the chosen preset's migration
    threshold.
 3. **Migrates to a real DAMM v2 pool**, on explicit click, once the curve completes - never
@@ -70,6 +70,15 @@ feedback.
   section 5.6) and the curve's market-cap targets get computed from that stock's **live Pyth
   price**, not a guessed SOL number. Needs a free `PYTH_API_KEY` (see `.env.example`) - without it,
   the app still works fine with just the six fixed presets. Confirmed live on mainnet: section 5.6.
+
+## Public developer API (2026-09-17)
+
+`GET /api/dbc-pool/:address` - read-only, CORS-open, works for **any** Meteora DBC pool on-chain
+(pool address or base mint, tries both), not just ones this app launched. Returns mint, migration
+status, live curve progress, migration threshold, and fee metrics - the "Data Streams or Developer
+Tooling for trading terminals and builders" idea from the Crypto World's Fair brief. See section
+5.11 of `PLANO-DBC-MIGRACAO.md`, including a real bug found and fixed while building it (verified
+against NARWAVE, a real production pool).
 
 ## Real finding (2026-09-16)
 
