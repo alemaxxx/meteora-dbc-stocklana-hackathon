@@ -8,7 +8,7 @@ import { getMigrationFeeOptionForPreset } from "./dbcConfig.js";
 
 const MAX_CLAIM_AMOUNT = new BN("18446744073709551615"); // U64_MAX - "withdraw everything"
 
-// Second half of a DBC pool's lifecycle - see PLANO-DBC-MIGRACAO.md.
+// Second half of a DBC pool's lifecycle - see DBC-MIGRATION-PLAN.md.
 // Unlike the current flow (createInfinitePool, in poolCreator.js), the
 // DAMM v2 pool here is NOT created at launch time: it only comes into
 // existence once the curve "completes" (reaches the migrationQuoteThreshold
@@ -18,7 +18,7 @@ const MAX_CLAIM_AMOUNT = new BN("18446744073709551615"); // U64_MAX - "withdraw 
 // "creator" and "partner" - we're both, see dbcConfig.js).
 //
 // getDbcCurveProgress CONFIRMED LIVE on mainnet (2026-09-17, see
-// PLANO-DBC-MIGRACAO.md section 5.5). migrateDbcPoolIfReady/claimDbcFees
+// DBC-MIGRATION-PLAN.md section 5.5). migrateDbcPoolIfReady/claimDbcFees
 // are still NEVER TESTED LIVE - stopped short of a full migration in that
 // same test run due to the test wallet's budget (see section 5.5); their
 // account structure was carefully checked against the SDK's real IDL in

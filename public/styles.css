@@ -63,7 +63,7 @@ html, body {
 }
 .copy-btn:hover { color: var(--text); border-color: var(--accent-info); }
 
-/* ---- painel de lançamento ---- */
+/* ---- launch panel ---- */
 .panel {
   background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
   padding: 22px; margin: 28px 0 24px;
@@ -128,7 +128,7 @@ html, body {
   border-radius: 8px; padding: 10px 12px; line-height: 1.6;
 }
 
-/* ---- tabela de tokens lançados ---- */
+/* ---- launched tokens table ---- */
 .subsection-title {
   margin: 8px 0 8px; font-size: 14px; font-weight: 600; color: var(--text-muted);
   text-transform: uppercase; letter-spacing: 0.04em;

@@ -6,7 +6,7 @@ import { waitForAccountVisible } from "./txHelpers.js";
 import { getOrCreateDbcConfig, createPythAnchoredDbcConfig } from "./dbcConfig.js";
 
 // Launch via Meteora DBC (Dynamic Bonding Curve) - see
-// PLANO-DBC-MIGRACAO.md for context (evaluation for the Stocklana
+// DBC-MIGRATION-PLAN.md for context (evaluation for the Stocklana
 // hackathon, 2026-09-15). Replaces, in a single step, what today are
 // THREE separate stages for the "stonkfun"/"pumpfun" methods (see
 // raydiumLaunchpad.js/pumpfunLaunchpad.js + tokenLauncher.js):
@@ -20,7 +20,7 @@ import { getOrCreateDbcConfig, createPythAnchoredDbcConfig } from "./dbcConfig.j
 // reaches the threshold configured in the config (see dbcMigration.js) -
 // it's not synchronous with the launch.
 //
-// WALLET-CONNECT REWORK (2026-09-17, see PLANO-DBC-MIGRACAO.md section
+// WALLET-CONNECT REWORK (2026-09-17, see DBC-MIGRATION-PLAN.md section
 // 5.7): launching used to be entirely server-signed, with the server's
 // own WALLET_PRIVATE_KEY paying for every launch - since the app has no
 // authentication, that meant anyone who found the public URL could spend
@@ -38,7 +38,7 @@ import { getOrCreateDbcConfig, createPythAnchoredDbcConfig } from "./dbcConfig.j
 // CONFIRMED LIVE on mainnet (2026-09-16, NARWAVE launch, and again on
 // 2026-09-17 with a corrected preset) for the OLD server-signed flow -
 // method names/parameters match the installed package's .d.ts (v1.5.12).
-// See section 5 (NARWAVE) and 5.5 of PLANO-DBC-MIGRACAO.md for those
+// See section 5 (NARWAVE) and 5.5 of DBC-MIGRATION-PLAN.md for those
 // live test reports, and 5.7 for this rework's own live test.
 
 function toRawAmount(uiAmount, decimals) {
@@ -116,7 +116,7 @@ export async function prepareLaunchTransaction({ name, symbol, metadataUri, pres
 
 /**
  * Retries getPoolByBaseMint on its own, separately from the mint account -
- * found live on 2026-09-17 (see PLANO-DBC-MIGRACAO.md section 5.8): even
+ * found live on 2026-09-17 (see DBC-MIGRATION-PLAN.md section 5.8): even
  * after the mint account itself was visible, the pool account (a
  * DIFFERENT account) could still lag behind on the RPC replica serving
  * this request, so a single lookup right after confirmation isn't

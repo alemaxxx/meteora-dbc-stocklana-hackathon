@@ -11,7 +11,7 @@
 // Why this exists (2026-09-17): the first version only checked
 // `window.solana` (Phantom's own injected object) - works for Phantom,
 // but the user immediately (and rightly) asked for other wallets too.
-// See PLANO-DBC-MIGRACAO.md section 5.7/5.8.
+// See DBC-MIGRATION-PLAN.md section 5.7/5.8.
 import { getWallets } from "https://esm.sh/@wallet-standard/app@1";
 
 const SOLANA_CHAINS = ["solana:mainnet", "solana:devnet", "solana:testnet"];

@@ -42,7 +42,7 @@ the DBC flow.
 Launching used to be entirely server-signed (the platform's own wallet paid for every launch) -
 since the app has no login, that meant anyone with the URL could spend the operator's real SOL just
 by clicking "Launch Token". Now the connecting browser wallet pays for and owns the new token
-instead (see `PLANO-DBC-MIGRACAO.md` section 5.7): the server builds the transaction and only
+instead (see `DBC-MIGRATION-PLAN.md` section 5.7): the server builds the transaction and only
 partially signs it (it still has to co-sign the new token's own mint creation), then your wallet
 completes the signature before anything gets sent. Migrating and claiming fees are unchanged -
 those stay creator-only actions on the platform side (see section 5.7 for why that's fine, not a
@@ -60,7 +60,7 @@ feedback.
 - `flat-1pct`, `exponencial-2h`, `long-24h-linear` - three more fee shapes added straight from the
   hackathon briefs' own "novel curve or fee configurations" ask ("Flat Curve, Exponential Curve, or
   Long Curve" is close to verbatim from the Crypto World's Fair brief) - see section 5.9 of
-  `PLANO-DBC-MIGRACAO.md`.
+  `DBC-MIGRATION-PLAN.md`.
 - `compounding-damm-v2` - the OTHER example from that same brief line, "Compounding Liquidity DAMM
   v2 Pools": the migrated pool compounds 50% of its trading fees back into its own liquidity
   instead of paying it all out. It's the only preset using a `migrationFeeOption` other than
@@ -78,7 +78,7 @@ feedback.
 (pool address or base mint, tries both), not just ones this app launched. Returns mint, migration
 status, live curve progress, migration threshold, and fee metrics - the "Data Streams or Developer
 Tooling for trading terminals and builders" idea from the Crypto World's Fair brief. See section
-5.11 of `PLANO-DBC-MIGRACAO.md`, including a real bug found and fixed while building it (verified
+5.11 of `DBC-MIGRATION-PLAN.md`, including a real bug found and fixed while building it (verified
 against NARWAVE, a real production pool).
 
 ## Real finding (2026-09-16)
@@ -115,7 +115,7 @@ With an isolated test wallet (not the production one), the **entire lifecycle en
 `createConfig`, `createPoolWithFirstBuy`, curve progress, `migrateToDammV2`, and
 `claimCreatorTradingFee`/`claimPartnerTradingFee` - all confirmed on-chain, using the same
 `Customizable`/compounding fee shape as the riskiest preset (`compounding-damm-v2`). See section
-5.14 of `PLANO-DBC-MIGRACAO.md` for the full report, including a real bug this test found and
+5.14 of `DBC-MIGRATION-PLAN.md` for the full report, including a real bug this test found and
 fixed: after migration, claiming fees read the wrong pool address (the new DAMM v2 pool instead of
 the original DBC curve) and failed for every migrated pool, not just this test one - now fixed by
 tracking the original curve address in a separate field that migration never overwrites. Also
@@ -129,7 +129,7 @@ linear with the SOL deposited.
 Audited every tracked file plus the full git history for exposed secrets before pointing anyone at
 the live URL - clean (`.env` was never committed, no private-key-shaped strings, no API keys, no
 credentials in RPC URLs anywhere in history). Three real, non-secret findings, all fixed - see
-section 5.15 of `PLANO-DBC-MIGRACAO.md` for the full report:
+section 5.15 of `DBC-MIGRATION-PLAN.md` for the full report:
 
 1. **Stored XSS** - the launched-tokens table rendered `name`/`symbol` (public form input, no
    character restrictions) as raw HTML; fixed with escaping + a server-side length cap.
@@ -155,5 +155,5 @@ section 5.15 of `PLANO-DBC-MIGRACAO.md` for the full report:
 - **DLMM "Conviction Pools"** - researched, not built (section 6, item 6) - the one remaining brief
   idea from Crypto World's Fair, left for a deliberate product decision rather than a guess.
 
-See `PLANO-DBC-MIGRACAO.md` for the full history of decisions and findings (inherited from the
+See `DBC-MIGRATION-PLAN.md` for the full history of decisions and findings (inherited from the
 original project, with what's specific to this cut added at the top).

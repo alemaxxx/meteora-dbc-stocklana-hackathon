@@ -2,7 +2,7 @@ import "dotenv/config";
 
 // Live price data from Pyth (Hermes API), used to anchor a DBC curve's
 // market-cap targets to a real stock's current price instead of a
-// guessed SOL number - see PLANO-DBC-MIGRACAO.md for the full writeup
+// guessed SOL number - see DBC-MIGRATION-PLAN.md for the full writeup
 // (the "Pyth-anchored preset" round).
 //
 // REAL CONSTRAINT found live (2026-09-17): Hermes' price-update endpoint

@@ -27,7 +27,7 @@
   // ---- wallet connect (any Wallet Standard wallet - Phantom, Solflare,
   // Backpack, ...; see public/walletConnect.js) - launching pays from and
   // is owned by THIS wallet, never the platform one (see
-  // PLANO-DBC-MIGRACAO.md section 5.7 for why this exists: the app used
+  // DBC-MIGRATION-PLAN.md section 5.7 for why this exists: the app used
   // to have no auth at all, so anyone with the URL could spend the
   // platform wallet's real SOL just by clicking Launch). ----
   async function connectWallet() {

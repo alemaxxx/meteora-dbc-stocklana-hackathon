@@ -67,7 +67,7 @@ export function startServer() {
     }
   });
 
-  // ---- Launch (wallet-connected, two phases - see PLANO-DBC-MIGRACAO.md
+  // ---- Launch (wallet-connected, two phases - see DBC-MIGRATION-PLAN.md
   // section 5.7 for why: the connecting browser wallet pays for and owns
   // the new token, the platform wallet never signs or spends here) ----
 

@@ -130,7 +130,7 @@ export async function prepareTokenLaunch({ name, symbol, imageDataUrl, presetId,
     migrationThresholdForValidation = preset.migrationQuoteThreshold;
   }
 
-  // Found live on 2026-09-17 (see PLANO-DBC-MIGRACAO.md section 5.5): the
+  // Found live on 2026-09-17 (see DBC-MIGRATION-PLAN.md section 5.5): the
   // curve has no liquidity to sell past its own migration threshold, so a
   // first buy at or above it fails on-chain with AnchorError
   // InsufficientLiquidity (0x1791) - caught here with a clear message

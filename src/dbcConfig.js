@@ -20,7 +20,7 @@ import { getMintInfo } from "./tokenInfo.js";
 import { sendAndConfirmWithRetry } from "./txHelpers.js";
 import { computePythAnchoredMarketCaps, PYTH_STOCK_SYMBOLS, isPythStockSymbolSupported } from "./pythPricing.js";
 
-// DBC (Dynamic Bonding Curve) "config" step - see PLANO-DBC-MIGRACAO.md for
+// DBC (Dynamic Bonding Curve) "config" step - see DBC-MIGRATION-PLAN.md for
 // the full design. A "config" is a SEPARATE account from the pool: it
 // defines the curve's shape (fee, supply, DAMM v2 migration threshold,
 // etc) and is MEANT TO BE REUSED - Meteora itself recommends one config
