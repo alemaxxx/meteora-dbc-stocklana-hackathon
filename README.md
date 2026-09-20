@@ -63,9 +63,10 @@ feedback.
   `PLANO-DBC-MIGRACAO.md`.
 - `compounding-damm-v2` - the OTHER example from that same brief line, "Compounding Liquidity DAMM
   v2 Pools": the migrated pool compounds 50% of its trading fees back into its own liquidity
-  instead of paying it all out. **Higher risk than the other five** - it's the first preset to use
-  a `migrationFeeOption` other than `FixedBps100`, so migrating a pool launched with it exercises a
-  code path never run even once - see section 5.10.
+  instead of paying it all out. It's the only preset using a `migrationFeeOption` other than
+  `FixedBps100`, so migrating a pool launched with it exercises its own dedicated code path -
+  **confirmed live on 2026-09-20** (this exact fee shape's full lifecycle - launch, migrate,
+  claim - was the one used for the real end-to-end migration test, see section 5.14).
 - **Pyth-anchored mode** - pick a real stock (**TSLA** or **QQQ** - see why only these two in
   section 5.6) and the curve's market-cap targets get computed from that stock's **live Pyth
   price**, not a guessed SOL number. Needs a free `PYTH_API_KEY` (see `.env.example`) - without it,
@@ -108,26 +109,31 @@ Opens at `http://localhost:3000`.
 Only two are required - see `.env.example`. No real value should ever go into Git. In production
 (Railway), paste the values directly into the service's variables panel.
 
-## What has already been tested for real on mainnet (2026-09-17)
+## What has already been tested for real on mainnet (2026-09-20)
 
-With an isolated test wallet (not the production one): `createConfig`, `createPoolWithFirstBuy`
-(with the already-corrected production preset) and reading curve progress - all confirmed
-on-chain. Migration and fee withdrawal haven't been executed for real yet (only code/IDL review) -
-see section 5.5 of `PLANO-DBC-MIGRACAO.md` for the full report, including two real protocol
-findings: (1) the initial buy can't exceed the preset's migration threshold (the curve has no
-liquidity beyond that point), and (2) curve progress isn't linear with the SOL deposited - very
-low test thresholds (well below 1 SOL) aren't a good cheap proxy for the production presets.
+With an isolated test wallet (not the production one), the **entire lifecycle end-to-end**:
+`createConfig`, `createPoolWithFirstBuy`, curve progress, `migrateToDammV2`, and
+`claimCreatorTradingFee`/`claimPartnerTradingFee` - all confirmed on-chain, using the same
+`Customizable`/compounding fee shape as the riskiest preset (`compounding-damm-v2`). See section
+5.14 of `PLANO-DBC-MIGRACAO.md` for the full report, including a real bug this test found and
+fixed: after migration, claiming fees read the wrong pool address (the new DAMM v2 pool instead of
+the original DBC curve) and failed for every migrated pool, not just this test one - now fixed by
+tracking the original curve address in a separate field that migration never overwrites. Also
+independently confirmed by a third-party DAMM v2 pool monitor picking up the migrated pool with the
+correct 1% fee rate and 50% compounding percentage. Earlier real findings (section 5.5) still
+apply: the initial buy can't exceed the preset's migration threshold, and curve progress isn't
+linear with the SOL deposited.
 
 ## What's still left to validate
 
-- **Migration and fee withdrawal** (`migrateToDammV2`/`claimCreatorTradingFee`/`claimPartnerTradingFee`)
-  - never executed with a real transaction yet (see above); the `compounding-damm-v2` preset adds
-    its own never-tested branch on top of that (section 5.10).
 - **Multi-wallet picker** - only tested with one real wallet (Phantom) so far; the picker modal
   itself needs a second extension installed to confirm.
 - **Quote locked to SOL** - the presets define the threshold in units of the quote token itself,
   with no price conversion; supporting another quote (USDC, an xStock) would require calibrating
-  the presets to each one's market value first.
+  the presets to each one's market value first. Meteora's own 2026-09-20 announcement ("DBC
+  supports any token pair on Solana") confirms the protocol already allows this - our own config
+  layer (`dbcConfig.js`) already threads `quoteMint` through generically too, so the real gap is
+  just the UI/hardcoded-SOL spots in `tokenLauncher.js`, not the SDK.
 - **DLMM "Conviction Pools"** - researched, not built (section 6, item 6) - the one remaining brief
   idea from Crypto World's Fair, left for a deliberate product decision rather than a guess.
 

@@ -208,6 +208,7 @@ export async function confirmTokenLaunch({ id, signedTransactionBase64 }) {
       lastValidBlockHeight: record.lastValidBlockHeight,
     });
     record.poolAddress = result.poolAddress;
+    record.dbcPoolAddress = result.poolAddress; // never overwritten (see markDbcPoolMigrated) - claiming DBC creator/partner fees always needs the ORIGINAL curve account, even after poolAddress itself starts pointing at the migrated DAMM v2 pool
     record.status = "success";
   } catch (err) {
     const message = extractErrorMessage(err);
@@ -228,6 +229,16 @@ export function getLaunchedTokens() {
 /**
  * Updates the record after dbcMigration.js actually migrates the curve to
  * DAMM v2 - see the /dbc-migrate route in server.js.
+ *
+ * BUG FOUND LIVE (2026-09-20, first real migration test): this used to
+ * overwrite `poolAddress` with the new DAMM v2 pool and nothing else -
+ * fine for the UI's "open on Meteora" link, but claimDbcFees (dbcMigration.js)
+ * needs the ORIGINAL DBC curve account, and ended up being called against
+ * the DAMM v2 pool instead, failing with "Invalid account discriminator"
+ * (Anchor rejecting a DAMM v2 account read as a DBC virtual pool). Fixed by
+ * keeping the original address in `dbcPoolAddress` (set once at launch,
+ * see confirmTokenLaunch, never touched here) and having the claim-fees
+ * route (server.js) read that instead of `poolAddress`.
  */
 export function markDbcPoolMigrated(id, newPoolAddress) {
   const list = loadLaunchedTokens();

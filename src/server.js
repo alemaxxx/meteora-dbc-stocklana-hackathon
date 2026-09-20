@@ -143,9 +143,15 @@ export function startServer() {
   app.post("/api/launched-tokens/:id/claim-fees", async (req, res) => {
     const record = getLaunchedTokens().find((t) => t.id === req.params.id);
     if (!record) return res.status(404).json({ error: "Launched token not found." });
-    if (!record.poolAddress) return res.status(400).json({ error: "This record has no associated pool." });
+    // Always the ORIGINAL DBC curve account, even after migration - see the
+    // bug note on markDbcPoolMigrated (tokenLauncher.js). Falls back to
+    // poolAddress for records launched before dbcPoolAddress existed
+    // (those predate any real migration, so poolAddress is still the DBC
+    // pool for them regardless).
+    const dbcPoolAddress = record.dbcPoolAddress ?? record.poolAddress;
+    if (!dbcPoolAddress) return res.status(400).json({ error: "This record has no associated pool." });
     try {
-      const result = await claimDbcFees(record.poolAddress);
+      const result = await claimDbcFees(dbcPoolAddress);
       res.json({ ok: true, result });
     } catch (err) {
       console.error("Failed to claim fees:", err);

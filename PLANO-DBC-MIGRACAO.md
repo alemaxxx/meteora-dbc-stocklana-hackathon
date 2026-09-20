@@ -709,6 +709,59 @@ submitted.
 4. Come back to `superteam.fun/earn/listing/meteora-dbc`, click Submit Now, and fill the form with
    all of the above plus the same project name/description/GitHub/website used for Stocklana.
 
+## 5.14. Fourteenth round (2026-09-20) - real end-to-end migration test, live bug found and fixed
+
+With a fresh top-up (0.3 SOL) to the same isolated test wallet, ran the full lifecycle for real on
+mainnet, for the first time ever: launch → curve completes → migrate to DAMM v2 → claim fees. This
+was the single biggest gap called out in the Stocklana submission ("migration and fee withdrawal
+... not yet exercised by a completed real migration") and in section 5.10 (`compounding-damm-v2`,
+"untested live, higher risk than the other presets").
+
+**Method**: added a temporary preset (`test-migration-verify`, since removed) - same fee shape as
+`compounding-damm-v2` (the riskiest untested path: the only preset using
+`MigrationFeeOption.Customizable` + `migratedPoolFee`) but with `migrationQuoteThreshold: 0.05`
+instead of 10, cheap enough to actually complete with the test budget.
+
+**Real finding #1 - buying can approach but never exactly complete a curve via a single ordinary
+swap.** The existing first-buy validation (`tokenLauncher.js`, see section on the 85→10 SOL fix)
+already blocks a buy that reaches or exceeds the threshold - confirmed here from the other side
+too: repeated manual top-up buys asymptotically approached the threshold (58% → 87% → 97% → 99.4%
+→ 99.58% → 99.65%, each with a smaller SOL amount) but a plain exact-in `swap` reverted with
+`InsufficientLiquidity` (0x1791) the instant the remaining "dust" was smaller than the amount sent,
+with no reliable way to know that exact remaining amount in advance (same non-linear-progress
+finding as section 5.5, now confirmed from the completion side, not just the early side). Fixed (for
+this test only, via a temporary `dbcClient.pool.swap2` call) by using `SwapMode.PartialFill` instead
+of a plain exact-in swap - it fills whatever the curve has left instead of reverting, which is
+exactly the right tool for "buy enough to finish the curve" without guessing the dust amount. This
+buy-side scaffolding (`src/dbcBuy.js`, a `/api/buy/prepare`+`/api/buy/submit` pair, and a "[TEST
+ONLY] Buy on curve" panel) was removed after the test - it was never in either hackathon brief's
+scope, and shipping it days before the deadline with only a placeholder slippage guard
+(`minimumAmountOut: 1`) would have been a real risk for real users. Worth reconsidering later as a
+proper feature (in-app buying without needing an external DEX) - just not under deadline pressure.
+
+**Real finding #2, more important - a genuine production bug, now fixed.** Once migrated,
+clicking "Claim fees" failed with `Invalid account discriminator`. Root cause: `markDbcPoolMigrated`
+(`tokenLauncher.js`) overwrites the launched-token record's `poolAddress` field with the new DAMM v2
+pool's address after migration (correct for the UI's "open on Meteora" link) - but the claim-fees
+route (`server.js`) was reading that SAME field and handing it to `claimDbcFees`
+(`dbcMigration.js`), which needs the **original DBC curve account**, not the DAMM v2 pool. Anchor
+correctly rejected trying to deserialize a DAMM v2 pool account as a DBC virtual pool. **This would
+have broken fee withdrawal for every real creator on this platform after their first migration**,
+not just this test - the highest-value bug this session could have found. Fixed by adding a
+`dbcPoolAddress` field (set once at launch, in `confirmTokenLaunch`, never touched again) and having
+the claim-fees route read `record.dbcPoolAddress ?? record.poolAddress` instead of `poolAddress`
+directly - the fallback keeps old already-launched records working (none of them had completed a
+real migration yet, so `poolAddress` was still correct for them regardless).
+
+**Confirmed live, in order, on mainnet**: `createConfig` (Customizable/compounding),
+`createPoolWithFirstBuy`, `getPoolQuoteTokenCurveProgress`, `migrateToDammV2` (mint
+`FqpMp7pnwn6G2A2ZamcBP7PZeXBG5BnSvFEhTWLB6YN7`, new DAMM v2 pool
+`5StwyKYZNv5YZTmyn3fZY79hpy6WMSb42yzo1A6FrQvU`), `claimCreatorTradingFee` +
+`claimPartnerTradingFee` (after the fix above). Also independently confirmed by a third-party DAMM
+v2 pool monitor picking up the migrated pool with the correct fee rate (1%) and compounding
+percentage (50%) - external validation that the `migratedPoolFee` config was built correctly, not
+just internally self-consistent.
+
 ## 6. Suggested next steps
 
 1. ~~Validate the curve presets against Meteora's official calculator~~
