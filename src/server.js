@@ -4,21 +4,32 @@ import { fileURLToPath } from "url";
 import { config, SOL_MINT } from "./config.js";
 import { getWalletTokenBalance } from "./walletBalance.js";
 import { DBC_CURVE_PRESETS } from "./dbcConfig.js";
-import { getDbcCurveProgress, migrateDbcPoolIfReady, claimDbcFees } from "./dbcMigration.js";
+import { getDbcCurveProgress, migrateDbcPoolIfReady, claimPartnerFees, prepareClaimCreatorFeeTransaction, submitClaimCreatorFeeTransaction } from "./dbcMigration.js";
 import { prepareTokenLaunch, confirmTokenLaunch, getLaunchedTokens, markDbcPoolMigrated } from "./tokenLauncher.js";
 import { PYTH_STOCK_SYMBOLS, computePythAnchoredMarketCaps } from "./pythPricing.js";
 import { getPublicPoolInfo } from "./dbcPoolInfo.js";
+import { rateLimit } from "./rateLimit.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, "..", "public");
 
 export function startServer() {
   const app = express();
+  // Needed for req.ip (used by rateLimit below) to reflect the real
+  // client address instead of Railway's own reverse proxy - without this,
+  // every visitor behind the same proxy would share one rate-limit bucket.
+  app.set("trust proxy", true);
   app.use(express.static(PUBLIC_DIR));
   // Higher than the default limit (100kb) - the image arrives as base64 in
   // the launch request body, up to ~5MB of original file (see
   // tokenLauncher.js).
   app.use(express.json({ limit: "8mb" }));
+
+  // Only on routes that cost the PLATFORM wallet real SOL even when
+  // called by an anonymous visitor with no wallet at all - see
+  // rateLimit.js for why. Generous enough for real usage (a real launch
+  // is a rare, deliberate click), tight enough to bound abuse.
+  const costlyRouteLimit = rateLimit({ windowMs: 60_000, max: 5 });
 
   // ---- Wallet balance (top of the screen) ----
   app.get("/api/wallet/balance", async (req, res) => {
@@ -62,7 +73,7 @@ export function startServer() {
 
   // Phase 1: builds the transaction (not yet fully signed) and returns it
   // for the browser wallet to sign. No SOL moves yet.
-  app.post("/api/launch/prepare", async (req, res) => {
+  app.post("/api/launch/prepare", costlyRouteLimit, async (req, res) => {
     const { name, symbol, imageDataUrl, presetId, pythSymbol, firstBuySolUi, creatorPublicKey } = req.body ?? {};
     if (!name || !symbol || !imageDataUrl || !(presetId || pythSymbol) || !creatorPublicKey) {
       return res.status(400).json({ error: "Provide name, symbol, imageDataUrl, either presetId or pythSymbol, and creatorPublicKey (connect a wallet)." });
@@ -126,7 +137,7 @@ export function startServer() {
     }
   });
 
-  app.post("/api/launched-tokens/:id/migrate", async (req, res) => {
+  app.post("/api/launched-tokens/:id/migrate", costlyRouteLimit, async (req, res) => {
     const record = getLaunchedTokens().find((t) => t.id === req.params.id);
     if (!record) return res.status(404).json({ error: "Launched token not found." });
     if (!record.poolAddress) return res.status(400).json({ error: "This record has no associated pool." });
@@ -140,21 +151,61 @@ export function startServer() {
     }
   });
 
-  app.post("/api/launched-tokens/:id/claim-fees", async (req, res) => {
-    const record = getLaunchedTokens().find((t) => t.id === req.params.id);
-    if (!record) return res.status(404).json({ error: "Launched token not found." });
-    // Always the ORIGINAL DBC curve account, even after migration - see the
-    // bug note on markDbcPoolMigrated (tokenLauncher.js). Falls back to
-    // poolAddress for records launched before dbcPoolAddress existed
+  // Claiming fees is split in two, like launching: the PARTNER fee always
+  // belongs to the platform wallet (server-signed, one call), but the
+  // CREATOR fee belongs to whoever actually launched the token - the DBC
+  // program requires that wallet's own signature (see the bug note on
+  // prepareClaimCreatorFeeTransaction, dbcMigration.js), so it goes
+  // through the same wallet-connected prepare/submit pattern as launch.
+  function resolveDbcPoolAddress(record) {
+    // Always the ORIGINAL DBC curve account, even after migration - see
+    // the bug note on markDbcPoolMigrated (tokenLauncher.js). Falls back
+    // to poolAddress for records launched before dbcPoolAddress existed
     // (those predate any real migration, so poolAddress is still the DBC
     // pool for them regardless).
-    const dbcPoolAddress = record.dbcPoolAddress ?? record.poolAddress;
+    return record.dbcPoolAddress ?? record.poolAddress;
+  }
+
+  app.post("/api/launched-tokens/:id/claim-partner-fee", costlyRouteLimit, async (req, res) => {
+    const record = getLaunchedTokens().find((t) => t.id === req.params.id);
+    if (!record) return res.status(404).json({ error: "Launched token not found." });
+    const dbcPoolAddress = resolveDbcPoolAddress(record);
     if (!dbcPoolAddress) return res.status(400).json({ error: "This record has no associated pool." });
     try {
-      const result = await claimDbcFees(dbcPoolAddress);
+      const result = await claimPartnerFees(dbcPoolAddress);
       res.json({ ok: true, result });
     } catch (err) {
-      console.error("Failed to claim fees:", err);
+      console.error("Failed to claim partner fee:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/launched-tokens/:id/claim-creator-fee/prepare", async (req, res) => {
+    const record = getLaunchedTokens().find((t) => t.id === req.params.id);
+    if (!record) return res.status(404).json({ error: "Launched token not found." });
+    const dbcPoolAddress = resolveDbcPoolAddress(record);
+    if (!dbcPoolAddress) return res.status(400).json({ error: "This record has no associated pool." });
+    const { creatorPublicKey } = req.body ?? {};
+    if (!creatorPublicKey) return res.status(400).json({ error: "Connect a wallet (the one that launched this token) first." });
+    try {
+      const result = await prepareClaimCreatorFeeTransaction({ poolAddress: dbcPoolAddress, creatorPublicKey });
+      res.json(result);
+    } catch (err) {
+      console.error("Failed to prepare creator fee claim:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/launched-tokens/:id/claim-creator-fee/submit", async (req, res) => {
+    const { signedTransactionBase64, blockhash, lastValidBlockHeight } = req.body ?? {};
+    if (!signedTransactionBase64 || !blockhash || !lastValidBlockHeight) {
+      return res.status(400).json({ error: "Provide signedTransactionBase64, blockhash and lastValidBlockHeight." });
+    }
+    try {
+      const result = await submitClaimCreatorFeeTransaction({ signedTransactionBase64, blockhash, lastValidBlockHeight });
+      res.json({ ok: true, result });
+    } catch (err) {
+      console.error("Failed to submit creator fee claim:", err);
       res.status(500).json({ error: err.message });
     }
   });

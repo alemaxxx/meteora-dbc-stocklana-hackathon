@@ -124,6 +124,24 @@ correct 1% fee rate and 50% compounding percentage. Earlier real findings (secti
 apply: the initial buy can't exceed the preset's migration threshold, and curve progress isn't
 linear with the SOL deposited.
 
+## Pre-launch security review (2026-09-20)
+
+Audited every tracked file plus the full git history for exposed secrets before pointing anyone at
+the live URL - clean (`.env` was never committed, no private-key-shaped strings, no API keys, no
+credentials in RPC URLs anywhere in history). Three real, non-secret findings, all fixed - see
+section 5.15 of `PLANO-DBC-MIGRACAO.md` for the full report:
+
+1. **Stored XSS** - the launched-tokens table rendered `name`/`symbol` (public form input, no
+   character restrictions) as raw HTML; fixed with escaping + a server-side length cap.
+2. **Creator fee claim was broken for every real user** - the DBC program requires the actual
+   on-chain creator to sign their own claim; the old server-signed claim only ever worked for
+   pools the platform wallet itself launched. Fixed by making creator fee claiming
+   wallet-connected (same two-phase pattern as launching), while partner fee claiming stays
+   server-signed (that one really does always belong to the platform).
+3. **No rate limiting** - a few routes cost the platform wallet real SOL even with no wallet
+   connected at all (`launch/prepare`'s Arweave upload, `migrate`, `claim-partner-fee`); added a
+   small in-memory per-IP limiter.
+
 ## What's still left to validate
 
 - **Multi-wallet picker** - only tested with one real wallet (Phantom) so far; the picker modal

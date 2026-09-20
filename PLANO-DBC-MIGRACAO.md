@@ -762,6 +762,59 @@ v2 pool monitor picking up the migrated pool with the correct fee rate (1%) and 
 percentage (50%) - external validation that the `migratedPoolFee` config was built correctly, not
 just internally self-consistent.
 
+## 5.15. Fifteenth round (2026-09-20) - pre-launch security review, three real findings
+
+Requested review before pointing anyone else at the live URL: audited every tracked file plus the
+FULL git history (not just the current diff) for exposed secrets. **Clean** - `.env` was never
+committed at any point, no base58-looking 64-88 char strings (private key shape) anywhere in
+history, no API keys, no credentials embedded in RPC URLs, no `console.log` of anything beyond
+public addresses/signatures. `.env.example` only ever held empty placeholders.
+
+Three real, non-secret findings from the broader review:
+
+**1. Stored XSS in the launched-tokens table (fixed).** `renderRow()` in `public/app.js`
+interpolated `token.name`/`token.symbol` straight into `innerHTML` with zero escaping - both come
+directly from the public launch form with no server-side character validation. Anyone could launch
+a token named e.g. `<img src=x onerror=...>` and have it execute in every visitor's browser who
+loaded the table (`GET /api/launched-tokens` is public, unauthenticated). Serious on a
+wallet-connected page - injected JS could try to trick a connected wallet into approving something.
+Fixed with an `escapeHtml()` helper applied to `name`, `symbol`, and `error` (the latter was already
+partially escaping quotes, tightened to the full set). Also added a server-side length cap
+(64/16 chars) in `tokenLauncher.js` - defense in depth, since an attacker calling the API directly
+bypasses the HTML `maxlength`.
+
+**2. Creator fee claim was broken for every real user (fixed) - the most important finding.**
+Confirmed against the installed SDK's real IDL: `claimCreatorTradingFee`'s `creator` account has
+`signer: true` - the program requires the ACTUAL on-chain creator to sign. Since the wallet-connect
+rework (section 5.7) made the connecting wallet the on-chain creator of every real launch (not the
+platform wallet), the old single server-signed `claimDbcFees` - which always signed with the
+platform wallet and passed it as `creator` - could only ever succeed for pools the platform wallet
+itself happened to launch. It went unnoticed in section 5.14's test only because the same wallet was
+used as both the platform wallet and the connecting Phantom wallet. For every real user, clicking
+"Claim fees" would have failed on-chain with a signer mismatch, silently breaking the platform's
+core promise ("withdraw your accumulated fees") for anyone but us. **Fixed** by splitting fee
+claiming the same way launching was split: `claimPartnerFees` stays server-signed (the config's
+`feeClaimer` really is always the platform wallet, that part was correct), but creator fee claiming
+is now `prepareClaimCreatorFeeTransaction`/`submitClaimCreatorFeeTransaction` - a wallet-connected
+two-phase flow, same pattern as launch, where the actual creator signs (and pays the tiny tx fee for)
+their own claim. Three new routes in `server.js`
+(`claim-partner-fee`, `claim-creator-fee/prepare`, `claim-creator-fee/submit`); `app.js`'s claim
+button now runs both and reports them separately (one can succeed while the other fails, e.g. the
+wrong wallet is connected). Re-tested live on the same mainnet pool from section 5.14 after the fix -
+`"partner fee claimed · creator fee claimed"`, confirmed.
+
+**3. No rate limiting anywhere (fixed, lightweight).** Several routes cost the PLATFORM wallet real
+SOL even when called by an anonymous visitor with no wallet at all: `/api/launch/prepare` (a real
+Arweave upload happens before any wallet ever signs anything - an attacker could spam it with never-
+completed launches), `/migrate` (free if not ready, but a real tx once a curve happens to be
+complete), and `/claim-partner-fee` (always sends a real tx, even against a pool with nothing to
+claim). None of this exposes data, but it's a real cost-drain/availability risk for a public,
+unauthenticated site. Added a small in-memory per-IP limiter (`src/rateLimit.js`, no new dependency -
+5 requests/minute on those three routes) plus `app.set("trust proxy", true)` so `req.ip` reflects
+the real client behind Railway's reverse proxy instead of bucketing every visitor together.
+Intentionally simple (resets on redeploy, single-instance only) - proportionate to a hackathon
+demo, not a hardened production rate limiter.
+
 ## 6. Suggested next steps
 
 1. ~~Validate the curve presets against Meteora's official calculator~~

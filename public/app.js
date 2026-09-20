@@ -52,6 +52,18 @@
     if (!connectedWallet) connectWallet();
   });
 
+  // Escapes text before it goes into an innerHTML template - found live
+  // (2026-09-20, pre-launch security review): renderRow() below used to
+  // interpolate token.name/token.symbol straight from the PUBLIC launch
+  // form with no escaping, so anyone could launch a token named e.g.
+  // `<img src=x onerror=...>` and have it execute in every visitor's
+  // browser who loads the launched-tokens table - a stored XSS, and a
+  // serious one on a wallet-connected page (injected JS could try to
+  // trick a connected wallet into approving something).
+  function escapeHtml(str) {
+    return String(str ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
   function meteoraLink(poolAddress) {
     return `https://app.meteora.ag/dammv2/${poolAddress}`;
   }
@@ -283,7 +295,7 @@
       token.status === "success"
         ? `<span class="pill pill--success">created</span>`
         : token.status === "error"
-          ? `<span class="pill pill--error" title="${(token.error ?? "").replace(/"/g, "&quot;")}">error</span>`
+          ? `<span class="pill pill--error" title="${escapeHtml(token.error)}">error</span>`
           : `<span class="pill pill--pending">pending</span>`;
 
     let poolCell = "—";
@@ -310,7 +322,7 @@
       : (preset ? preset.label.split(" - ")[0] : token.presetId ?? "—");
     tr.innerHTML = `
       <td>
-        <span class="pool-name">${token.name ?? "?"}${token.symbol ? ` (${token.symbol})` : ""}</span>
+        <span class="pool-name">${escapeHtml(token.name ?? "?")}${token.symbol ? ` (${escapeHtml(token.symbol)})` : ""}</span>
         <span class="pool-addr">${token.mint ? shortAddr(token.mint) : "—"}${token.mint ? `<button type="button" class="copy-btn" data-copy="${token.mint}" title="Copy mint">⧉</button>` : ""}</span>
       </td>
       <td class="mono">${presetLabel}</td>
@@ -389,20 +401,63 @@
 
     const claimBtn = ev.target.closest(".dbc-claim-btn");
     if (claimBtn) {
+      // Two independent claims - partner (always the platform wallet,
+      // server-signed) and creator (whoever actually launched this token,
+      // must sign themselves - see the bug note on
+      // prepareClaimCreatorFeeTransaction in src/dbcMigration.js: the DBC
+      // program requires the creator's own signature, so this can only
+      // ever work for the wallet connected right now). Reported
+      // separately since one can succeed while the other fails (e.g. the
+      // wrong wallet is connected, or one side has nothing to claim).
+      const id = claimBtn.dataset.id;
       const original = claimBtn.textContent;
       claimBtn.disabled = true;
       claimBtn.textContent = "Claiming…";
+      const results = [];
       try {
-        const res = await fetch(`/api/launched-tokens/${encodeURIComponent(claimBtn.dataset.id)}/claim-fees`, { method: "POST" });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-        toast("Fees claimed (creator + partner).", { type: "success" });
+        const partnerRes = await fetch(`/api/launched-tokens/${encodeURIComponent(id)}/claim-partner-fee`, { method: "POST" });
+        const partnerData = await partnerRes.json();
+        results.push(partnerRes.ok ? "partner fee claimed" : `partner fee failed: ${partnerData.error ?? partnerRes.status}`);
       } catch (err) {
-        toast(`Failed to claim fees: ${err.message}`, { type: "error", duration: 8000 });
-      } finally {
-        claimBtn.disabled = false;
-        claimBtn.textContent = original;
+        results.push(`partner fee failed: ${err.message}`);
       }
+
+      if (!connectedWallet) {
+        results.push("creator fee skipped: connect the wallet that launched this token first.");
+      } else {
+        try {
+          const prepRes = await fetch(`/api/launched-tokens/${encodeURIComponent(id)}/claim-creator-fee/prepare`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ creatorPublicKey: connectedWallet }),
+          });
+          const prepData = await prepRes.json();
+          if (!prepRes.ok) throw new Error(prepData.error ?? `HTTP ${prepRes.status}`);
+
+          const txBytes = Uint8Array.from(atob(prepData.transactionBase64), (c) => c.charCodeAt(0));
+          const tx = solanaWeb3.Transaction.from(txBytes);
+          const unsignedBytes = tx.serialize({ requireAllSignatures: false });
+          const signedBytes = await window.WalletConnect.signTransaction(connectedWalletHandle.wallet, connectedWalletHandle.account, unsignedBytes);
+          let binary = "";
+          for (const b of signedBytes) binary += String.fromCharCode(b);
+          const signedTransactionBase64 = btoa(binary);
+
+          const subRes = await fetch(`/api/launched-tokens/${encodeURIComponent(id)}/claim-creator-fee/submit`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ signedTransactionBase64, blockhash: prepData.blockhash, lastValidBlockHeight: prepData.lastValidBlockHeight }),
+          });
+          const subData = await subRes.json();
+          if (!subRes.ok) throw new Error(subData.error ?? `HTTP ${subRes.status}`);
+          results.push("creator fee claimed");
+        } catch (err) {
+          results.push(`creator fee failed: ${err.message}`);
+        }
+      }
+
+      toast(results.join(" · "), { type: results.every((r) => r.includes("claimed")) ? "success" : "warning", duration: 10000 });
+      claimBtn.disabled = false;
+      claimBtn.textContent = original;
     }
   });
 

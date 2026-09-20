@@ -93,6 +93,15 @@ export async function prepareTokenLaunch({ name, symbol, imageDataUrl, presetId,
   if (!name || !symbol) {
     throw new Error("Provide the token's name and symbol.");
   }
+  // Length caps - defense in depth, not just the HTML maxlength on the
+  // form (an attacker can call the API directly, bypassing any client-side
+  // limit). Found in the same pass as the stored-XSS fix in app.js
+  // (2026-09-20 pre-launch security review): nothing server-side was
+  // stopping an arbitrarily long name/symbol from being written into
+  // data/launched-tokens.json and served back to every visitor.
+  if (name.length > 64 || symbol.length > 16) {
+    throw new Error("Name must be 64 characters or fewer, symbol 16 or fewer.");
+  }
   if (!imageDataUrl) {
     throw new Error("Choose an image for the token.");
   }

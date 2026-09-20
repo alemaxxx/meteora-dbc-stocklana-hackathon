@@ -1,10 +1,12 @@
 import BN from "bn.js";
-import { PublicKey } from "@solana/web3.js";
+import { PublicKey, Transaction } from "@solana/web3.js";
 import { DAMM_V2_MIGRATION_FEE_ADDRESS, deriveDammV2PoolAddress } from "@meteora-ag/dynamic-bonding-curve-sdk";
 import { connection, dbcClient } from "./connection.js";
 import { requireWalletKeypair } from "./config.js";
 import { sendAndConfirmWithRetry } from "./txHelpers.js";
 import { getMigrationFeeOptionForPreset } from "./dbcConfig.js";
+
+const MAX_CLAIM_AMOUNT = new BN("18446744073709551615"); // U64_MAX - "withdraw everything"
 
 // Second half of a DBC pool's lifecycle - see PLANO-DBC-MIGRACAO.md.
 // Unlike the current flow (createInfinitePool, in poolCreator.js), the
@@ -101,35 +103,73 @@ export async function migrateDbcPoolIfReady(poolAddress, presetId = null) {
 }
 
 /**
- * Withdraws accumulated trading fees from the curve - both "creator" and
- * "partner" (config), since we're both parties (see feeClaimer/creator in
- * dbcConfig.js). maxBaseAmount/maxQuoteAmount = max BN (U64) withdraw
- * everything available, same "0 = don't withdraw this side" convention
- * the SDK's own docs describe for the side you don't want to withdraw.
+ * Withdraws the accumulated PARTNER trading fee - always server-signed,
+ * since the DBC "config" (and its feeClaimer) is platform-owned for every
+ * preset, regardless of who launched with it (see dbcConfig.js).
  */
-export async function claimDbcFees(poolAddress) {
+export async function claimPartnerFees(poolAddress) {
   const wallet = requireWalletKeypair();
   const poolPubkey = new PublicKey(poolAddress);
-  const maxAmount = new BN("18446744073709551615"); // U64_MAX - "withdraw everything"
-
-  const creatorTx = await dbcClient.creator.claimCreatorTradingFee({
-    creator: wallet.publicKey,
-    payer: wallet.publicKey,
-    pool: poolPubkey,
-    maxBaseAmount: maxAmount,
-    maxQuoteAmount: maxAmount,
-  });
-  const creatorSignature = await sendAndConfirmWithRetry(connection, creatorTx, [wallet]);
 
   const partnerTx = await dbcClient.partner.claimPartnerTradingFee({
     feeClaimer: wallet.publicKey,
     payer: wallet.publicKey,
     pool: poolPubkey,
-    maxBaseAmount: maxAmount,
-    maxQuoteAmount: maxAmount,
+    maxBaseAmount: MAX_CLAIM_AMOUNT,
+    maxQuoteAmount: MAX_CLAIM_AMOUNT,
   });
-  const partnerSignature = await sendAndConfirmWithRetry(connection, partnerTx, [wallet]);
+  const signature = await sendAndConfirmWithRetry(connection, partnerTx, [wallet]);
+  console.log(`[dbcMigration] partner fee for pool ${poolAddress} withdrawn (tx ${signature})`);
+  return { signature };
+}
 
-  console.log(`[dbcMigration] fees for pool ${poolAddress} withdrawn (creator tx ${creatorSignature}, partner tx ${partnerSignature})`);
-  return { creatorSignature, partnerSignature };
+/**
+ * Builds (unsigned) the CREATOR fee claim transaction - wallet-connected,
+ * NOT server-signed. BUG FOUND LIVE (2026-09-20, pre-launch security
+ * review): the DBC program requires `creator` to be a SIGNER matching the
+ * pool's own on-chain creator field (confirmed against the installed
+ * SDK's real IDL - `claimCreatorTradingFee`'s `creator` account has
+ * `signer: true`). Since the wallet-connect rework (section 5.7) made the
+ * CONNECTING wallet the on-chain creator of every real launch (not the
+ * platform wallet), the old single server-signed claimDbcFees could only
+ * ever succeed for pools the platform wallet itself happened to launch -
+ * every real user's own creator fee claim would fail on-chain with a
+ * signer/constraint mismatch. Fixed the same way launching was: the
+ * actual creator wallet signs their own claim. The creator pays their own
+ * tiny tx fee too (payer = creator), consistent with "your connected
+ * wallet pays for its own actions" elsewhere in this app.
+ */
+export async function prepareClaimCreatorFeeTransaction({ poolAddress, creatorPublicKey }) {
+  const creator = new PublicKey(creatorPublicKey);
+  const poolPubkey = new PublicKey(poolAddress);
+
+  const tx = await dbcClient.creator.claimCreatorTradingFee({
+    creator,
+    payer: creator,
+    pool: poolPubkey,
+    maxBaseAmount: MAX_CLAIM_AMOUNT,
+    maxQuoteAmount: MAX_CLAIM_AMOUNT,
+  });
+
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
+  tx.recentBlockhash = blockhash;
+  tx.feePayer = creator;
+
+  return {
+    transactionBase64: tx.serialize({ requireAllSignatures: false }).toString("base64"),
+    blockhash,
+    lastValidBlockHeight,
+  };
+}
+
+/**
+ * Takes the creator's own signed claim transaction (from
+ * prepareClaimCreatorFeeTransaction) and sends + confirms it.
+ */
+export async function submitClaimCreatorFeeTransaction({ signedTransactionBase64, blockhash, lastValidBlockHeight }) {
+  const tx = Transaction.from(Buffer.from(signedTransactionBase64, "base64"));
+  const signature = await connection.sendRawTransaction(tx.serialize());
+  await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, "confirmed");
+  console.log(`[dbcMigration] creator fee claimed (tx ${signature})`);
+  return { signature };
 }
