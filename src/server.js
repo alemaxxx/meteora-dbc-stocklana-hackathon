@@ -5,7 +5,7 @@ import { config, SOL_MINT } from "./config.js";
 import { getWalletTokenBalance } from "./walletBalance.js";
 import { DBC_CURVE_PRESETS } from "./dbcConfig.js";
 import { getDbcCurveProgress, migrateDbcPoolIfReady, claimPartnerFees, prepareClaimCreatorFeeTransaction, submitClaimCreatorFeeTransaction } from "./dbcMigration.js";
-import { prepareTokenLaunch, confirmTokenLaunch, getLaunchedTokens, markDbcPoolMigrated } from "./tokenLauncher.js";
+import { prepareTokenLaunch, confirmTokenLaunch, getLaunchedTokens, getLaunchedTokenById, markDbcPoolMigrated } from "./tokenLauncher.js";
 import { PYTH_STOCK_SYMBOLS, computePythAnchoredMarketCaps } from "./pythPricing.js";
 import { getPublicPoolInfo } from "./dbcPoolInfo.js";
 import { rateLimit } from "./rateLimit.js";
@@ -112,9 +112,9 @@ export function startServer() {
     }
   });
 
-  app.get("/api/launched-tokens", (req, res) => {
+  app.get("/api/launched-tokens", async (req, res) => {
     try {
-      res.json({ tokens: getLaunchedTokens() });
+      res.json({ tokens: await getLaunchedTokens() });
     } catch (err) {
       console.error("Failed to list launched tokens:", err);
       res.status(500).json({ error: err.message });
@@ -125,7 +125,7 @@ export function startServer() {
   // on explicit click, never automatic (same spirit as the original bot) ----
 
   app.get("/api/launched-tokens/:id/progress", async (req, res) => {
-    const record = getLaunchedTokens().find((t) => t.id === req.params.id);
+    const record = await getLaunchedTokenById(req.params.id);
     if (!record) return res.status(404).json({ error: "Launched token not found." });
     if (!record.poolAddress) return res.status(400).json({ error: "This record has no associated pool." });
     try {
@@ -138,12 +138,12 @@ export function startServer() {
   });
 
   app.post("/api/launched-tokens/:id/migrate", costlyRouteLimit, async (req, res) => {
-    const record = getLaunchedTokens().find((t) => t.id === req.params.id);
+    const record = await getLaunchedTokenById(req.params.id);
     if (!record) return res.status(404).json({ error: "Launched token not found." });
     if (!record.poolAddress) return res.status(400).json({ error: "This record has no associated pool." });
     try {
       const result = await migrateDbcPoolIfReady(record.poolAddress, record.presetId);
-      if (result.migrated) markDbcPoolMigrated(record.id, result.newPoolAddress);
+      if (result.migrated) await markDbcPoolMigrated(record.id, result.newPoolAddress);
       res.json(result);
     } catch (err) {
       console.error("Failed to migrate pool to DAMM v2:", err);
@@ -167,7 +167,7 @@ export function startServer() {
   }
 
   app.post("/api/launched-tokens/:id/claim-partner-fee", costlyRouteLimit, async (req, res) => {
-    const record = getLaunchedTokens().find((t) => t.id === req.params.id);
+    const record = await getLaunchedTokenById(req.params.id);
     if (!record) return res.status(404).json({ error: "Launched token not found." });
     const dbcPoolAddress = resolveDbcPoolAddress(record);
     if (!dbcPoolAddress) return res.status(400).json({ error: "This record has no associated pool." });
@@ -181,7 +181,7 @@ export function startServer() {
   });
 
   app.post("/api/launched-tokens/:id/claim-creator-fee/prepare", async (req, res) => {
-    const record = getLaunchedTokens().find((t) => t.id === req.params.id);
+    const record = await getLaunchedTokenById(req.params.id);
     if (!record) return res.status(404).json({ error: "Launched token not found." });
     const dbcPoolAddress = resolveDbcPoolAddress(record);
     if (!dbcPoolAddress) return res.status(400).json({ error: "This record has no associated pool." });

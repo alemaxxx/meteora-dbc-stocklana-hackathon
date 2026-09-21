@@ -5,6 +5,7 @@ import { uploadTokenAssets } from "./arweaveUpload.js";
 import { prepareLaunchTransaction, submitLaunchTransaction } from "./dbcLaunchpad.js";
 import { findDbcCurvePreset } from "./dbcConfig.js";
 import { computePythAnchoredMarketCaps, isPythStockSymbolSupported } from "./pythPricing.js";
+import { query } from "./db.js";
 
 // Launch orchestration - a lean version of the Lançar Token Bot's
 // tokenLauncher.js (github.com/alemaxxx/lauch-token), cutting everything
@@ -12,29 +13,50 @@ import { computePythAnchoredMarketCaps, isPythStockSymbolSupported } from "./pyt
 // the form, typed in by whoever is launching), no
 // StonkFun/pump.fun/direct mint, no AI suggestion. What's left is just
 // step 1 (Arweave upload) + the DBC step from the original file.
+//
+// Launch records moved to Postgres (2026-09-21, see db.js) - the old
+// data/launched-tokens.json was read-whole/mutated/written-whole on every
+// single launch, migration and fee claim, which is a real race condition
+// under concurrent traffic and impossible to share across more than one
+// app instance. Every write below is now a single-row INSERT/UPDATE.
 
-const LAUNCHED_TOKENS_FILE = new URL("../data/launched-tokens.json", import.meta.url);
 const IMAGES_DIR = new URL("../data/images/", import.meta.url);
 
-function ensureDataDirs() {
-  const dataDir = new URL("../data/", import.meta.url);
-  if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+function ensureImagesDir() {
   if (!fs.existsSync(IMAGES_DIR)) fs.mkdirSync(IMAGES_DIR, { recursive: true });
 }
 
-function loadLaunchedTokens() {
-  ensureDataDirs();
-  if (!fs.existsSync(LAUNCHED_TOKENS_FILE)) return [];
-  try {
-    return JSON.parse(fs.readFileSync(LAUNCHED_TOKENS_FILE, "utf-8"));
-  } catch {
-    return [];
-  }
-}
-
-function saveLaunchedTokens(list) {
-  ensureDataDirs();
-  fs.writeFileSync(LAUNCHED_TOKENS_FILE, JSON.stringify(list, null, 2));
+// DB rows are snake_case; the rest of the app (server.js routes, the
+// frontend) has always used camelCase - this is the one place that
+// translates between them, so nothing else needs to know the storage
+// changed. last_valid_block_height comes back as a STRING from
+// node-postgres (BIGINT columns aren't auto-converted to JS numbers, to
+// avoid silent precision loss) - Solana block heights are nowhere near
+// Number.MAX_SAFE_INTEGER, so converting back here is safe, and callers
+// downstream (connection.confirmTransaction) expect a plain number.
+function mapRow(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    name: row.name,
+    symbol: row.symbol,
+    quoteMint: row.quote_mint,
+    quoteSymbol: row.quote_symbol,
+    presetId: row.preset_id,
+    pythSymbol: row.pyth_symbol,
+    firstBuySolUi: row.first_buy_sol_ui === null ? 0 : Number(row.first_buy_sol_ui),
+    creatorPublicKey: row.creator_public_key,
+    dbcMigrated: row.dbc_migrated,
+    createdAt: row.created_at,
+    status: row.status,
+    mint: row.mint,
+    poolAddress: row.pool_address,
+    dbcPoolAddress: row.dbc_pool_address,
+    imageUrl: row.image_url,
+    error: row.error,
+    blockhash: row.blockhash,
+    lastValidBlockHeight: row.last_valid_block_height === null ? null : Number(row.last_valid_block_height),
+  };
 }
 
 const CUSTOM_IMAGE_MIME_TO_EXT = {
@@ -60,7 +82,7 @@ function saveImageToTempFile(dataUrl, fileId) {
   if (buffer.length > MAX_IMAGE_BYTES) {
     throw new Error(`Image too large (${(buffer.length / 1024 / 1024).toFixed(1)}MB) - 5MB max.`);
   }
-  ensureDataDirs();
+  ensureImagesDir();
   const ext = CUSTOM_IMAGE_MIME_TO_EXT[contentType];
   const filePath = fileURLToPath(new URL(`${fileId}.${ext}`, IMAGES_DIR));
   fs.writeFileSync(filePath, buffer);
@@ -98,7 +120,7 @@ export async function prepareTokenLaunch({ name, symbol, imageDataUrl, presetId,
   // limit). Found in the same pass as the stored-XSS fix in app.js
   // (2026-09-20 pre-launch security review): nothing server-side was
   // stopping an arbitrarily long name/symbol from being written into
-  // data/launched-tokens.json and served back to every visitor.
+  // storage and served back to every visitor.
   if (name.length > 64 || symbol.length > 16) {
     throw new Error("Name must be 64 characters or fewer, symbol 16 or fewer.");
   }
@@ -141,31 +163,14 @@ export async function prepareTokenLaunch({ name, symbol, imageDataUrl, presetId,
     );
   }
 
-  const record = {
-    id: `launch-${Date.now()}`,
-    name,
-    symbol,
-    quoteMint: SOL_MINT,
-    quoteSymbol: "SOL",
-    presetId: pythSymbol ? null : presetId,
-    pythSymbol: pythSymbol ?? null,
-    firstBuySolUi: Number(firstBuySolUi) || 0,
-    creatorPublicKey,
-    dbcMigrated: false,
-    createdAt: new Date().toISOString(),
-    status: "pending",
-    mint: null,
-    poolAddress: null,
-    imageUrl: null,
-    error: null,
-  };
+  const id = `launch-${Date.now()}`;
 
   // 1) Upload the image + metadata JSON to Arweave - the "uri" that goes
   // on-chain in createPool (see dbcLaunchpad.js). Still funded by the
   // platform wallet, not the connecting one - a deliberate, small,
   // shared infra cost (see arweaveUpload.js), not part of the
   // wallet-connect rework.
-  const { filePath, contentType } = saveImageToTempFile(imageDataUrl, record.id);
+  const { filePath, contentType } = saveImageToTempFile(imageDataUrl, id);
   const { imageUrl, metadataUrl } = await uploadTokenAssets({
     imagePath: filePath,
     contentType,
@@ -175,7 +180,6 @@ export async function prepareTokenLaunch({ name, symbol, imageDataUrl, presetId,
       ? `${name} - launched via Meteora DBC, curve anchored to ${pythSymbol}'s live Pyth price.`
       : `${name} - launched via Meteora DBC.`,
   });
-  record.imageUrl = imageUrl;
 
   const { transactionBase64, mint, blockhash, lastValidBlockHeight } = await prepareLaunchTransaction({
     name,
@@ -187,15 +191,29 @@ export async function prepareTokenLaunch({ name, symbol, imageDataUrl, presetId,
     firstBuySolUi,
     creatorPublicKey,
   });
-  record.mint = mint;
-  record.blockhash = blockhash;
-  record.lastValidBlockHeight = lastValidBlockHeight;
 
-  const list = loadLaunchedTokens();
-  list.unshift(record);
-  saveLaunchedTokens(list);
+  await query(
+    `INSERT INTO launched_tokens
+       (id, name, symbol, quote_mint, quote_symbol, preset_id, pyth_symbol, first_buy_sol_ui, creator_public_key, status, mint, image_url, blockhash, last_valid_block_height)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', $10, $11, $12, $13)`,
+    [
+      id,
+      name,
+      symbol,
+      SOL_MINT,
+      "SOL",
+      pythSymbol ? null : presetId,
+      pythSymbol ?? null,
+      Number(firstBuySolUi) || 0,
+      creatorPublicKey,
+      mint,
+      imageUrl,
+      blockhash,
+      lastValidBlockHeight,
+    ]
+  );
 
-  return { id: record.id, transactionBase64, mint };
+  return { id, transactionBase64, mint };
 }
 
 /**
@@ -204,8 +222,7 @@ export async function prepareTokenLaunch({ name, symbol, imageDataUrl, presetId,
  * prepareTokenLaunch above into "success" or "error".
  */
 export async function confirmTokenLaunch({ id, signedTransactionBase64 }) {
-  const list = loadLaunchedTokens();
-  const record = list.find((t) => t.id === id);
+  const record = await getLaunchedTokenById(id);
   if (!record) throw new Error(`Pending launch "${id}" not found - did you already confirm it?`);
 
   try {
@@ -216,23 +233,34 @@ export async function confirmTokenLaunch({ id, signedTransactionBase64 }) {
       blockhash: record.blockhash,
       lastValidBlockHeight: record.lastValidBlockHeight,
     });
+    // dbc_pool_address is set here and never touched again (see
+    // markDbcPoolMigrated below) - claiming DBC creator/partner fees
+    // always needs the ORIGINAL curve account, even after pool_address
+    // itself starts pointing at the migrated DAMM v2 pool.
+    await query("UPDATE launched_tokens SET status = 'success', pool_address = $1, dbc_pool_address = $1 WHERE id = $2", [result.poolAddress, id]);
     record.poolAddress = result.poolAddress;
-    record.dbcPoolAddress = result.poolAddress; // never overwritten (see markDbcPoolMigrated) - claiming DBC creator/partner fees always needs the ORIGINAL curve account, even after poolAddress itself starts pointing at the migrated DAMM v2 pool
+    record.dbcPoolAddress = result.poolAddress;
     record.status = "success";
   } catch (err) {
     const message = extractErrorMessage(err);
     console.error(`[tokenLauncher] failed to confirm launch of ${record.symbol}:`, err);
+    await query("UPDATE launched_tokens SET status = 'error', error = $1 WHERE id = $2", [message, id]);
     record.status = "error";
     record.error = message;
   }
 
-  saveLaunchedTokens(list);
   if (record.status === "error") throw new Error(record.error);
   return record;
 }
 
-export function getLaunchedTokens() {
-  return loadLaunchedTokens();
+export async function getLaunchedTokens() {
+  const { rows } = await query("SELECT * FROM launched_tokens ORDER BY created_at DESC");
+  return rows.map(mapRow);
+}
+
+export async function getLaunchedTokenById(id) {
+  const { rows } = await query("SELECT * FROM launched_tokens WHERE id = $1", [id]);
+  return mapRow(rows[0]);
 }
 
 /**
@@ -245,16 +273,17 @@ export function getLaunchedTokens() {
  * needs the ORIGINAL DBC curve account, and ended up being called against
  * the DAMM v2 pool instead, failing with "Invalid account discriminator"
  * (Anchor rejecting a DAMM v2 account read as a DBC virtual pool). Fixed by
- * keeping the original address in `dbcPoolAddress` (set once at launch,
+ * keeping the original address in `dbc_pool_address` (set once at launch,
  * see confirmTokenLaunch, never touched here) and having the claim-fees
- * route (server.js) read that instead of `poolAddress`.
+ * route (server.js) read that instead of `pool_address`.
  */
-export function markDbcPoolMigrated(id, newPoolAddress) {
-  const list = loadLaunchedTokens();
-  const record = list.find((t) => t.id === id);
-  if (!record) return null;
-  record.dbcMigrated = true;
-  if (newPoolAddress) record.poolAddress = newPoolAddress;
-  saveLaunchedTokens(list);
-  return record;
+export async function markDbcPoolMigrated(id, newPoolAddress) {
+  const { rows } = await query(
+    `UPDATE launched_tokens
+     SET dbc_migrated = true, pool_address = COALESCE($2, pool_address)
+     WHERE id = $1
+     RETURNING *`,
+    [id, newPoolAddress]
+  );
+  return mapRow(rows[0]);
 }

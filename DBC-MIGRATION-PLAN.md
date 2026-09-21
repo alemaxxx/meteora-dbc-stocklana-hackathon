@@ -815,6 +815,55 @@ the real client behind Railway's reverse proxy instead of bucketing every visito
 Intentionally simple (resets on redeploy, single-instance only) - proportionate to a hackathon
 demo, not a hardened production rate limiter.
 
+## 5.16. Sixteenth round (2026-09-21) - JSON files replaced with Postgres
+
+Migrated `data/launched-tokens.json` and `data/dbc-configs.json` (both from the very first round of
+this project) to a real Postgres database (`src/db.js`), ahead of the Crypto World's Fair
+submission - motivated by two real, pre-existing problems, not by any incident:
+
+1. **A genuine race condition.** Every launch, migration and fee claim did a full
+   read-JSON/mutate-array/write-JSON cycle. Two requests landing close together could each read the
+   same on-disk state and overwrite each other's write - low odds at today's traffic, but a real bug,
+   not a theoretical one.
+2. **A hard ceiling on scaling.** A flat file on one server's disk can't be shared by more than one
+   app instance - the JSON storage itself was the reason the app could only ever run as a single
+   process.
+
+**What changed**: two tables (`launched_tokens`, `dbc_configs`), created idempotently on startup
+(`ensureSchema()`, no migration framework - the schema is small enough that hand-written `CREATE
+TABLE IF NOT EXISTS` is simpler than adding a dependency for it). Every write is now a single-row
+`INSERT`/`UPDATE`, not a whole-array rewrite - the race condition in point 1 is gone by construction,
+not just made less likely.
+
+**A real design wrinkle found while doing this**: `dbc_configs` reuses one row per
+(preset, quote token) for the six fixed presets - that's the whole point of caching them - but
+Pyth-anchored configs (`preset_id = "pyth:<symbol>"`) are deliberately NEVER reused, a fresh one is
+created on every single launch (see section 5.6: the market cap needs to reflect the price at
+launch time, not a stale one). A single `PRIMARY KEY (preset_id, quote_mint)` would have made the
+*second* Pyth-anchored launch of the same symbol fail outright. Fixed with a **partial unique
+index** (`WHERE preset_id NOT LIKE 'pyth:%'`) instead of a table-wide primary key - enforces reuse
+exactly where reuse is wanted, and nowhere else. Verified directly against the running database
+(not just read from the code) that two "concurrent" inserts for the same fixed preset correctly
+collapse to one row, while two Pyth-anchored inserts for the same symbol both land as separate rows.
+
+**Also closed while here**: `getOrCreateDbcConfig`'s own cache-then-create logic had the same shape
+of race the JSON files did (two concurrent requests for a brand-new preset could each decide to
+create a config). Now uses `INSERT ... ON CONFLICT ... DO NOTHING` against that same partial index,
+so at most one config ever gets adopted for reuse even if two get created on-chain in the rare
+concurrent case.
+
+**Migration path for existing data**: `scripts/migrate-json-to-db.js` - a one-time, safely
+re-runnable script (dedupes `launched_tokens` by its own id, `dbc_configs` by the on-chain
+`config_address`) that reads the old JSON files and inserts anything not already in Postgres. Run
+locally against a throwaway Docker Postgres first to validate end-to-end (schema creation, the
+read/write paths, the partial-unique-index behavior above) before ever touching the real database -
+same "verify, don't assume" discipline as every other change in this document. Still needs to run
+once against Railway's own Postgres once that's provisioned there, to carry over the real launch
+history (including the live SOLBULL migration from section 5.14/5.15's follow-up).
+
+**New environment variable**: `DATABASE_URL` (see `.env.example`) - locally, any Postgres
+connection string; on Railway, adding the Postgres plugin injects it automatically.
+
 ## 6. Suggested next steps
 
 1. ~~Validate the curve presets against Meteora's official calculator~~

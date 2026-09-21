@@ -1,4 +1,3 @@
-import fs from "fs";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import {
   buildCurve,
@@ -19,6 +18,7 @@ import { requireWalletKeypair } from "./config.js";
 import { getMintInfo } from "./tokenInfo.js";
 import { sendAndConfirmWithRetry } from "./txHelpers.js";
 import { computePythAnchoredMarketCaps, PYTH_STOCK_SYMBOLS, isPythStockSymbolSupported } from "./pythPricing.js";
+import { query } from "./db.js";
 
 // DBC (Dynamic Bonding Curve) "config" step - see DBC-MIGRATION-PLAN.md for
 // the full design. A "config" is a SEPARATE account from the pool: it
@@ -27,30 +27,9 @@ import { computePythAnchoredMarketCaps, PYTH_STOCK_SYMBOLS, isPythStockSymbolSup
 // per (quote token + fee/curve rules) combination, not one per launched
 // token. Creating a new one costs a transaction + rent; reusing costs
 // nothing beyond a read. That's why this file caches the created address
-// in data/dbc-configs.json, the same way tokenLauncher.js caches launches
-// in data/launched-tokens.json.
-
-const DBC_CONFIGS_FILE = new URL("../data/dbc-configs.json", import.meta.url);
-
-function ensureDataDir() {
-  const dir = new URL("../data/", import.meta.url);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-}
-
-function loadConfigs() {
-  ensureDataDir();
-  if (!fs.existsSync(DBC_CONFIGS_FILE)) return [];
-  try {
-    return JSON.parse(fs.readFileSync(DBC_CONFIGS_FILE, "utf-8"));
-  } catch {
-    return [];
-  }
-}
-
-function saveConfigs(list) {
-  ensureDataDir();
-  fs.writeFileSync(DBC_CONFIGS_FILE, JSON.stringify(list, null, 2));
-}
+// in the dbc_configs table (see db.js) - moved 2026-09-21 from a flat
+// data/dbc-configs.json file, which had no protection against two
+// concurrent requests for a brand-new preset both deciding to create one.
 
 // CONFIRMED (2026-09-17) against Meteora's own official reference config
 // (github.com/MeteoraAg/meteora-invent, studio/config/dbc_config.jsonc,
@@ -314,9 +293,8 @@ export async function getOrCreateDbcConfig(presetId, quoteMint) {
   const preset = findDbcCurvePreset(presetId);
   if (!preset) throw new Error(`Unknown DBC curve preset: "${presetId}".`);
 
-  const list = loadConfigs();
-  const cached = list.find((c) => c.presetId === presetId && c.quoteMint === quoteMint);
-  if (cached) return new PublicKey(cached.configAddress);
+  const { rows: cachedRows } = await query("SELECT config_address FROM dbc_configs WHERE preset_id = $1 AND quote_mint = $2", [presetId, quoteMint]);
+  if (cachedRows.length > 0) return new PublicKey(cachedRows[0].config_address);
 
   const wallet = requireWalletKeypair();
   const configKeypair = Keypair.generate(); // new account - the config address is random, not deterministic (unlike the "customizable" DAMM v2 pool in poolCreator.js)
@@ -334,16 +312,20 @@ export async function getOrCreateDbcConfig(presetId, quoteMint) {
   const signature = await sendAndConfirmWithRetry(connection, tx, [wallet, configKeypair]);
   console.log(`[dbcConfig] new config created for preset "${presetId}" / quote ${quoteMint}: ${configKeypair.publicKey.toBase58()} (tx ${signature})`);
 
-  list.push({
-    presetId,
-    quoteMint,
-    configAddress: configKeypair.publicKey.toBase58(),
-    createdAt: new Date().toISOString(),
-    signature,
-  });
-  saveConfigs(list);
+  // ON CONFLICT: if a concurrent request for this exact preset+quote won
+  // the race and inserted first, keep ITS row (RETURNING nothing means we
+  // fall through to the SELECT below) rather than ours - we already paid
+  // for and created an extra on-chain config account in that rare case,
+  // but every future launch still converges on a single reused address.
+  await query(
+    `INSERT INTO dbc_configs (preset_id, quote_mint, config_address, signature)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (preset_id, quote_mint) WHERE preset_id NOT LIKE 'pyth:%' DO NOTHING`,
+    [presetId, quoteMint, configKeypair.publicKey.toBase58(), signature]
+  );
+  const { rows: finalRows } = await query("SELECT config_address FROM dbc_configs WHERE preset_id = $1 AND quote_mint = $2", [presetId, quoteMint]);
 
-  return configKeypair.publicKey;
+  return new PublicKey(finalRows[0].config_address);
 }
 
 /**
@@ -375,15 +357,12 @@ export async function createPythAnchoredDbcConfig(symbol, quoteMint) {
   const signature = await sendAndConfirmWithRetry(connection, tx, [wallet, configKeypair]);
   console.log(`[dbcConfig] new Pyth-anchored config created for "${symbol}" / quote ${quoteMint}: ${configKeypair.publicKey.toBase58()} (tx ${signature})`);
 
-  const list = loadConfigs();
-  list.push({
-    presetId: `pyth:${symbol}`,
+  await query("INSERT INTO dbc_configs (preset_id, quote_mint, config_address, signature) VALUES ($1, $2, $3, $4)", [
+    `pyth:${symbol}`,
     quoteMint,
-    configAddress: configKeypair.publicKey.toBase58(),
-    createdAt: new Date().toISOString(),
+    configKeypair.publicKey.toBase58(),
     signature,
-  });
-  saveConfigs(list);
+  ]);
 
   return configKeypair.publicKey;
 }

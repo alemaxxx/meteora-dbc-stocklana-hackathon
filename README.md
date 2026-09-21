@@ -98,16 +98,30 @@ even though the token is legitimate. Hence the two presets in `src/dbcConfig.js`
 
 ```bash
 npm install
-cp .env.example .env   # fill in RPC_URL and WALLET_PRIVATE_KEY
+cp .env.example .env   # fill in RPC_URL, WALLET_PRIVATE_KEY and DATABASE_URL
 npm start
 ```
+
+Needs a Postgres database (see `DATABASE_URL` below) - a throwaway local one works fine, e.g.
+`docker run -d -e POSTGRES_PASSWORD=devpassword -e POSTGRES_DB=dbc_launchpad -p 5433:5432
+postgres:16-alpine`. The schema is created automatically on startup (`ensureSchema()` in
+`src/db.js`) - no manual migration step needed for a fresh database.
 
 Opens at `http://localhost:3000`.
 
 ## Environment variables
 
-Only two are required - see `.env.example`. No real value should ever go into Git. In production
-(Railway), paste the values directly into the service's variables panel.
+Three are required - see `.env.example`. No real value should ever go into Git. In production
+(Railway), paste the values directly into the service's variables panel; `DATABASE_URL` is injected
+automatically once the Postgres plugin is added there.
+
+## Database (2026-09-21)
+
+Launched-token and DBC-config records live in Postgres now, not in flat JSON files - see
+`src/db.js` and section 5.16 of `DBC-MIGRATION-PLAN.md` for why (a real race condition in the old
+read-whole/write-whole file pattern, and a hard ceiling on running more than one app instance).
+`scripts/migrate-json-to-db.js` is a one-time, safely re-runnable script for carrying over data
+from the old `data/*.json` files into a fresh database.
 
 ## What has already been tested for real on mainnet (2026-09-20)
 
