@@ -958,12 +958,23 @@ All four are genuinely tradeable today, not just badged-but-illiquid. Fully comp
 0.1-unit migration threshold via a single organic buy costs roughly $23-$78 depending on which
 stock, all reasonable and testable amounts.
 
-**Status**: code complete, validated offline, one real config already created (TSLAx). What's left,
-needs a human present: connect a real wallet, launch a test token against one of these presets,
-confirm the curve completes and migrates correctly with a Token-2022 quote (migration/fee-claim
-code was read and appears quote-agnostic - delegates entirely to the SDK's high-level methods,
-no hardcoded decimals/token-program assumptions found there - but this has never been exercised
-live with a non-SOL quote, so treat that read as "no red flags found," not "confirmed working").
+**Last open technical question, RESOLVED**: does DAMM v2 migration actually accept a Token-2022
+quote with `permanentDelegate` (all four xStocks have it)? Confirmed with a traced real transaction,
+not just docs - the DBC program's source (`migrate_damm_v2_initialize_pool.rs`,
+[PR #209](https://github.com/MeteoraAg/dynamic-bonding-curve/pull/209), merged 2026-09-06, already
+in our installed SDK v1.5.12) shows every DBC-migrated DAMM v2 pool uses a config with
+`CreatePoolWithoutMintValidation`, skipping the Token-2022 extension checks DAMM v2 normally does.
+Independently verified this works by tracing a REAL AAPLx migration on mainnet - transaction
+`5RgKF9dHygAC131e2ZBCEo71mUHipnR5m76QCywEUpRL7QVSP5bnqTKXwvHwAo3sHx4iPDubv3LDA8H3uEtyR9Gh`, status
+`Ok`, creating a real DAMM v2 pool account. Only independently verified for AAPLx, not the other
+three - they share the same extensions and issuer, so the same result is expected but not proven
+for each individually.
+
+**Status**: code complete, validated offline, one real config already created (TSLAx), and the
+riskiest remaining unknown (DAMM v2 + permanentDelegate) confirmed via a real traced transaction.
+What's left needs a human present: connect a real wallet, launch a test token against one of these
+presets, confirm the full lifecycle end-to-end with our own code (not just precedent from another
+project).
 
 ## 6. Suggested next steps
 
