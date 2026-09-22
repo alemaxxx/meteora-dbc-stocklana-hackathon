@@ -944,11 +944,19 @@ attempted. This was flagged to the user directly, not glossed over - see the mem
 same finding for the full incident writeup and the lesson learned (don't probe real endpoints
 "just to check the response shape" - validate via `buildCurve` math only until a human is present).
 
-**Jupiter liquidity confirmed** (read-only quote check, no transaction): a real swap route exists
-for TSLAx via `lite-api.jup.ag` - 0.05 SOL quoted for ~0.0155 TSLAx (~$5.83), routed SOL→USDC
-(Quantum)→TSLAx (BinaryFi). Implies ~1 TSLAx ≈ $376, consistent with TSLA's real price. Fully
-completing the `stock-quoted-tslax` preset's 0.1 TSLAx threshold via a single organic buy would
-need roughly 0.32 SOL worth - reasonable and testable, not prohibitively expensive.
+**Jupiter liquidity confirmed for all four presets** (read-only quote checks, no transactions) -
+0.05 SOL quoted against each, all real routes through different AMMs:
+
+| Preset | Route | Quoted out (0.05 SOL) | Implied price |
+|---|---|---|---|
+| TSLAx | SOL→USDC (Quantum)→TSLAx (BinaryFi) | ~0.0155 TSLAx (~$5.83) | ~$376/share |
+| AAPLx | SOL→USDC (HumidiFi)→AAPLx (Raydium CLMM) | ~0.0172 AAPLx (~$5.84) | ~$340/share |
+| NVDAx | SOL→USDC (Quantum)→NVDAx (Whirlpool) | ~0.0256 NVDAx (~$5.84) | ~$228/share |
+| SPYx | SOL→USDC (Byreal)→SPYx (PancakeSwap) | ~0.0075 SPYx (~$5.84) | ~$778/share |
+
+All four are genuinely tradeable today, not just badged-but-illiquid. Fully completing any preset's
+0.1-unit migration threshold via a single organic buy costs roughly $23-$78 depending on which
+stock, all reasonable and testable amounts.
 
 **Status**: code complete, validated offline, one real config already created (TSLAx). What's left,
 needs a human present: connect a real wallet, launch a test token against one of these presets,
