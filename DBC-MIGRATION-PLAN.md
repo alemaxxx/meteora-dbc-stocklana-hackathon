@@ -976,6 +976,61 @@ What's left needs a human present: connect a real wallet, launch a test token ag
 presets, confirm the full lifecycle end-to-end with our own code (not just precedent from another
 project).
 
+## 5.18. Eighteenth round (2026-09-22) - deep competitive research + a real business-plan angle
+
+An 8-hour open-ended research pass (GitHub, web search, and the actual hackathon platforms) to find
+what every other "Meteora DBC + tokenized stock" entrant is doing before either deadline, and to
+close the weakest of Crypto World's Fair's own judging factors: "Business Plan - is there a viable
+business that can be built in the future around this Submission?"
+
+**Read the real judging criteria from primary sources, not secondhand summaries.** Fetched Colosseum's
+actual "Official Hackathon Rules" PDF (linked from `colosseum.com/worldsfair`, not indexable by search
+- had to be downloaded and read directly) - Section 8 lists 6 equally-weighted factors: Functionality,
+Potential Impact, Novelty, UX, Open-source, and Business Plan. Also re-confirmed, this time by reading
+the live Superteam Earn listing itself (`superteam.fun/earn/hackathon/crypto-worlds-fair/` → "Best use
+of Meteora's Dynamic Bonding Curve (DBC)"), Meteora's own 5-factor rubric for its specific $20,000
+sidetrack (only 8 submissions as of this read, 21 days left): depth of Meteora integration, technical
+execution, originality/taste, impact potential, and **"Traction/Volume: we prefer projects who have
+gone live on mainnet"** - direct, primary-source confirmation that this project's mainnet-first
+approach (section 5.14) is exactly what Meteora's judges said they want, not just an assumption.
+
+**Competitive landscape update** (full detail in memory, not duplicated here): found 2 more
+hackathon-repo competitors (`stockforge` - Pyth-volatility-informed curve compiler, devnet-only;
+`equitycurve-studio` - has ONE real live mainnet DBC pool, but it's SOL-quoted, not stock-quoted, so
+their own equity track "still refuses mainnet txs"). Across every competitor found and read this
+project or in earlier rounds, **none has completed a real stock-quoted mainnet launch → migration →
+fee-claim cycle** - still this project's clearest, most defensible edge.
+
+**The business-plan gap and how it's addressed**: Meteora's own sidetrack listing suggests, as one of
+its "ideas we'd love to see," a **"DBC Config Preset Marketplace - popular launchpad configs that
+builders can easily pay-to-use."** Checked whether anyone already built this for real -
+`alamuoyeemmanuel7-create/aequus` attempts exactly this but admits its own "unlock" mechanism is "a
+temporary hackathon workaround" (scanning treasury transactions for a memo, no indexer/DB) and that
+the code was never even run: "This was built in a sandboxed environment without network access... not
+a tested build." **The angle is still genuinely open.** This project already has nine real, tested
+presets across three families (fee-shape: `baixa-taxa-2h-linear`/`default-2h-linear`/`flat-1pct`/
+`exponencial-2h`/`long-24h-linear`; migration-behavior: `compounding-damm-v2`; quote-asset:
+`stock-quoted-aaplx/tslax/nvdax/spyx`) - a real, working seed for exactly the "preset marketplace"
+Meteora itself suggested, not a hypothetical. Framing this explicitly as the "life after the
+hackathon" story (rather than leaving Business Plan unaddressed) directly targets the one judging
+factor this project's otherwise strong track record (real bugs found and fixed, a real security
+review, a real Postgres migration for production-readiness) doesn't speak to on its own - execution
+history proves the team can build; the preset-marketplace framing gives judges a concrete answer for
+what the business becomes next.
+
+**Also surfaced, a real and named funding path beyond the prize itself**: the same Superteam Earn
+listing states "select qualified teams and hackathon winners building innovative AI or RWA use cases
+with Meteora DBC during this period may be eligible for discretionary infrastructure grants" - worth
+naming directly in the submission rather than only mentioning prize money.
+
+**One correction to earlier research, caught before it caused confusion**: a prior note referenced
+"Blowfish" as a competitor with an 80% creator-fee split, "beaten" by this project's 100%. No project
+named "Blowfish" tied to Meteora DBC was found anywhere - retracted. What IS real and verified: this
+project's own `creatorTradingFeePercentage: 100` (`src/dbcConfig.js:255`) and Meteora's documented
+80/20 protocol/partner-creator split (`docs.meteora.ag/protocol/protocol-revenues`) - worth keeping in
+the pitch as "the creator keeps the full fee stream," but as a description of this project's own
+config choice, not a percentage "won" against any specific named competitor.
+
 ## 6. Suggested next steps
 
 1. ~~Validate the curve presets against Meteora's official calculator~~

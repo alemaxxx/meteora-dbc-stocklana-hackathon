@@ -176,6 +176,20 @@ section 5.15 of `DBC-MIGRATION-PLAN.md` for the full report:
    connected at all (`launch/prepare`'s Arweave upload, `migrate`, `claim-partner-fee`); added a
    small in-memory per-IP limiter.
 
+## Life after the hackathon: a real business plan, not just a demo (2026-09-22)
+
+Meteora's own Crypto World's Fair brief suggests, as one of its "ideas we'd love to see," a **"DBC
+Config Preset Marketplace - popular launchpad configs that builders can easily pay-to-use."** This
+project already has nine real, tested presets across three families - fee-shape (`baixa-taxa-2h-linear`,
+`default-2h-linear`, `flat-1pct`, `exponencial-2h`, `long-24h-linear`), migration-behavior
+(`compounding-damm-v2`), and quote-asset (`stock-quoted-aaplx/tslax/nvdax/spyx`) - a working seed for
+exactly that marketplace, not a hypothetical: a competing attempt at this same idea
+(`aequus`) admits its own "pay-to-use" mechanism is an untested hackathon stub, never even run. The
+path from here to a real marketplace is short: charge per-launch for premium presets, keep the basics
+free. Separately, Meteora has stated that "select qualified teams... building innovative AI or RWA
+use cases with Meteora DBC" during this period may be eligible for discretionary infrastructure
+grants - a named funding path beyond the prize itself.
+
 ## What's still left to validate
 
 - **Multi-wallet picker** - only tested with one real wallet (Phantom) so far; the picker modal
