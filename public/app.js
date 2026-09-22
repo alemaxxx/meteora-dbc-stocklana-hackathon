@@ -8,6 +8,7 @@
     presetChips: document.getElementById("preset-chips"),
     presetHint: document.getElementById("preset-hint"),
     firstBuy: document.getElementById("launch-firstbuy"),
+    firstBuyLabel: document.getElementById("launch-firstbuy-label"),
     error: document.getElementById("launch-error"),
     success: document.getElementById("launch-success"),
     confirmBtn: document.getElementById("launch-confirm-btn"),
@@ -148,12 +149,18 @@
     markSelectedChip((c) => c.dataset.preset === id);
     const preset = allPresets.find((p) => p.id === id);
     els.presetHint.textContent = preset?.label ?? "";
+    // Presets quoted in a real xStock (see dbcConfig.js's "stock-quoted-*"
+    // presets, 2026-09-22) trade against that stock directly, not SOL -
+    // the initial-buy field's label needs to reflect that or "0.05" would
+    // look like SOL when it's actually 0.05 of a real tokenized share.
+    els.firstBuyLabel.textContent = `${preset?.quoteSymbol ?? "SOL"} for initial buy (optional)`;
   }
 
   async function selectPythSymbol(symbol) {
     selectedPresetId = null;
     selectedPythSymbol = symbol;
     markSelectedChip((c) => c.dataset.pyth === symbol);
+    els.firstBuyLabel.textContent = "SOL for initial buy (optional)";
     els.presetHint.textContent = `Fetching ${symbol}'s live price from Pyth…`;
     try {
       const res = await fetch(`/api/pyth-presets/${encodeURIComponent(symbol)}/preview`);
@@ -214,7 +221,9 @@
         els.error.hidden = false;
         return;
       }
-      if (Number(rawFirstBuy) > LARGE_SOL_THRESHOLD) {
+      const preset = allPresets.find((p) => p.id === selectedPresetId);
+      const quoteSymbol = preset?.quoteSymbol ?? "SOL";
+      if (quoteSymbol === "SOL" && Number(rawFirstBuy) > LARGE_SOL_THRESHOLD) {
         const ok = await confirmDialog(
           `You entered ${rawFirstBuy} SOL for the initial buy - that's well above what's normal for this field. Are you sure this isn't a mistake?`,
           { title: "Unusual value", confirmText: "Confirm anyway", danger: true }

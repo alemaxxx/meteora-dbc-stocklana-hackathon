@@ -131,10 +131,14 @@ export async function prepareTokenLaunch({ name, symbol, imageDataUrl, presetId,
     throw new Error("Connect a wallet before launching - it pays for and owns the new token.");
   }
 
-  // Two mutually exclusive curve modes: a fixed SOL preset (the two
-  // production ones), or a Pyth-anchored one (see pythPricing.js) -
-  // pythSymbol takes priority when both would somehow be set.
+  // Three mutually exclusive curve modes: a fixed preset quoted in SOL, a
+  // fixed preset quoted in a real xStock (see dbcConfig.js's
+  // "stock-quoted-*" presets, added 2026-09-22), or a Pyth-anchored one
+  // (pythPricing.js) - pythSymbol takes priority when both would somehow
+  // be set.
   let migrationThresholdForValidation;
+  let quoteMint = SOL_MINT;
+  let quoteSymbol = "SOL";
   if (pythSymbol) {
     if (!isPythStockSymbolSupported(pythSymbol)) {
       throw new Error(`Unsupported Pyth-anchored symbol: "${pythSymbol}".`);
@@ -150,6 +154,10 @@ export async function prepareTokenLaunch({ name, symbol, imageDataUrl, presetId,
       throw new Error(`Unknown curve preset: "${presetId}".`);
     }
     migrationThresholdForValidation = preset.migrationQuoteThreshold;
+    if (preset.quoteMint) {
+      quoteMint = preset.quoteMint;
+      quoteSymbol = preset.quoteSymbol ?? quoteSymbol;
+    }
   }
 
   // Found live on 2026-09-17 (see DBC-MIGRATION-PLAN.md section 5.5): the
@@ -159,7 +167,7 @@ export async function prepareTokenLaunch({ name, symbol, imageDataUrl, presetId,
   // instead of letting the raw simulation error reach the user.
   if (Number(firstBuySolUi) > 0 && Number(firstBuySolUi) >= migrationThresholdForValidation) {
     throw new Error(
-      `Initial buy (${firstBuySolUi} SOL) can't reach or exceed this curve's migration threshold (${migrationThresholdForValidation} SOL) - the curve has no liquidity to sell beyond that point. Use a smaller amount.`
+      `Initial buy (${firstBuySolUi} ${quoteSymbol}) can't reach or exceed this curve's migration threshold (${migrationThresholdForValidation} ${quoteSymbol}) - the curve has no liquidity to sell beyond that point. Use a smaller amount.`
     );
   }
 
@@ -187,7 +195,7 @@ export async function prepareTokenLaunch({ name, symbol, imageDataUrl, presetId,
     metadataUri: metadataUrl,
     presetId,
     pythSymbol,
-    quoteMint: SOL_MINT,
+    quoteMint,
     firstBuySolUi,
     creatorPublicKey,
   });
@@ -200,8 +208,8 @@ export async function prepareTokenLaunch({ name, symbol, imageDataUrl, presetId,
       id,
       name,
       symbol,
-      SOL_MINT,
-      "SOL",
+      quoteMint,
+      quoteSymbol,
       pythSymbol ? null : presetId,
       pythSymbol ?? null,
       Number(firstBuySolUi) || 0,

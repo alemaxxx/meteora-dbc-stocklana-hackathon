@@ -53,6 +53,26 @@ fixed a real bug the live test surfaced (the pool lookup right after confirming 
 retry loop, not just the mint's) and dropped the unused platform-wallet balance display per
 feedback.
 
+## Curves quoted directly in a real tokenized stock (2026-09-22)
+
+Four more presets (`stock-quoted-aaplx/tslax/nvdax/spyx`) trade the new token directly against a
+**real xStock** (AAPLx, TSLAx, NVDAx, SPYx - Backed Finance, Token-2022) instead of SOL - the
+curve's quote *is* a real, tradeable share of Apple/Tesla/NVIDIA/the S&P 500, migrating once 0.1
+real units of that stock accumulate. This goes further than the Pyth-anchored mode below, which
+only uses a stock's price to size a SOL threshold - here there's no conversion at all, since 1 unit
+of quote already equals 1 real share by the mint's own design.
+
+Real constraint worth disclosing: creating a DBC "token badge" (required for a Token-2022 mint like
+these) is Meteora-controlled, not something a partner can do - confirmed by reading the SDK's real
+exported methods (no create-badge call exposed, only read-only ones). This only works because
+Meteora has already badged these four specific mints - confirmed with a live on-chain read
+(`getTokenBadge`), not from any announcement (an unsourced claim about this exists in the wild and
+couldn't be traced to a primary source - the on-chain read is what actually settled it). See
+section 5.17 of `DBC-MIGRATION-PLAN.md` for the full writeup, including two real bugs this surfaced
+(a hardcoded-decimals assumption and a hardcoded-SOL-quote assumption, both from before any quote
+other than SOL existed) and an honest incident report (a real transaction fired during local testing
+that shouldn't have).
+
 ## Six curve presets, plus one live-priced mode (2026-09-17)
 
 - `baixa-taxa-2h-linear` (default) and `default-2h-linear` - the two original presets (see the real

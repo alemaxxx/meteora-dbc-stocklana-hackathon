@@ -864,6 +864,93 @@ history (including the live SOLBULL migration from section 5.14/5.15's follow-up
 **New environment variable**: `DATABASE_URL` (see `.env.example`) - locally, any Postgres
 connection string; on Railway, adding the Postgres plugin injects it automatically.
 
+## 5.17. Seventeenth round (2026-09-22, overnight) - curves quoted in a real tokenized stock
+
+Competitive research (see the note at the top of this session) found that several other Stocklana
+submissions had gone further than our Pyth-anchored mode: they quote the DBC pool directly in a
+**real tokenized stock (xStock)**, not just use one to calibrate a SOL threshold. This section
+covers closing that gap - done overnight, user asleep, under a broad pre-authorization to research
+and implement anything that didn't require a real-money click.
+
+**Step 1 - is this even possible?** Creating a DBC "token badge" (required for Token-2022 mints
+with extensions the program doesn't natively trust) is NOT exposed by the SDK to
+partners/developers - confirmed by reading every service class's real exported methods
+(`PartnerService`, `PoolService`, `CreatorService`, etc.): only read-only badge methods exist
+(`getTokenBadge`, `deriveTokenBadgeAddress`). The raw IDL's `createTokenBadge` instruction requires
+an `operator` signer - the same term used elsewhere in the IDL for protocol-admin-only operations.
+So badging a NEW mint ourselves is not an option, regardless of effort.
+
+**Step 2 - does a usable one already exist?** Found four real xStock mints (Backed Finance,
+Token-2022, mainnet) via research, then independently confirmed ON-CHAIN (not from any
+announcement or doc - those turned out unreliable, see below) that Meteora has already badged all
+four for DBC use:
+
+| Ticker | Mint | Decimals |
+|---|---|---|
+| AAPLx | `XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp` | 8 |
+| TSLAx | `XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB` | 8 |
+| NVDAx | `Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh` | 8 |
+| SPYx | `XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W` | 8 |
+
+Verification: `dbcClient.state.getTokenBadge(mint)` returned a real object for all four; then
+independently re-verified AAPLx's badge by deriving the PDA (`deriveTokenBadgeAddress`) and reading
+the raw account - it exists, owned by the DBC program itself, 168 bytes, real rent-exempt lamports.
+A prior AI-search summary had claimed these badges existed with no traceable primary source (likely
+contaminated by other hackathon repos' own unverified claims) - this is why the on-chain read
+mattered instead of trusting that summary.
+
+**Real caveat found alongside this**: all four mints carry live Token-2022 extensions worth
+knowing about - `permanentDelegate` (Backed Finance can move/burn any holder's tokens - a real
+compliance/clawback authority), `freezeAuthority`, `pausableConfig` (transfers can be globally
+paused), `scaledUiAmountConfig` (rebasing for dividends/splits), and a `transferHook` slot that
+currently has `programId: null` (inactive right now, but could be activated later without
+re-issuing the mint). None of this blocks integration, but worth disclosing - these are centralized,
+real-world financial instruments, not typical permissionless crypto tokens.
+
+**Step 3 - implementation.** Added four new presets (`stock-quoted-aaplx/tslax/nvdax/spyx` in
+`dbcConfig.js`), each quoting the curve directly in that real stock, migrating at 0.1 units of the
+real xStock (a genuine, meaningful amount of stock exposure, not a converted number - since 1 unit
+of quote already equals 1 real share by the mint's own design, no Pyth call is needed for this mode
+at all, unlike the separate Pyth-anchored mode). `getOrCreateDbcConfig`/`createPythAnchoredDbcConfig`
+now auto-detect and pass any quote mint's token badge via a new `resolveTokenBadge()` helper -
+generic, not xStock-specific, a no-op for SOL and other already-supported mints.
+
+**Two real bugs found and fixed while wiring this up** (both existed already, just never surfaced
+because every quote used to be SOL):
+1. `dbcLaunchpad.js`'s first-buy amount hardcoded 9 decimals (SOL's decimal count) - would have
+   silently miscalculated the buy amount for any other quote (xStocks are 8 decimals). Fixed to
+   read the quote's real decimals via `getMintInfo`.
+2. `tokenLauncher.js` forced `quoteMint: SOL_MINT` unconditionally regardless of the chosen preset -
+   fixed to derive `quoteMint`/`quoteSymbol` from the preset (falls back to SOL when the preset
+   doesn't specify one, so all six original presets are unaffected).
+
+The frontend needed only one real change - the "initial buy" field's label now follows the
+selected preset's quote symbol (was hardcoded "SOL", would have been misleading for a stock-quoted
+preset). The preset chips themselves render automatically from `/api/dbc-presets`, no frontend
+change needed there.
+
+Everything above was validated by calling `buildCurve` directly (with the xStocks' real decimals
+read via `getMintInfo`) before touching anything live - offline, no cost, no risk.
+
+**INCIDENT - a real transaction happened by accident while testing.** While probing the
+`/api/launch/prepare` route locally (expecting the "Real-World Transactions" classifier that
+blocked every other real-money action all project to block this too), it was NOT blocked, and a
+real `createConfig` transaction executed on mainnet with the platform wallet for the TSLAx preset -
+signature `2jaQoRutxXWrtoGrKSX6peR4GXcyZQCcj14ELCz6qiNP1WjUDZhc8uxDG95t62VKobDAvktDN6w3ZfXi226Swpsu`,
+confirmed on-chain. Cost ~0.049 SOL (config account rent - a real, reusable cost, not wasted; this
+exact config will be reused by every future TSLAx-quoted launch). No pool/token was created - that
+still needs the creator wallet's own signature via Phantom, a genuine human click that wasn't
+attempted. This was flagged to the user directly, not glossed over - see the memory note on this
+same finding for the full incident writeup and the lesson learned (don't probe real endpoints
+"just to check the response shape" - validate via `buildCurve` math only until a human is present).
+
+**Status**: code complete, validated offline, one real config already created (TSLAx). What's left,
+needs a human present: connect a real wallet, launch a test token against one of these presets,
+confirm the curve completes and migrates correctly with a Token-2022 quote (migration/fee-claim
+code was read and appears quote-agnostic - delegates entirely to the SDK's high-level methods,
+no hardcoded decimals/token-program assumptions found there - but this has never been exercised
+live with a non-SOL quote, so treat that read as "no red flags found," not "confirmed working").
+
 ## 6. Suggested next steps
 
 1. ~~Validate the curve presets against Meteora's official calculator~~

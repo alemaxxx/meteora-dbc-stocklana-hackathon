@@ -12,6 +12,7 @@ import {
   MigrationFeeOption,
   MigratedCollectFeeMode,
   DammV2DynamicFeeMode,
+  deriveTokenBadgeAddress,
 } from "@meteora-ag/dynamic-bonding-curve-sdk";
 import { connection, dbcClient } from "./connection.js";
 import { requireWalletKeypair } from "./config.js";
@@ -57,6 +58,20 @@ import { query } from "./db.js";
 // rest of the config matched exactly - only the starting fee was too high
 // for this side effect. Hence the "low-fee" preset below, without
 // deleting the original (lets you compare both launches side by side).
+
+// Real xStock mints (Backed Finance, Token-2022) on Solana mainnet -
+// confirmed via direct on-chain reads on 2026-09-22 (both the mint
+// account itself and its Meteora DBC token badge), not just from
+// announcements/docs. See the "stock-quoted" presets below for why this
+// matters and dbcConfig.js's `resolveTokenBadge` for how the badge gets
+// used automatically.
+export const STOCK_QUOTE_MINTS = {
+  AAPLx: { symbol: "AAPLx", label: "Apple (AAPLx)", mint: "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp", decimals: 8 },
+  TSLAx: { symbol: "TSLAx", label: "Tesla (TSLAx)", mint: "XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB", decimals: 8 },
+  NVDAx: { symbol: "NVDAx", label: "NVIDIA (NVDAx)", mint: "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh", decimals: 8 },
+  SPYx: { symbol: "SPYx", label: "S&P 500 (SPYx)", mint: "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W", decimals: 8 },
+};
+
 export const DBC_CURVE_PRESETS = [
   {
     id: "baixa-taxa-2h-linear",
@@ -151,6 +166,37 @@ export const DBC_CURVE_PRESETS = [
       compoundingFeeBps: 5000, // 50% of trading fees compound back into the pool's own liquidity, the rest still pays out
     },
   },
+  // Added 2026-09-22 - direct response to how several other Stocklana
+  // submissions raised the bar on "tokenized stock" ideas: they quote the
+  // DBC pool directly in a REAL tokenized stock (xStock), not just use one
+  // to calibrate a SOL threshold (which is all the Pyth-anchored mode
+  // above does). Verified this is actually possible before writing any of
+  // this - Meteora controls token badge creation (no SDK method exposes
+  // it to partners, confirmed by reading the installed SDK's real
+  // exports), but a live on-chain read (dbcClient.state.getTokenBadge)
+  // confirmed Meteora has ALREADY badged all four of Backed Finance's real
+  // xStock mints below for DBC use - independently re-verified for AAPLx
+  // by deriving the badge PDA and fetching it directly (owned by the DBC
+  // program, real data, not a null/false-positive read).
+  //
+  // Migration threshold is 0.1 units of the xStock itself (not SOL) -
+  // meaning "the curve is done" is now a literal, real amount of stock
+  // exposure (e.g. 0.1 TSLAx), not a converted number. No Pyth call
+  // needed for this mode at all: since 1 unit of quote already equals 1
+  // real share by the mint's own design, there's no USD/SOL conversion to
+  // do - Pyth stays reserved for the separate "Pyth-anchored" mode above.
+  ...Object.values(STOCK_QUOTE_MINTS).map((stock) => ({
+    id: `stock-quoted-${stock.symbol.toLowerCase()}`,
+    label: `Quoted in real ${stock.label} (3%→0.5% over 2h, migrates at 0.1 ${stock.symbol} accumulated in the curve) - trades directly against the tokenized stock, not SOL`,
+    totalTokenSupply: 1_000_000_000,
+    percentageSupplyOnMigration: 20,
+    migrationQuoteThreshold: 0.1,
+    startingFeeBps: 300,
+    endingFeeBps: 50,
+    schedulerDurationSeconds: 7200,
+    quoteMint: stock.mint,
+    quoteSymbol: stock.symbol,
+  })),
 ];
 
 export function findDbcCurvePreset(id) {
@@ -284,6 +330,25 @@ async function buildPythAnchoredConfigParameters(symbol, quoteMint) {
 }
 
 /**
+ * Some quote mints (Token-2022 with extensions the DBC program doesn't
+ * natively trust, like the real xStock tokenized-stock mints - see
+ * STOCK_QUOTE_MINTS below) require a "token badge" - an account Meteora
+ * itself creates to vouch for that specific mint. Badging is NOT something
+ * a partner/developer can do (confirmed 2026-09-22 by reading the SDK's
+ * actual exported methods: no service class exposes a create-badge call,
+ * only read-only getTokenBadge/deriveTokenBadgeAddress - the raw IDL
+ * instruction exists but its `operator` account is a Meteora-controlled
+ * role). This just checks whether Meteora has ALREADY badged the given
+ * quote mint (a real, free, on-chain read) and passes the address along if
+ * so - for SOL and other "supported" mints, getTokenBadge returns null and
+ * this is a no-op, identical to the previous behavior.
+ */
+async function resolveTokenBadge(quoteMint) {
+  const badge = await dbcClient.state.getTokenBadge(quoteMint).catch(() => null);
+  return badge ? deriveTokenBadgeAddress(new PublicKey(quoteMint)) : undefined;
+}
+
+/**
  * Returns the address of an already-created config (local cache) for this
  * (preset, quote) combination, creating a new one on-chain only the first
  * time. Never creates two configs for the same preset+quote pair - always
@@ -299,6 +364,7 @@ export async function getOrCreateDbcConfig(presetId, quoteMint) {
   const wallet = requireWalletKeypair();
   const configKeypair = Keypair.generate(); // new account - the config address is random, not deterministic (unlike the "customizable" DAMM v2 pool in poolCreator.js)
   const configParams = await buildConfigParameters(preset, quoteMint);
+  const tokenBadge = await resolveTokenBadge(quoteMint);
 
   const tx = await dbcClient.partner.createConfig({
     ...configParams,
@@ -307,6 +373,7 @@ export async function getOrCreateDbcConfig(presetId, quoteMint) {
     leftoverReceiver: wallet.publicKey,
     quoteMint: new PublicKey(quoteMint),
     payer: wallet.publicKey,
+    tokenBadge,
   });
 
   const signature = await sendAndConfirmWithRetry(connection, tx, [wallet, configKeypair]);
@@ -344,6 +411,7 @@ export async function createPythAnchoredDbcConfig(symbol, quoteMint) {
   const wallet = requireWalletKeypair();
   const configKeypair = Keypair.generate();
   const configParams = await buildPythAnchoredConfigParameters(symbol, quoteMint);
+  const tokenBadge = await resolveTokenBadge(quoteMint);
 
   const tx = await dbcClient.partner.createConfig({
     ...configParams,
@@ -352,6 +420,7 @@ export async function createPythAnchoredDbcConfig(symbol, quoteMint) {
     leftoverReceiver: wallet.publicKey,
     quoteMint: new PublicKey(quoteMint),
     payer: wallet.publicKey,
+    tokenBadge,
   });
 
   const signature = await sendAndConfirmWithRetry(connection, tx, [wallet, configKeypair]);

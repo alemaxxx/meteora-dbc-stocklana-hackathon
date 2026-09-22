@@ -4,6 +4,7 @@ import { connection, dbcClient } from "./connection.js";
 import { SOL_MINT } from "./config.js";
 import { waitForAccountVisible } from "./txHelpers.js";
 import { getOrCreateDbcConfig, createPythAnchoredDbcConfig } from "./dbcConfig.js";
+import { getMintInfo } from "./tokenInfo.js";
 
 // Launch via Meteora DBC (Dynamic Bonding Curve) - see
 // DBC-MIGRATION-PLAN.md for context (evaluation for the Stocklana
@@ -85,6 +86,13 @@ export async function prepareLaunchTransaction({ name, symbol, metadataUri, pres
     baseMint: baseMintKeypair.publicKey,
   };
 
+  // BUG FOUND 2026-09-22 (adding stock-quoted presets, see dbcConfig.js):
+  // this used to hardcode 9 decimals, assuming the quote is always SOL.
+  // The real xStock quote mints use 8 decimals - a hardcoded 9 would have
+  // silently bought 10x too much (or failed with insufficient balance).
+  // Always read the quote's REAL decimals instead of assuming.
+  const quoteInfo = hasFirstBuy ? await getMintInfo(connection, quoteMint) : null;
+
   // createPoolWithFirstBuy only ATTACHES the buy instruction when
   // firstBuyParam.buyAmount > 0 (behavior documented by the SDK itself) -
   // that's why the same function can be called in both cases (with or
@@ -94,7 +102,7 @@ export async function prepareLaunchTransaction({ name, symbol, metadataUri, pres
     firstBuyParam: hasFirstBuy
       ? {
           buyer: creator,
-          buyAmount: toRawAmount(firstBuySolUi, 9), // quote in SOL in most cases - if this ever accepts a quote != SOL for the initial buy, adjust decimals here
+          buyAmount: toRawAmount(firstBuySolUi, quoteInfo.decimals),
           minimumAmountOut: new BN(0), // no slippage guard on the first buy (the creator is buying on the freshly created curve, price is deterministic) - revisit if this ever comes from outside
           referralTokenAccount: null,
         }
