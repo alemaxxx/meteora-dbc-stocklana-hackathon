@@ -192,8 +192,13 @@ grants - a named funding path beyond the prize itself.
 
 ## What's still left to validate
 
-- **Multi-wallet picker** - only tested with one real wallet (Phantom) so far; the picker modal
-  itself needs a second extension installed to confirm.
+- **Multi-wallet picker** - **confirmed live (2026-09-22)** with three real Wallet Standard wallets
+  installed at once (Phantom, Solflare, and Jupiter's own wallet) - the "Choose a wallet" modal
+  rendered all three correctly, each with its real icon, and selecting Solflare triggered its real
+  connection approval popup. One thing to watch, not confirmed as a real bug: clicking "Connect
+  Wallet" immediately after the page loads (before `walletConnect.js`'s module script finishes
+  registering the click handler) appeared to do nothing, silently - no error, no toast. Worth a
+  second look if time allows, but not reproduced carefully enough yet to call it confirmed.
 - **Quote locked to SOL** - the presets define the threshold in units of the quote token itself,
   with no price conversion; supporting another quote (USDC, an xStock) would require calibrating
   the presets to each one's market value first. Meteora's own 2026-09-20 announcement ("DBC

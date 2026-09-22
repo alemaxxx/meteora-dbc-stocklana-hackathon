@@ -1031,6 +1031,28 @@ project's own `creatorTradingFeePercentage: 100` (`src/dbcConfig.js:255`) and Me
 the pitch as "the creator keeps the full fee stream," but as a description of this project's own
 config choice, not a percentage "won" against any specific named competitor.
 
+## 5.19. Nineteenth round (2026-09-22) - multi-wallet picker confirmed live
+
+The one remaining item from section 5.8/5.9 that had only ever been tested with a single wallet
+(Phantom) installed: confirmed live, via the user's own real Chrome (not the isolated built-in
+browser, which has no wallet extensions), with **three** real Wallet Standard wallets registered at
+once - Phantom, Solflare, and Jupiter's own wallet (an extra one neither of us expected to be
+installed). Clicking "Connect Wallet" opened the "Choose a wallet" modal (`walletPickerDialog` in
+`public/uiKit.js`) showing all three with their real icons; selecting Solflare correctly triggered
+Solflare's own connection-approval popup (outside the page, so left for the user to approve/dismiss
+themselves - a wallet's own approval UI is exactly the kind of thing to leave to the human, not
+something to click through).
+
+One unconfirmed observation, not chased down: an initial attempt to click "Connect Wallet" via
+coordinate/ref (right after the page had just loaded) appeared to do nothing - no modal, no error, no
+toast. A follow-up direct `document.getElementById('wallet-connect-btn').click()` a short time later
+worked immediately, with `window.WalletConnect.listWallets()` confirming all three wallets were
+already registered by then. Plausible explanation: a race between the page becoming visually ready
+and `walletConnect.js`'s module script finishing attaching its `register`/`unregister` listeners -
+if a real user clicks "Connect Wallet" fast enough after the page loads, the click might silently do
+nothing. Not reproduced carefully enough (only one data point) to treat as a confirmed bug - flagged
+for a closer look if there's time, not fixed blind.
+
 ## 6. Suggested next steps
 
 1. ~~Validate the curve presets against Meteora's official calculator~~
@@ -1071,5 +1093,6 @@ config choice, not a percentage "won" against any specific named competitor.
    than guessed at alone. Biggest remaining differentiator if there's time before either deadline.
 7. Test a real `migrateDbcPoolIfReady` for the `compounding-damm-v2` preset (section 5.10) once a
    pool launched with it reaches its threshold - the riskiest untested code path added this round.
-8. Multi-wallet picker (section 5.8/5.9) still only tested with one real wallet (Phantom) -
-   confirm the picker modal itself with a second extension (Solflare/Backpack) installed.
+8. ~~Multi-wallet picker (section 5.8/5.9) still only tested with one real wallet (Phantom)~~
+   **DONE on 2026-09-22** (see section 5.19) - confirmed live with Phantom + Solflare + Jupiter all
+   installed at once; the picker modal rendered all three correctly.
