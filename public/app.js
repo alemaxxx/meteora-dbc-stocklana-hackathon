@@ -302,7 +302,11 @@
     const tr = document.createElement("tr");
     const statusHtml =
       token.status === "success"
-        ? `<span class="pill pill--success">created</span>`
+        ? `<span class="pill pill--success">created</span>${
+            token.mint
+              ? `<div class="dbc-actions"><a class="sf-action-btn" href="https://gmgn.ai/sol/token/${token.mint}" target="_blank" rel="noopener">View on GMGN ↗</a></div>`
+              : ""
+          }`
         : token.status === "error"
           ? `<span class="pill pill--error" title="${escapeHtml(token.error)}">error</span>`
           : `<span class="pill pill--pending">pending</span>`;
