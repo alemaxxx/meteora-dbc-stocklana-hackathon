@@ -8,7 +8,7 @@
   --border: #232935;
   --text: #e6e9ef;
   --text-muted: #7c8698;
-  --text-faint: #4d5566;
+  --text-faint: #e6e9ef; /* was #4d5566 (too dark to read against --bg) - brightened 2026-09-26 */
 
   --accent-warm: #f0a73c;
   --accent-hot: #ff6b4a;
