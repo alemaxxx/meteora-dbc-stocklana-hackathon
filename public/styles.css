@@ -95,6 +95,7 @@ html, body {
    top-level fields. */
 .preset-group-selects { display: flex; flex-direction: column; gap: 10px; }
 .preset-group-selects .field { margin-bottom: 0; }
+.preset-group-selects .field label { color: var(--text); font-weight: 600; }
 
 .btn-secondary, .btn-primary, .btn-danger {
   font-family: var(--font-display); font-weight: 600; font-size: 13px; border-radius: 8px;
