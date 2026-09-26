@@ -1090,6 +1090,59 @@ assumption that the row's key column is actually populated - a plain `WHERE id =
 own id>'` (positive selection of what to keep, or what to delete) is safer than a negative filter
 when the stakes are "wipe everything else in a live table."
 
+## 5.21. Twenty-first round (2026-09-26) - Backpack Securities, a second stock issuer
+
+Triggered by a community (not official) Meteora X post hyping "backpack is bringing the entire stock
+market to solana... build with @BackpackOnchain stocks on meteora" - checked whether this was real
+substance or just marketing before acting on it. It's real: Backpack's CEO (Armani Ferrante) publicly
+stated a plan to expand tokenized-stock access on Solana from ~200 symbols today to ~10,000 ("the
+entire stock market"), via a single API moving real shares between brokerage accounts and DeFi
+([crypto.news](https://crypto.news/backpack-ceo-bring-10000-tokenized-stocks-to-solana/), corroborated
+by several other outlets).
+
+**Key distinction confirmed before assuming anything**: Backpack Securities and xStocks (Backed
+Finance) are two DIFFERENT, competing issuers of tokenized stock for the same underlying securities -
+not the same product family already integrated. E.g. both have a SpaceX token (Backpack's `SPCX` vs
+xStocks' `SPCXx`) with different legal structures (Backpack = direct 1:1 redeemable security
+entitlement under NY UCC Article 8; xStocks = cash-settled tracker). Backpack holds only ~5% of
+Solana's tokenized-equity supply so far but overtook xStocksFi in monthly DEX trading volume as of
+July 2026.
+
+**Verified on-chain, same discipline as the original 4 xStocks** - checked 2 real Backpack Securities
+mints (found their real addresses via web search, not guessed):
+- SPCX (SpaceX): `SPCXxcqXj6e5dJDVNovHN8744zkbhM2bYudU45BimGb`
+- MU (Micron): `MUxEsUKSMACyw5fZf68wxf5FLnZVhtU9CwH8uNNGay1`
+
+Both `dbcClient.state.getTokenBadge()` returned non-null (badged for DBC use), both Token-2022, both 6
+decimals, both with the EXACT SAME extension set: `MetadataPointer`, `PermanentDelegate`,
+`DefaultAccountState`, `PausableConfig`, `ConfidentialTransferMint`, `TransferHook` (inactive - System
+Program placeholder), `ScaledUiAmountConfig`, `TokenMetadata`. First-pass extension check on SPCX used
+manual raw TLV byte slicing and produced one bogus-looking extra value - redone properly with
+`@solana/spl-token`'s real `getExtensionTypes`/`getPermanentDelegate`/etc. helpers, which is what
+produced the clean list above. Lesson: don't trust a manual byte-parsing shortcut over the SDK's own
+decode functions, even for a "quick check."
+
+**Compatibility reasoning, honestly qualified**: since DAMM v2's acceptance of `permanentDelegate`
+mints comes from a DBC-program-level permission (`CreatePoolWithoutMintValidation`, confirmed by
+reading the actual Rust source in PR #209 - see section 5.17/[[project-token-badge-feasibility]]),
+not something special-cased per mint, the same mechanism should apply to SPCX/MU. Unlike AAPLx,
+though, no real SPCX or MU-quoted DAMM v2 migration has been traced on-chain yet - this is strong
+inference (program code + the AAPLx precedent + identical extension profile), not independent
+empirical proof for these specific mints.
+
+**Implemented**: added both to `STOCK_QUOTE_MINTS` in `src/dbcConfig.js` - the existing architecture
+(the `.map()` over `STOCK_QUOTE_MINTS` that generates `stock-quoted-<symbol>` presets,
+`resolveTokenBadge()`, `getMintInfo()`) is fully generic, built during the original xStocks round to
+work with any badged quote mint, not hardcoded to those four - so this was a ~10-line data addition,
+no new logic. Confirmed no other file hardcodes the xStock symbol list (grepped the whole repo) - the
+frontend renders whatever presets the backend serves.
+
+**Not yet done**: only 2 of Backpack's ~200-and-growing tickers checked - the badge is very likely
+per-issuer (both checked mints share an identical extension profile and both came back badged), but
+that's an inference from 2 samples, not a blanket guarantee for the other ~198 (soon many more).
+Tracing one real SPCX or MU-quoted DAMM v2 migration would close the remaining gap between "should
+work" and "proven to work" the way AAPLx's trace did originally.
+
 ## 6. Suggested next steps
 
 1. ~~Validate the curve presets against Meteora's official calculator~~

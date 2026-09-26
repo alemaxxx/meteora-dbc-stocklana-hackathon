@@ -73,6 +73,17 @@ section 5.17 of `DBC-MIGRATION-PLAN.md` for the full writeup, including two real
 other than SOL existed) and an honest incident report (a real transaction fired during local testing
 that shouldn't have).
 
+**Second stock issuer added (2026-09-26): Backpack Securities.** Two more presets
+(`stock-quoted-spcx/mu`) quote directly against real Backpack Securities-issued stock tokens (SPCX -
+SpaceX, MU - Micron) - a SEPARATE, competing tokenized-stock issuer from Backed Finance's xStocks
+above (different mints, different legal structure: direct 1:1 redeemable security entitlement instead
+of a cash-settled tracker). Backpack's own CEO has publicly stated a plan to expand from ~200 to
+~10,000 tokenized stocks on Solana. Verified the same way as the xStocks: both sampled mints came back
+badged via a real on-chain read, with the same real Token-2022 extension set (permanentDelegate,
+inactive transferHook, pausableConfig, scaledUiAmountConfig) - so the same DAMM v2 migration
+compatibility reasoning applies. Only 2 of Backpack's growing catalog checked so far, not the whole
+thing - see section 5.21 of `DBC-MIGRATION-PLAN.md`.
+
 ## Six curve presets, plus one live-priced mode (2026-09-17)
 
 - `baixa-taxa-2h-linear` (default) and `default-2h-linear` - the two original presets (see the real

@@ -70,6 +70,20 @@ export const STOCK_QUOTE_MINTS = {
   TSLAx: { symbol: "TSLAx", label: "Tesla (TSLAx)", mint: "XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB", decimals: 8 },
   NVDAx: { symbol: "NVDAx", label: "NVIDIA (NVDAx)", mint: "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh", decimals: 8 },
   SPYx: { symbol: "SPYx", label: "S&P 500 (SPYx)", mint: "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W", decimals: 8 },
+  // Backpack Securities - a SEPARATE, competing tokenized-stock issuer from
+  // Backed Finance's xStocks above (confirmed 2026-09-26: different mints,
+  // different legal structure - direct 1:1 redeemable security entitlement
+  // vs xStocks' cash-settled tracker). Same badge check applied (both
+  // dbcClient.state.getTokenBadge AND the mint's real Token-2022 extensions
+  // read directly, not assumed) - both came back badged, with the same
+  // extension set as the xStocks above (permanentDelegate, inactive
+  // transferHook, scaledUiAmountConfig, pausableConfig), so the same DAMM
+  // v2 migration compatibility reasoning applies (CreatePoolWithoutMintValidation
+  // is a DBC-program-level permission, not mint-specific - see
+  // project_token_badge_feasibility.md). Only spot-checked two of Backpack's
+  // ~200 (heading to a publicly-announced 10,000) tickers so far.
+  SPCX: { symbol: "SPCX", label: "SpaceX (SPCX, Backpack Securities)", mint: "SPCXxcqXj6e5dJDVNovHN8744zkbhM2bYudU45BimGb", decimals: 6 },
+  MU: { symbol: "MU", label: "Micron (MU, Backpack Securities)", mint: "MUxEsUKSMACyw5fZf68wxf5FLnZVhtU9CwH8uNNGay1", decimals: 6 },
 };
 
 export const DBC_CURVE_PRESETS = [
