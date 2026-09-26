@@ -106,66 +106,64 @@
   });
 
   // ---- curve presets (fixed SOL presets + Pyth-anchored ones) ----
+  // Rendered as a native <select> with <optgroup> sections (2026-09-26,
+  // replacing the earlier one-button-per-preset chip list) - grouped by
+  // preset.group (set in dbcConfig.js) so the list stays scannable as more
+  // stock issuers get added (started at 6 presets, now 16+ across
+  // fee-shape curves and two separate stock issuers). Pyth-anchored
+  // options are prefixed "pyth:" in their <option value> to distinguish
+  // them from a plain preset id without a second selection mechanism.
   async function loadPresets() {
     try {
       const res = await fetch("/api/dbc-presets");
       const data = await res.json();
       allPresets = data.presets ?? [];
 
-      // Grouped by preset.group (set in dbcConfig.js) so the list doesn't
-      // become an unlabeled wall of buttons as more stock issuers get
-      // added (started at 6 presets, now 16+ across fee-shape curves and
-      // two separate stock issuers) - groups render in first-seen order,
-      // ungrouped presets (shouldn't happen, but a safe fallback) go under
-      // a generic label rather than being dropped.
       const groups = new Map();
       for (const p of allPresets) {
         const key = p.group ?? "Other";
         if (!groups.has(key)) groups.set(key, []);
         groups.get(key).push(p);
       }
-      let chipsHtml = [...groups.entries()]
+      let optionsHtml = [...groups.entries()]
         .map(
           ([group, presets]) =>
-            `<div class="preset-group-label">${escapeHtml(group)}</div>` +
-            presets.map((p) => `<button type="button" class="token-chip" data-preset="${p.id}">${escapeHtml(p.label.split(" - ")[0])}</button>`).join("")
+            `<optgroup label="${escapeHtml(group)}">` +
+            presets.map((p) => `<option value="${p.id}">${escapeHtml(p.label.split(" - ")[0])}</option>`).join("") +
+            `</optgroup>`
         )
         .join("");
 
-      // Pyth-anchored chips are a SEPARATE, static list (no live Pyth call
-      // here) so they always render even if Pyth itself is unreachable or
-      // this project's trial key has expired - only picking one triggers
-      // a live fetch (see selectPythSymbol below), which fails gracefully
-      // on its own.
+      // Pyth-anchored options are a SEPARATE, static list (no live Pyth
+      // call here) so they always render even if Pyth itself is
+      // unreachable or this project's trial key has expired - only
+      // picking one triggers a live fetch (see selectPythSymbol below),
+      // which fails gracefully on its own.
       try {
         const pythRes = await fetch("/api/pyth-presets");
         const pythData = await pythRes.json();
         const pythSymbols = pythData.symbols ?? [];
         if (pythSymbols.length > 0) {
-          chipsHtml += `<div class="preset-group-label">Live-priced (Pyth)</div>`;
-          chipsHtml += pythSymbols.map((s) => `<button type="button" class="token-chip token-chip--pyth" data-pyth="${s.symbol}">🔴 Live: ${s.label}</button>`).join("");
+          optionsHtml +=
+            `<optgroup label="Live-priced (Pyth)">` +
+            pythSymbols.map((s) => `<option value="pyth:${s.symbol}">🔴 Live: ${escapeHtml(s.label)}</option>`).join("") +
+            `</optgroup>`;
         }
       } catch (err) {
         console.error("Failed to load Pyth-anchored presets:", err);
       }
 
-      els.presetChips.innerHTML = chipsHtml;
+      els.presetChips.innerHTML = optionsHtml;
       if (allPresets.length > 0) selectPreset(allPresets[0].id);
     } catch (err) {
       console.error("Failed to load presets:", err);
     }
   }
 
-  function markSelectedChip(matcher) {
-    els.presetChips.querySelectorAll(".token-chip").forEach((c) => {
-      c.classList.toggle("is-selected", matcher(c));
-    });
-  }
-
   function selectPreset(id) {
     selectedPresetId = id;
     selectedPythSymbol = null;
-    markSelectedChip((c) => c.dataset.preset === id);
+    els.presetChips.value = id;
     const preset = allPresets.find((p) => p.id === id);
     els.presetHint.textContent = preset?.label ?? "";
     // Presets quoted in a real xStock (see dbcConfig.js's "stock-quoted-*"
@@ -178,7 +176,7 @@
   async function selectPythSymbol(symbol) {
     selectedPresetId = null;
     selectedPythSymbol = symbol;
-    markSelectedChip((c) => c.dataset.pyth === symbol);
+    els.presetChips.value = `pyth:${symbol}`;
     els.firstBuyLabel.textContent = "SOL for initial buy (optional)";
     els.presetHint.textContent = `Fetching ${symbol}'s live price from Pyth…`;
     try {
@@ -196,11 +194,10 @@
     }
   }
 
-  els.presetChips.addEventListener("click", (ev) => {
-    const chip = ev.target.closest(".token-chip");
-    if (!chip) return;
-    if (chip.dataset.pyth) selectPythSymbol(chip.dataset.pyth);
-    else selectPreset(chip.dataset.preset);
+  els.presetChips.addEventListener("change", () => {
+    const value = els.presetChips.value;
+    if (value.startsWith("pyth:")) selectPythSymbol(value.slice(5));
+    else selectPreset(value);
   });
 
   // ---- launch ----

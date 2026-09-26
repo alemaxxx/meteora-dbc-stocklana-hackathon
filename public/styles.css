@@ -88,25 +88,10 @@ html, body {
 }
 .image-actions { display: flex; flex-direction: column; gap: 6px; }
 
-.token-b-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
-.token-chip {
-  font-family: var(--font-mono); font-size: 12px; font-weight: 600; color: var(--text-muted);
-  background: var(--panel-alt); border: 1px solid var(--border); border-radius: 6px;
-  padding: 8px 10px; cursor: pointer; text-align: left;
-}
-.token-chip.is-selected { color: var(--bg); background: var(--accent-mine); border-color: var(--accent-mine); }
-.token-chip--pyth { border-color: #e0245e; }
-.token-chip--pyth.is-selected { background: #e0245e; border-color: #e0245e; color: #fff; }
-
-/* Full-width row break inside the flex-wrap chip list (see loadPresets in
-   app.js) - groups the growing preset list (fee-shape curves, one section
-   per stock issuer, live-priced) under a label instead of one flat wall
-   of buttons. */
-.preset-group-label {
-  flex: 1 0 100%; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
-  color: var(--text-faint); margin: 10px 0 2px;
-}
-.preset-group-label:first-child { margin-top: 0; }
+/* #preset-chips is a native <select> (2026-09-26, replacing an earlier
+   one-button-per-preset chip list) with an <optgroup> per preset.group -
+   reuses the same .field select styling as every other select on the
+   page, no dedicated rule needed here. */
 
 .btn-secondary, .btn-primary, .btn-danger {
   font-family: var(--font-display); font-weight: 600; font-size: 13px; border-radius: 8px;
