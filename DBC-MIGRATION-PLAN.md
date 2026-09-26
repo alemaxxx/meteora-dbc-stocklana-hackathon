@@ -1108,19 +1108,25 @@ entitlement under NY UCC Article 8; xStocks = cash-settled tracker). Backpack ho
 Solana's tokenized-equity supply so far but overtook xStocksFi in monthly DEX trading volume as of
 July 2026.
 
-**Verified on-chain, same discipline as the original 4 xStocks** - checked 2 real Backpack Securities
+**Verified on-chain, same discipline as the original 4 xStocks** - checked 6 real Backpack Securities
 mints (found their real addresses via web search, not guessed):
 - SPCX (SpaceX): `SPCXxcqXj6e5dJDVNovHN8744zkbhM2bYudU45BimGb`
 - MU (Micron): `MUxEsUKSMACyw5fZf68wxf5FLnZVhtU9CwH8uNNGay1`
+- MRNA (Moderna): `MRNAzXzhNcaEXJPibHEn8cd4vyekCDiivTyEwswLUCT`
+- NKE (Nike): `NKEda5nHhNGgjrE9nDdMvaEmkmJ96qqxzBVZEcKmjSg`
+- CRWV (CoreWeave): `CRWVJeR2yEZuDUKYfGuKCHvLz8ywn4LGvovHfy5WiFmi`
+- SNDK (SanDisk): `SNDKbwMUQvZhnLnxLduradgLHG5KrPuKwpnrkkGRhfH`
 
-Both `dbcClient.state.getTokenBadge()` returned non-null (badged for DBC use), both Token-2022, both 6
-decimals, both with the EXACT SAME extension set: `MetadataPointer`, `PermanentDelegate`,
+All 6 `dbcClient.state.getTokenBadge()` calls returned non-null (badged for DBC use), all Token-2022,
+all 6 decimals, all with the EXACT SAME extension set: `MetadataPointer`, `PermanentDelegate`,
 `DefaultAccountState`, `PausableConfig`, `ConfidentialTransferMint`, `TransferHook` (inactive - System
-Program placeholder), `ScaledUiAmountConfig`, `TokenMetadata`. First-pass extension check on SPCX used
-manual raw TLV byte slicing and produced one bogus-looking extra value - redone properly with
+Program placeholder), `ScaledUiAmountConfig`, `TokenMetadata`. 6/6 consistent results meaningfully
+strengthens the "badged per-issuer, not per-ticker" hypothesis. First-pass extension check on SPCX
+used manual raw TLV byte slicing and produced one bogus-looking extra value - redone properly with
 `@solana/spl-token`'s real `getExtensionTypes`/`getPermanentDelegate`/etc. helpers, which is what
-produced the clean list above. Lesson: don't trust a manual byte-parsing shortcut over the SDK's own
-decode functions, even for a "quick check."
+produced the clean list above (and what the other 5 were checked with directly, no repeat mistake).
+Lesson: don't trust a manual byte-parsing shortcut over the SDK's own decode functions, even for a
+"quick check."
 
 **Compatibility reasoning, honestly qualified**: since DAMM v2's acceptance of `permanentDelegate`
 mints comes from a DBC-program-level permission (`CreatePoolWithoutMintValidation`, confirmed by
@@ -1137,11 +1143,11 @@ work with any badged quote mint, not hardcoded to those four - so this was a ~10
 no new logic. Confirmed no other file hardcodes the xStock symbol list (grepped the whole repo) - the
 frontend renders whatever presets the backend serves.
 
-**Not yet done**: only 2 of Backpack's ~200-and-growing tickers checked - the badge is very likely
-per-issuer (both checked mints share an identical extension profile and both came back badged), but
-that's an inference from 2 samples, not a blanket guarantee for the other ~198 (soon many more).
-Tracing one real SPCX or MU-quoted DAMM v2 migration would close the remaining gap between "should
-work" and "proven to work" the way AAPLx's trace did originally.
+**Not yet done**: only 6 of Backpack's ~200-and-growing tickers checked - the badge is very likely
+per-issuer (all 6 checked mints share an identical extension profile and all 6 came back badged), but
+that's still an inference from 6 samples, not a blanket guarantee for the other ~194 (soon many more).
+Tracing one real Backpack-Securities-quoted DAMM v2 migration would close the remaining gap between
+"should work" and "proven to work" the way AAPLx's trace did originally.
 
 ## 6. Suggested next steps
 

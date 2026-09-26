@@ -84,6 +84,14 @@ export const STOCK_QUOTE_MINTS = {
   // ~200 (heading to a publicly-announced 10,000) tickers so far.
   SPCX: { symbol: "SPCX", label: "SpaceX (SPCX, Backpack Securities)", mint: "SPCXxcqXj6e5dJDVNovHN8744zkbhM2bYudU45BimGb", decimals: 6 },
   MU: { symbol: "MU", label: "Micron (MU, Backpack Securities)", mint: "MUxEsUKSMACyw5fZf68wxf5FLnZVhtU9CwH8uNNGay1", decimals: 6 },
+  // Four more Backpack Securities mints added 2026-09-26, same round -
+  // each independently badge/extension-checked on-chain (6/6 Backpack
+  // mints checked so far all badged, all identical Token-2022 extension
+  // profile - see DBC-MIGRATION-PLAN.md section 5.21).
+  MRNA: { symbol: "MRNA", label: "Moderna (MRNA, Backpack Securities)", mint: "MRNAzXzhNcaEXJPibHEn8cd4vyekCDiivTyEwswLUCT", decimals: 6 },
+  NKE: { symbol: "NKE", label: "Nike (NKE, Backpack Securities)", mint: "NKEda5nHhNGgjrE9nDdMvaEmkmJ96qqxzBVZEcKmjSg", decimals: 6 },
+  CRWV: { symbol: "CRWV", label: "CoreWeave (CRWV, Backpack Securities)", mint: "CRWVJeR2yEZuDUKYfGuKCHvLz8ywn4LGvovHfy5WiFmi", decimals: 6 },
+  SNDK: { symbol: "SNDK", label: "SanDisk (SNDK, Backpack Securities)", mint: "SNDKbwMUQvZhnLnxLduradgLHG5KrPuKwpnrkkGRhfH", decimals: 6 },
 };
 
 export const DBC_CURVE_PRESETS = [
