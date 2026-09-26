@@ -66,10 +66,10 @@ import { query } from "./db.js";
 // matters and dbcConfig.js's `resolveTokenBadge` for how the badge gets
 // used automatically.
 export const STOCK_QUOTE_MINTS = {
-  AAPLx: { symbol: "AAPLx", label: "Apple (AAPLx)", mint: "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp", decimals: 8 },
-  TSLAx: { symbol: "TSLAx", label: "Tesla (TSLAx)", mint: "XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB", decimals: 8 },
-  NVDAx: { symbol: "NVDAx", label: "NVIDIA (NVDAx)", mint: "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh", decimals: 8 },
-  SPYx: { symbol: "SPYx", label: "S&P 500 (SPYx)", mint: "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W", decimals: 8 },
+  AAPLx: { symbol: "AAPLx", label: "Apple (AAPLx)", mint: "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp", decimals: 8, issuer: "xStocks (Backed Finance)" },
+  TSLAx: { symbol: "TSLAx", label: "Tesla (TSLAx)", mint: "XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB", decimals: 8, issuer: "xStocks (Backed Finance)" },
+  NVDAx: { symbol: "NVDAx", label: "NVIDIA (NVDAx)", mint: "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh", decimals: 8, issuer: "xStocks (Backed Finance)" },
+  SPYx: { symbol: "SPYx", label: "S&P 500 (SPYx)", mint: "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W", decimals: 8, issuer: "xStocks (Backed Finance)" },
   // Backpack Securities - a SEPARATE, competing tokenized-stock issuer from
   // Backed Finance's xStocks above (confirmed 2026-09-26: different mints,
   // different legal structure - direct 1:1 redeemable security entitlement
@@ -82,21 +82,22 @@ export const STOCK_QUOTE_MINTS = {
   // is a DBC-program-level permission, not mint-specific - see
   // project_token_badge_feasibility.md). Only spot-checked two of Backpack's
   // ~200 (heading to a publicly-announced 10,000) tickers so far.
-  SPCX: { symbol: "SPCX", label: "SpaceX (SPCX, Backpack Securities)", mint: "SPCXxcqXj6e5dJDVNovHN8744zkbhM2bYudU45BimGb", decimals: 6 },
-  MU: { symbol: "MU", label: "Micron (MU, Backpack Securities)", mint: "MUxEsUKSMACyw5fZf68wxf5FLnZVhtU9CwH8uNNGay1", decimals: 6 },
+  SPCX: { symbol: "SPCX", label: "SpaceX (SPCX, Backpack Securities)", mint: "SPCXxcqXj6e5dJDVNovHN8744zkbhM2bYudU45BimGb", decimals: 6, issuer: "Backpack Securities" },
+  MU: { symbol: "MU", label: "Micron (MU, Backpack Securities)", mint: "MUxEsUKSMACyw5fZf68wxf5FLnZVhtU9CwH8uNNGay1", decimals: 6, issuer: "Backpack Securities" },
   // Four more Backpack Securities mints added 2026-09-26, same round -
   // each independently badge/extension-checked on-chain (6/6 Backpack
   // mints checked so far all badged, all identical Token-2022 extension
   // profile - see DBC-MIGRATION-PLAN.md section 5.21).
-  MRNA: { symbol: "MRNA", label: "Moderna (MRNA, Backpack Securities)", mint: "MRNAzXzhNcaEXJPibHEn8cd4vyekCDiivTyEwswLUCT", decimals: 6 },
-  NKE: { symbol: "NKE", label: "Nike (NKE, Backpack Securities)", mint: "NKEda5nHhNGgjrE9nDdMvaEmkmJ96qqxzBVZEcKmjSg", decimals: 6 },
-  CRWV: { symbol: "CRWV", label: "CoreWeave (CRWV, Backpack Securities)", mint: "CRWVJeR2yEZuDUKYfGuKCHvLz8ywn4LGvovHfy5WiFmi", decimals: 6 },
-  SNDK: { symbol: "SNDK", label: "SanDisk (SNDK, Backpack Securities)", mint: "SNDKbwMUQvZhnLnxLduradgLHG5KrPuKwpnrkkGRhfH", decimals: 6 },
+  MRNA: { symbol: "MRNA", label: "Moderna (MRNA, Backpack Securities)", mint: "MRNAzXzhNcaEXJPibHEn8cd4vyekCDiivTyEwswLUCT", decimals: 6, issuer: "Backpack Securities" },
+  NKE: { symbol: "NKE", label: "Nike (NKE, Backpack Securities)", mint: "NKEda5nHhNGgjrE9nDdMvaEmkmJ96qqxzBVZEcKmjSg", decimals: 6, issuer: "Backpack Securities" },
+  CRWV: { symbol: "CRWV", label: "CoreWeave (CRWV, Backpack Securities)", mint: "CRWVJeR2yEZuDUKYfGuKCHvLz8ywn4LGvovHfy5WiFmi", decimals: 6, issuer: "Backpack Securities" },
+  SNDK: { symbol: "SNDK", label: "SanDisk (SNDK, Backpack Securities)", mint: "SNDKbwMUQvZhnLnxLduradgLHG5KrPuKwpnrkkGRhfH", decimals: 6, issuer: "Backpack Securities" },
 };
 
 export const DBC_CURVE_PRESETS = [
   {
     id: "baixa-taxa-2h-linear",
+    group: "Fee-shape curves",
     label: "Low fee (3%→0.5% over 2h, migrates at 10 SOL accumulated in the curve) - recommended after the NARWAVE finding",
     totalTokenSupply: 1_000_000_000,
     percentageSupplyOnMigration: 20,
@@ -107,6 +108,7 @@ export const DBC_CURVE_PRESETS = [
   },
   {
     id: "default-2h-linear",
+    group: "Fee-shape curves",
     label: "Default (10%→1% fee over 2h, migrates at 10 SOL accumulated in the curve) - triggers GMGN's \"high tax\" alert (found on NARWAVE), use with caution",
     totalTokenSupply: 1_000_000_000,
     percentageSupplyOnMigration: 20, // 20% of the supply migrates to the DAMM v2 pool, the rest stays with whoever bought on the curve
@@ -123,6 +125,7 @@ export const DBC_CURVE_PRESETS = [
   // validated for the two presets above (only the fee shape changes).
   {
     id: "flat-1pct",
+    group: "Fee-shape curves",
     label: "Flat curve (1% fee, never decays, migrates at 10 SOL accumulated in the curve) - simplest possible fee shape, no scheduler to reason about",
     totalTokenSupply: 1_000_000_000,
     percentageSupplyOnMigration: 20,
@@ -138,6 +141,7 @@ export const DBC_CURVE_PRESETS = [
   },
   {
     id: "exponencial-2h",
+    group: "Fee-shape curves",
     label: "Exponential curve (5%→0.5% over 2h, decays fast then slow, migrates at 10 SOL accumulated in the curve) - front-loads the fee harder than the linear presets",
     totalTokenSupply: 1_000_000_000,
     percentageSupplyOnMigration: 20,
@@ -149,6 +153,7 @@ export const DBC_CURVE_PRESETS = [
   },
   {
     id: "long-24h-linear",
+    group: "Fee-shape curves",
     label: "Long curve (3%→0.5% over 24h, migrates at 10 SOL accumulated in the curve) - same fee range as the low-fee preset, stretched over a full day instead of 2h",
     totalTokenSupply: 1_000_000_000,
     percentageSupplyOnMigration: 20,
@@ -173,6 +178,7 @@ export const DBC_CURVE_PRESETS = [
   // (section 5.5/5.8).
   {
     id: "compounding-damm-v2",
+    group: "Fee-shape curves",
     label: "Compounding DAMM v2 (3%→0.5% over 2h curve, migrates at 10 SOL, migrated pool compounds 50% of fees back into its own liquidity) - untested live, higher risk than the other presets",
     totalTokenSupply: 1_000_000_000,
     percentageSupplyOnMigration: 20,
@@ -209,6 +215,7 @@ export const DBC_CURVE_PRESETS = [
   // do - Pyth stays reserved for the separate "Pyth-anchored" mode above.
   ...Object.values(STOCK_QUOTE_MINTS).map((stock) => ({
     id: `stock-quoted-${stock.symbol.toLowerCase()}`,
+    group: `Real stock — ${stock.issuer}`,
     label: `Quoted in real ${stock.label} (3%→0.5% over 2h, migrates at 0.1 ${stock.symbol} accumulated in the curve) - trades directly against the tokenized stock, not SOL`,
     totalTokenSupply: 1_000_000_000,
     percentageSupplyOnMigration: 20,

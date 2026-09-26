@@ -111,8 +111,25 @@
       const res = await fetch("/api/dbc-presets");
       const data = await res.json();
       allPresets = data.presets ?? [];
-      let chipsHtml = allPresets
-        .map((p) => `<button type="button" class="token-chip" data-preset="${p.id}">${p.label.split(" - ")[0]}</button>`)
+
+      // Grouped by preset.group (set in dbcConfig.js) so the list doesn't
+      // become an unlabeled wall of buttons as more stock issuers get
+      // added (started at 6 presets, now 16+ across fee-shape curves and
+      // two separate stock issuers) - groups render in first-seen order,
+      // ungrouped presets (shouldn't happen, but a safe fallback) go under
+      // a generic label rather than being dropped.
+      const groups = new Map();
+      for (const p of allPresets) {
+        const key = p.group ?? "Other";
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(p);
+      }
+      let chipsHtml = [...groups.entries()]
+        .map(
+          ([group, presets]) =>
+            `<div class="preset-group-label">${escapeHtml(group)}</div>` +
+            presets.map((p) => `<button type="button" class="token-chip" data-preset="${p.id}">${escapeHtml(p.label.split(" - ")[0])}</button>`).join("")
+        )
         .join("");
 
       // Pyth-anchored chips are a SEPARATE, static list (no live Pyth call
@@ -123,9 +140,11 @@
       try {
         const pythRes = await fetch("/api/pyth-presets");
         const pythData = await pythRes.json();
-        chipsHtml += (pythData.symbols ?? [])
-          .map((s) => `<button type="button" class="token-chip token-chip--pyth" data-pyth="${s.symbol}">🔴 Live: ${s.label}</button>`)
-          .join("");
+        const pythSymbols = pythData.symbols ?? [];
+        if (pythSymbols.length > 0) {
+          chipsHtml += `<div class="preset-group-label">Live-priced (Pyth)</div>`;
+          chipsHtml += pythSymbols.map((s) => `<button type="button" class="token-chip token-chip--pyth" data-pyth="${s.symbol}">🔴 Live: ${s.label}</button>`).join("");
+        }
       } catch (err) {
         console.error("Failed to load Pyth-anchored presets:", err);
       }
