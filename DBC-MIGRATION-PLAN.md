@@ -1159,7 +1159,7 @@ hand-picked examples.
 community-maintained [usestrak/strak](https://github.com/usestrak/strak) project publishes
 `public/data/equities.json` - every tokenized stock on Solana across 7 issuers, with real mint
 addresses and live volume/turnover/liquidity figures. Fetched it and filtered to Backpack Securities
-entries - it listed 53 more beyond the 6 already integrated. Cross-checked: the addresses for all 6
+entries - it listed 54 more beyond the 6 already integrated. Cross-checked: the addresses for all 6
 already-verified tickers (SPCX, MU, MRNA, NKE, CRWV, SNDK) matched exactly what this registry lists,
 which is exactly the kind of independent corroboration that makes trusting the other 53 (as
 candidates to verify, not as already-proven) reasonable.
@@ -1167,10 +1167,10 @@ candidates to verify, not as already-proven) reasonable.
 **Verified every single one on-chain before adding it - none were added on the registry's word
 alone**: wrote a batch script reusing the same checks as every prior round (`dbcClient.state.
 getTokenBadge`, real owner-program check, `@solana/spl-token`'s proper extension decode). Result:
-**53/53 came back badged, Token-2022, 6 decimals, with the IDENTICAL extension set** already seen on
+**54/54 came back badged, Token-2022, 6 decimals, with the IDENTICAL extension set** already seen on
 the first 6 (`MetadataPointer`, `PermanentDelegate`, `DefaultAccountState`, `PausableConfig`,
 `ConfidentialTransferMint`, `TransferHook` inactive, `ScaledUiAmountConfig`, `TokenMetadata`). Combined
-with the first 6, that's **59/59 Backpack Securities mints checked, 59/59 badged with an identical
+with the first 6, that's **60/60 Backpack Securities mints checked, 60/60 badged with an identical
 profile** - about as strong as an inference-from-samples can get without checking literally every
 mint the issuer has or will ever create.
 
@@ -1182,11 +1182,11 @@ Zcash-focused digital-asset-treasury company), `FWDI` is Forward Industries (its
 staking-focused treasury company - a SOL company's stock, tokenized on Solana), `DRAM`/`URA`/`COPX`/
 `SCHH` are ETFs (memory-chip, uranium, copper miners, REITs respectively), not single companies.
 
-**Implemented**: all 53 added to `STOCK_QUOTE_MINTS` in `src/dbcConfig.js`, alphabetically by symbol -
-no new logic needed, same generic architecture as before. Total stock-quoted presets: 63 (4 xStocks +
-59 Backpack Securities).
+**Implemented**: all 54 added to `STOCK_QUOTE_MINTS` in `src/dbcConfig.js`, alphabetically by symbol -
+no new logic needed, same generic architecture as before. Total stock-quoted presets: 64 (4 xStocks +
+60 Backpack Securities).
 
-**UI rework, same round**: with the picker now needing to show 63+ stock-quoted options plus the
+**UI rework, same round**: with the picker now needing to show 64+ stock-quoted options plus the
 6 fee-shape and 2 Pyth-anchored ones, went through three iterations based on direct feedback: (1) a
 single flat button list → too long once Backpack was added; (2) grouped sections under headers in one
 scrolling list → better, but still one long list; (3) one native `<select>` with `<optgroup>` per
@@ -1198,7 +1198,7 @@ dropdowns each showing a stale leftover choice. Also added alphabetical sorting 
 dropdown (by full label, which works correctly here since "Quoted in real " is a constant prefix
 shared by every stock-quoted preset's label, so sorting the full string sorts by company name).
 
-**Not yet done**: 59 Backpack Securities tickers is still a subset of their real catalog (~41-200+ and
+**Not yet done**: 60 Backpack Securities tickers is still a subset of their real catalog (~41-200+ and
 growing toward the CEO's stated 10,000) - this can be revisited later by re-running the same
 strak-registry-fetch + on-chain-verify pipeline. No real DAMM v2 migration has been traced for any
 Backpack Securities-quoted pool specifically (same caveat as section 5.21 - the compatibility
