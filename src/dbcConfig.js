@@ -73,25 +73,82 @@ export const STOCK_QUOTE_MINTS = {
   // Backpack Securities - a SEPARATE, competing tokenized-stock issuer from
   // Backed Finance's xStocks above (confirmed 2026-09-26: different mints,
   // different legal structure - direct 1:1 redeemable security entitlement
-  // vs xStocks' cash-settled tracker). Same badge check applied (both
-  // dbcClient.state.getTokenBadge AND the mint's real Token-2022 extensions
-  // read directly, not assumed) - both came back badged, with the same
-  // extension set as the xStocks above (permanentDelegate, inactive
-  // transferHook, scaledUiAmountConfig, pausableConfig), so the same DAMM
-  // v2 migration compatibility reasoning applies (CreatePoolWithoutMintValidation
-  // is a DBC-program-level permission, not mint-specific - see
-  // project_token_badge_feasibility.md). Only spot-checked two of Backpack's
-  // ~200 (heading to a publicly-announced 10,000) tickers so far.
-  SPCX: { symbol: "SPCX", label: "SpaceX (SPCX, Backpack Securities)", mint: "SPCXxcqXj6e5dJDVNovHN8744zkbhM2bYudU45BimGb", decimals: 6, issuer: "Backpack Securities" },
-  MU: { symbol: "MU", label: "Micron (MU, Backpack Securities)", mint: "MUxEsUKSMACyw5fZf68wxf5FLnZVhtU9CwH8uNNGay1", decimals: 6, issuer: "Backpack Securities" },
-  // Four more Backpack Securities mints added 2026-09-26, same round -
-  // each independently badge/extension-checked on-chain (6/6 Backpack
-  // mints checked so far all badged, all identical Token-2022 extension
-  // profile - see DBC-MIGRATION-PLAN.md section 5.21).
-  MRNA: { symbol: "MRNA", label: "Moderna (MRNA, Backpack Securities)", mint: "MRNAzXzhNcaEXJPibHEn8cd4vyekCDiivTyEwswLUCT", decimals: 6, issuer: "Backpack Securities" },
-  NKE: { symbol: "NKE", label: "Nike (NKE, Backpack Securities)", mint: "NKEda5nHhNGgjrE9nDdMvaEmkmJ96qqxzBVZEcKmjSg", decimals: 6, issuer: "Backpack Securities" },
+  // vs xStocks' cash-settled tracker). Every single one below was
+  // individually checked on-chain (dbcClient.state.getTokenBadge AND the
+  // mint's real Token-2022 extensions, not assumed) before being added -
+  // 59/59 checked so far came back badged, Token-2022, 6 decimals, with
+  // the IDENTICAL extension set (permanentDelegate, inactive transferHook,
+  // scaledUiAmountConfig, pausableConfig, etc.) - so the same DAMM v2
+  // migration compatibility reasoning applies to all of them
+  // (CreatePoolWithoutMintValidation is a DBC-program-level permission,
+  // not mint-specific - see project_token_badge_feasibility.md). Real
+  // mint addresses sourced from the community-maintained usestrak/strak
+  // registry (github.com/usestrak/strak, public/data/equities.json) -
+  // cross-checked against the 6 addresses already independently verified
+  // via web search before trusting the rest of that list. Still only a
+  // subset of Backpack's full catalog (~41-200+ and growing toward a
+  // publicly-announced 10,000) - not exhaustive. Listed alphabetically by
+  // symbol (also how the frontend renders each issuer's dropdown).
+  AMC: { symbol: "AMC", label: "AMC Entertainment (AMC, Backpack Securities)", mint: "AMC1qwR9KhiyrQBRPrxnfo4JfMeMZqEBvt5tgTytNNoc", decimals: 6, issuer: "Backpack Securities" },
+  AMD: { symbol: "AMD", label: "Advanced Micro Devices (AMD, Backpack Securities)", mint: "AMD8XwJXgQ9WV45Wyj9yFLejxzf2J6VM1PJY8bJEjeES", decimals: 6, issuer: "Backpack Securities" },
+  BA: { symbol: "BA", label: "Boeing (BA, Backpack Securities)", mint: "BArimz1PcKZr8PcPh3tcZ2dg4S7FJLk3cw6R5F8GsHKg", decimals: 6, issuer: "Backpack Securities" },
+  BABA: { symbol: "BABA", label: "Alibaba (BABA, Backpack Securities)", mint: "BABANGA4JE7Kkam4nTrALAwAVgsNJUuFJnnkF7S16BZp", decimals: 6, issuer: "Backpack Securities" },
+  BB: { symbol: "BB", label: "BlackBerry (BB, Backpack Securities)", mint: "BBosJLw8ZzoATiEyywiifx7AgmrD2Cm3XjFWbhbRhChy", decimals: 6, issuer: "Backpack Securities" },
+  BOT: { symbol: "BOT", label: "RoboStrategy (BOT, Backpack Securities)", mint: "BoTx8y9ynfdxf5ZjWtCoBVkff52qKA82ysaLU8ZM6d8T", decimals: 6, issuer: "Backpack Securities" },
+  BROS: { symbol: "BROS", label: "Dutch Bros (BROS, Backpack Securities)", mint: "BRVaZKg6J9iF2BEsdpsxJ9NyvN9PPxPZuoQUX2v8qqkk", decimals: 6, issuer: "Backpack Securities" },
+  BULL: { symbol: "BULL", label: "BULL (Backpack Securities)", mint: "BULL151gUXcFV5wXEUqu9Am2L7Qt4bTJRLRuAUjkcspC", decimals: 6, issuer: "Backpack Securities" },
+  COPX: { symbol: "COPX", label: "Global X Copper Miners ETF (COPX, Backpack Securities)", mint: "CzLTZppPdZtTjyq3WGpHLstoc3GLhu7zH5Zg6xUa6Gv5", decimals: 6, issuer: "Backpack Securities" },
+  COST: { symbol: "COST", label: "Costco (COST, Backpack Securities)", mint: "CZEB3WNZuF2Yz1z2H81RcCk8T7fsw82KB33zqamASVsg", decimals: 6, issuer: "Backpack Securities" },
   CRWV: { symbol: "CRWV", label: "CoreWeave (CRWV, Backpack Securities)", mint: "CRWVJeR2yEZuDUKYfGuKCHvLz8ywn4LGvovHfy5WiFmi", decimals: 6, issuer: "Backpack Securities" },
+  CYPH: { symbol: "CYPH", label: "Cypherpunk Technologies (CYPH, Backpack Securities)", mint: "CYPHuMmCL1GxJWa2tsPhLKykC7GrHJTCHwbXD4g5uawK", decimals: 6, issuer: "Backpack Securities" },
+  DELL: { symbol: "DELL", label: "Dell Technologies (DELL, Backpack Securities)", mint: "DELL2aRKQz7DMq5DrKLtkn47ZCnbxXPZXrSGbkmd13wy", decimals: 6, issuer: "Backpack Securities" },
+  DJT: { symbol: "DJT", label: "Trump Media & Technology Group (DJT, Backpack Securities)", mint: "DJTu7vi8norVzdVAffgvb39VP7wjKeTsgaMBJrzfxvoF", decimals: 6, issuer: "Backpack Securities" },
+  DKNG: { symbol: "DKNG", label: "DraftKings (DKNG, Backpack Securities)", mint: "DKNGQFNGQmoBdXSRGKJ8tTu7uPDasw5JDcfMmWniNfow", decimals: 6, issuer: "Backpack Securities" },
+  DNUT: { symbol: "DNUT", label: "Krispy Kreme (DNUT, Backpack Securities)", mint: "DNUTsCvKbKwu2RM72cUuW3TD9YpzArzACcqYQssjPLSk", decimals: 6, issuer: "Backpack Securities" },
+  DRAM: { symbol: "DRAM", label: "Roundhill DRAM Memory ETF (DRAM, Backpack Securities)", mint: "DRAMjSWR7HRfJKjRkvQWYL2bcaejaVhuxEcjf4pAY4Cw", decimals: 6, issuer: "Backpack Securities" },
+  FLWS: { symbol: "FLWS", label: "1-800-Flowers.com (FLWS, Backpack Securities)", mint: "FLWSojG1gB5VStYR3Sb4nQFRt43UBYkqih1j2CpVLqgd", decimals: 6, issuer: "Backpack Securities" },
+  FLY: { symbol: "FLY", label: "Firefly Aerospace (FLY, Backpack Securities)", mint: "FLYRq3en8r2Z69gN3KyAnDrvnitEJNkwPYY7favinHeD", decimals: 6, issuer: "Backpack Securities" },
+  FWDI: { symbol: "FWDI", label: "Forward Industries (FWDI, Backpack Securities)", mint: "FWDtiB5fXHdVAewPqvHPL2dh4aBC1C6GacQbePoQXKjz", decimals: 6, issuer: "Backpack Securities" },
+  GPRO: { symbol: "GPRO", label: "GoPro (GPRO, Backpack Securities)", mint: "GPRR2u6NS5yBQHWGauoJ9HXgjrTH8dDsrBfTV5zAYvDH", decimals: 6, issuer: "Backpack Securities" },
+  GRND: { symbol: "GRND", label: "Grindr (GRND, Backpack Securities)", mint: "GRNDYDpqwpCm6jVxpbh4xT5AM4r3p391qYsKTHqgaET2", decimals: 6, issuer: "Backpack Securities" },
+  HIMS: { symbol: "HIMS", label: "Hims & Hers Health (HIMS, Backpack Securities)", mint: "HiMSSzzwkZkrXJ4PGVJRdtfLaANeAztjjcgk5Dxe7Lwx", decimals: 6, issuer: "Backpack Securities" },
+  HOOD: { symbol: "HOOD", label: "Robinhood (HOOD, Backpack Securities)", mint: "HooDYv5RewLRiMLnEVq3VJqdqxhuE6c5eYvqejMC3e9A", decimals: 6, issuer: "Backpack Securities" },
+  HTZ: { symbol: "HTZ", label: "Hertz (HTZ, Backpack Securities)", mint: "HTZsLG4zqaNvWMwXSLHH3GG5KyJpKwpBRsKVdMG6hvzP", decimals: 6, issuer: "Backpack Securities" },
+  IBM: { symbol: "IBM", label: "IBM (IBM, Backpack Securities)", mint: "BMKdM4yUxX12moFqVk195k7coMbaybd4RUKCUdm7D1Sk", decimals: 6, issuer: "Backpack Securities" },
+  INTC: { symbol: "INTC", label: "Intel (INTC, Backpack Securities)", mint: "iNTCy1qTsUEZQe3DSocLz1ZXXai34Gdw8THQh5rxFaF", decimals: 6, issuer: "Backpack Securities" },
+  IONQ: { symbol: "IONQ", label: "IonQ (IONQ, Backpack Securities)", mint: "NQ5hSuXQZrbnrwcDVk2qN73njjd3E3v3badYHnj5thF", decimals: 6, issuer: "Backpack Securities" },
+  IREN: { symbol: "IREN", label: "IREN (IREN, Backpack Securities)", mint: "RENzhrJQgmAnfcLhU1U5XwAMc6TC15UA6jCbPBaasnj", decimals: 6, issuer: "Backpack Securities" },
+  JNJ: { symbol: "JNJ", label: "Johnson & Johnson (JNJ, Backpack Securities)", mint: "JNJg1znKdF712Phe7L7z52AATAvEjEytBdN2w8Lnh1Y", decimals: 6, issuer: "Backpack Securities" },
+  LLY: { symbol: "LLY", label: "Eli Lilly (LLY, Backpack Securities)", mint: "LLYuwZ33keFihgwoxXsBawy31AiRFLFSva32TYq5TvD", decimals: 6, issuer: "Backpack Securities" },
+  LMT: { symbol: "LMT", label: "Lockheed Martin (LMT, Backpack Securities)", mint: "LMT3i1BHgixFqPUgcyteJhnEz2dpy9i3cYy4pi9BoeV", decimals: 6, issuer: "Backpack Securities" },
+  LULU: { symbol: "LULU", label: "Lululemon (LULU, Backpack Securities)", mint: "LULUmT9VMttkfAJE236LXJcYJ2tTP7nunrSWR5G1BdS", decimals: 6, issuer: "Backpack Securities" },
+  LUV: { symbol: "LUV", label: "Southwest Airlines (LUV, Backpack Securities)", mint: "LUV9GB51PNZNRyzzyYK3rtqFfvDvWtRiXZ34wVq2HrX", decimals: 6, issuer: "Backpack Securities" },
+  MGM: { symbol: "MGM", label: "MGM Resorts (MGM, Backpack Securities)", mint: "MGMuubtUEirmkhfEQdmGUh4pr7HuUdMWcZXFtpPbVJD", decimals: 6, issuer: "Backpack Securities" },
+  MRNA: { symbol: "MRNA", label: "Moderna (MRNA, Backpack Securities)", mint: "MRNAzXzhNcaEXJPibHEn8cd4vyekCDiivTyEwswLUCT", decimals: 6, issuer: "Backpack Securities" },
+  MRVL: { symbol: "MRVL", label: "Marvell Technology (MRVL, Backpack Securities)", mint: "MRVLSjkR2ceUBukujaD3xCyHP1H3B2SzpsNTZF546jo", decimals: 6, issuer: "Backpack Securities" },
+  MSTR: { symbol: "MSTR", label: "Strategy (MSTR, Backpack Securities)", mint: "MSTRdWXMeZxdE8osAQy3fA4rvTY5rgummDSMEx6U7Nz", decimals: 6, issuer: "Backpack Securities" },
+  MU: { symbol: "MU", label: "Micron (MU, Backpack Securities)", mint: "MUxEsUKSMACyw5fZf68wxf5FLnZVhtU9CwH8uNNGay1", decimals: 6, issuer: "Backpack Securities" },
+  NBIS: { symbol: "NBIS", label: "Nebius Group (NBIS, Backpack Securities)", mint: "NBiSF3UaVUFtRzHwAfxyHsBCAZWGEKnMpewAE4oh7BG", decimals: 6, issuer: "Backpack Securities" },
+  NKE: { symbol: "NKE", label: "Nike (NKE, Backpack Securities)", mint: "NKEda5nHhNGgjrE9nDdMvaEmkmJ96qqxzBVZEcKmjSg", decimals: 6, issuer: "Backpack Securities" },
+  PFE: { symbol: "PFE", label: "Pfizer (PFE, Backpack Securities)", mint: "PFER6ENqP8r8NF3CqVt4mFowxsin3V5MLidBNQFCC3x", decimals: 6, issuer: "Backpack Securities" },
+  PTN: { symbol: "PTN", label: "Palatin Technologies (PTN, Backpack Securities)", mint: "PTNzAfFAB4LvoUQEUUGrFMyUoRLExMYjH6CcfyQfsVP", decimals: 6, issuer: "Backpack Securities" },
+  QUBT: { symbol: "QUBT", label: "Quantum Computing Inc (QUBT, Backpack Securities)", mint: "QUBTAD8C9bMU9LvmMNgKPhrmBGbHvxpu6vfWQtThxxw", decimals: 6, issuer: "Backpack Securities" },
+  RBLX: { symbol: "RBLX", label: "Roblox (RBLX, Backpack Securities)", mint: "RBLXDGRD64AtRamHMFVcjqne3Ar7NLWtFtYNtsrf1cE", decimals: 6, issuer: "Backpack Securities" },
+  RDDT: { symbol: "RDDT", label: "Reddit (RDDT, Backpack Securities)", mint: "RDDTGbhHwVXfyCvQMXzzowKjf5qrYBZAnehoXW83ooh", decimals: 6, issuer: "Backpack Securities" },
+  RIVN: { symbol: "RIVN", label: "Rivian (RIVN, Backpack Securities)", mint: "RcZmt84VMJv9bDhKqmw1uWDahYrUT468VwAChTnfD8p", decimals: 6, issuer: "Backpack Securities" },
+  RUM: { symbol: "RUM", label: "Rumble (RUM, Backpack Securities)", mint: "RUMsPfFZFnN1ZmGANwP7FNMJMjKH4m9RiMePrtVtLe7", decimals: 6, issuer: "Backpack Securities" },
+  SCHH: { symbol: "SCHH", label: "Schwab US REIT ETF (SCHH, Backpack Securities)", mint: "SCHHJ3jRdSjeFEVAaLrnYdx3Brphn92Ys7z1qkiCtPX", decimals: 6, issuer: "Backpack Securities" },
+  SHOP: { symbol: "SHOP", label: "Shopify (SHOP, Backpack Securities)", mint: "SH55hfaipFAbwT42nQYhRoM5o5t61QpkmJ6p62vXB3m", decimals: 6, issuer: "Backpack Securities" },
+  SKHY: { symbol: "SKHY", label: "SK Hynix (SKHY, Backpack Securities)", mint: "SKHYhSjuRWHgikq8eRKbtBbpABgJSkd7ytQV14i9EQ3", decimals: 6, issuer: "Backpack Securities" },
+  SNAP: { symbol: "SNAP", label: "Snap (SNAP, Backpack Securities)", mint: "SNAPcESrvnH8yUdgeMF6xm1hym9b6hW6s8YeqeHdZFz", decimals: 6, issuer: "Backpack Securities" },
   SNDK: { symbol: "SNDK", label: "SanDisk (SNDK, Backpack Securities)", mint: "SNDKbwMUQvZhnLnxLduradgLHG5KrPuKwpnrkkGRhfH", decimals: 6, issuer: "Backpack Securities" },
+  SPCX: { symbol: "SPCX", label: "SpaceX (SPCX, Backpack Securities)", mint: "SPCXxcqXj6e5dJDVNovHN8744zkbhM2bYudU45BimGb", decimals: 6, issuer: "Backpack Securities" },
+  SPHR: { symbol: "SPHR", label: "Sphere Entertainment (SPHR, Backpack Securities)", mint: "SPHRp8cZaSQBTp1KMNP4V1X821SXhXWt4Q2yLdyHzju", decimals: 6, issuer: "Backpack Securities" },
+  TTWO: { symbol: "TTWO", label: "Take-Two Interactive (TTWO, Backpack Securities)", mint: "TTWofwAge91oFhZs7kpQdyrVRkmevgM88xijGvQFbKo", decimals: 6, issuer: "Backpack Securities" },
+  UPS: { symbol: "UPS", label: "United Parcel Service (UPS, Backpack Securities)", mint: "UPSqUeMHcWbkdg784XuBUEF9DtySSnW9ur5LAVdcuB9", decimals: 6, issuer: "Backpack Securities" },
+  URA: { symbol: "URA", label: "Global X Uranium ETF (URA, Backpack Securities)", mint: "URARfsinxCRw4JpvQhuT4CxavdZXZEMjv9ZwWmWpwag", decimals: 6, issuer: "Backpack Securities" },
+  WEN: { symbol: "WEN", label: "Wendy's (WEN, Backpack Securities)", mint: "WENAZ2WyPbmgvUcKfQ8hyMDfBQP9bZ65hsZ5KTFrRGZ", decimals: 6, issuer: "Backpack Securities" },
+  WULF: { symbol: "WULF", label: "TeraWulf (WULF, Backpack Securities)", mint: "WULFeyfrj1VJKD9HhRTcW8R4g5HefUA11HDEdBv2WxD", decimals: 6, issuer: "Backpack Securities" },
 };
 
 export const DBC_CURVE_PRESETS = [

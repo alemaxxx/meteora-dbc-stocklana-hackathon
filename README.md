@@ -73,17 +73,24 @@ section 5.17 of `DBC-MIGRATION-PLAN.md` for the full writeup, including two real
 other than SOL existed) and an honest incident report (a real transaction fired during local testing
 that shouldn't have).
 
-**Second stock issuer added (2026-09-26): Backpack Securities.** Six more presets
-(`stock-quoted-spcx/mu/mrna/nke/crwv/sndk`) quote directly against real Backpack Securities-issued
-stock tokens (SpaceX, Micron, Moderna, Nike, CoreWeave, SanDisk) - a SEPARATE, competing
+**Second stock issuer added (2026-09-26): Backpack Securities.** 59 presets now quote directly
+against real Backpack Securities-issued stock tokens (SpaceX, Micron, Moderna, Nike, Boeing, Costco,
+Intel, Shopify, and many more - see `STOCK_QUOTE_MINTS` in `src/dbcConfig.js`) - a SEPARATE, competing
 tokenized-stock issuer from Backed Finance's xStocks above (different mints, different legal
 structure: direct 1:1 redeemable security entitlement instead of a cash-settled tracker). Backpack's
-own CEO has publicly stated a plan to expand from ~200 to ~10,000 tokenized stocks on Solana. Verified
-the same way as the xStocks: all 6 sampled mints came back badged via a real on-chain read, all with
-the identical real Token-2022 extension set (permanentDelegate, inactive transferHook, pausableConfig,
-scaledUiAmountConfig) - so the same DAMM v2 migration compatibility reasoning applies. Only 6 of
-Backpack's growing catalog checked so far, not the whole ~200 (heading to 10,000) - see section 5.21
-of `DBC-MIGRATION-PLAN.md`.
+own CEO has publicly stated a plan to expand from its current ~41-200 tokenized stocks to ~10,000.
+Every one of the 59 mints was individually verified on-chain (not assumed from a list) - all came back
+badged, all Token-2022 with the identical extension set (permanentDelegate, inactive transferHook,
+pausableConfig, scaledUiAmountConfig) - so the same DAMM v2 migration compatibility reasoning already
+proven for xStocks applies. Real mint addresses sourced from the community-maintained
+[usestrak/strak](https://github.com/usestrak/strak) registry, cross-checked against addresses already
+independently verified via web search before trusting the rest. Still not exhaustive - see section
+5.21/5.22 of `DBC-MIGRATION-PLAN.md`.
+
+**Preset picker UI (2026-09-26)**: with the catalog now this large, the "Curve preset" field renders
+one dropdown PER category (fee-shape curves, xStocks, Backpack Securities, live-priced) instead of one
+long list - picking an option in any dropdown resets the others, and each dropdown's options are
+sorted alphabetically.
 
 ## Six curve presets, plus one live-priced mode (2026-09-17)
 

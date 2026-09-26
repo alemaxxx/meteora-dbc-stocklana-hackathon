@@ -148,7 +148,11 @@
         console.error("Failed to load Pyth-anchored presets:", err);
       }
 
+      // Sorted alphabetically by display label within each group (2026-09-26)
+      // - with 59+ stock-quoted presets now, browsing them in whatever order
+      // they happen to be defined in dbcConfig.js stopped being usable.
       els.presetChips.innerHTML = [...groups.entries()]
+        .map(([group, presets]) => [group, [...presets].sort((a, b) => a.label.localeCompare(b.label))])
         .map(
           ([group, presets]) =>
             `<div class="field">
