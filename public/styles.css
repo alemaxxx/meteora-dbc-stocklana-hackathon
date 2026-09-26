@@ -88,10 +88,13 @@ html, body {
 }
 .image-actions { display: flex; flex-direction: column; gap: 6px; }
 
-/* #preset-chips is a native <select> (2026-09-26, replacing an earlier
-   one-button-per-preset chip list) with an <optgroup> per preset.group -
-   reuses the same .field select styling as every other select on the
-   page, no dedicated rule needed here. */
+/* #preset-chips holds one <select> PER preset.group (2026-09-26,
+   replacing a single dropdown with <optgroup> sections) - each is a
+   normal .field, just nested and tightened up a bit since they're all
+   sub-parts of the outer "Curve preset" field rather than independent
+   top-level fields. */
+.preset-group-selects { display: flex; flex-direction: column; gap: 10px; }
+.preset-group-selects .field { margin-bottom: 0; }
 
 .btn-secondary, .btn-primary, .btn-danger {
   font-family: var(--font-display); font-weight: 600; font-size: 13px; border-radius: 8px;

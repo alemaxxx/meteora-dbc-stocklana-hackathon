@@ -106,13 +106,16 @@
   });
 
   // ---- curve presets (fixed SOL presets + Pyth-anchored ones) ----
-  // Rendered as a native <select> with <optgroup> sections (2026-09-26,
-  // replacing the earlier one-button-per-preset chip list) - grouped by
-  // preset.group (set in dbcConfig.js) so the list stays scannable as more
-  // stock issuers get added (started at 6 presets, now 16+ across
-  // fee-shape curves and two separate stock issuers). Pyth-anchored
-  // options are prefixed "pyth:" in their <option value> to distinguish
-  // them from a plain preset id without a second selection mechanism.
+  // Rendered as ONE <select> PER GROUP (2026-09-26, replacing a single
+  // dropdown with <optgroup> sections) - grouped by preset.group (set in
+  // dbcConfig.js) so each category (fee-shape curves, one per stock
+  // issuer, live-priced) gets its own compact dropdown instead of one
+  // long combined list. Only one dropdown can hold a real selection at a
+  // time - picking an option in any of them resets every other dropdown
+  // back to its placeholder (see syncGroupSelects), so it's always
+  // obvious which preset is actually active. Pyth-anchored options are
+  // prefixed "pyth:" in their <option value> to distinguish them from a
+  // plain preset id without a second selection mechanism.
   async function loadPresets() {
     try {
       const res = await fetch("/api/dbc-presets");
@@ -125,14 +128,6 @@
         if (!groups.has(key)) groups.set(key, []);
         groups.get(key).push(p);
       }
-      let optionsHtml = [...groups.entries()]
-        .map(
-          ([group, presets]) =>
-            `<optgroup label="${escapeHtml(group)}">` +
-            presets.map((p) => `<option value="${p.id}">${escapeHtml(p.label.split(" - ")[0])}</option>`).join("") +
-            `</optgroup>`
-        )
-        .join("");
 
       // Pyth-anchored options are a SEPARATE, static list (no live Pyth
       // call here) so they always render even if Pyth itself is
@@ -144,26 +139,48 @@
         const pythData = await pythRes.json();
         const pythSymbols = pythData.symbols ?? [];
         if (pythSymbols.length > 0) {
-          optionsHtml +=
-            `<optgroup label="Live-priced (Pyth)">` +
-            pythSymbols.map((s) => `<option value="pyth:${s.symbol}">🔴 Live: ${escapeHtml(s.label)}</option>`).join("") +
-            `</optgroup>`;
+          groups.set(
+            "Live-priced (Pyth)",
+            pythSymbols.map((s) => ({ id: `pyth:${s.symbol}`, label: `🔴 Live: ${s.label}` }))
+          );
         }
       } catch (err) {
         console.error("Failed to load Pyth-anchored presets:", err);
       }
 
-      els.presetChips.innerHTML = optionsHtml;
+      els.presetChips.innerHTML = [...groups.entries()]
+        .map(
+          ([group, presets]) =>
+            `<div class="field">
+              <label>${escapeHtml(group)}</label>
+              <select class="preset-group-select" data-group="${escapeHtml(group)}">
+                <option value="">— none selected —</option>
+                ${presets.map((p) => `<option value="${p.id}">${escapeHtml(p.label.split(" - ")[0])}</option>`).join("")}
+              </select>
+            </div>`
+        )
+        .join("");
+
       if (allPresets.length > 0) selectPreset(allPresets[0].id);
     } catch (err) {
       console.error("Failed to load presets:", err);
     }
   }
 
+  // Sets the dropdown that actually contains `value` to it, and blanks
+  // every other group's dropdown back to its placeholder - keeps exactly
+  // one of the N group selects showing a real selection at a time.
+  function syncGroupSelects(value) {
+    els.presetChips.querySelectorAll("select.preset-group-select").forEach((sel) => {
+      const hasValue = [...sel.options].some((o) => o.value === value);
+      sel.value = hasValue ? value : "";
+    });
+  }
+
   function selectPreset(id) {
     selectedPresetId = id;
     selectedPythSymbol = null;
-    els.presetChips.value = id;
+    syncGroupSelects(id);
     const preset = allPresets.find((p) => p.id === id);
     els.presetHint.textContent = preset?.label ?? "";
     // Presets quoted in a real xStock (see dbcConfig.js's "stock-quoted-*"
@@ -176,7 +193,7 @@
   async function selectPythSymbol(symbol) {
     selectedPresetId = null;
     selectedPythSymbol = symbol;
-    els.presetChips.value = `pyth:${symbol}`;
+    syncGroupSelects(`pyth:${symbol}`);
     els.firstBuyLabel.textContent = "SOL for initial buy (optional)";
     els.presetHint.textContent = `Fetching ${symbol}'s live price from Pyth…`;
     try {
@@ -194,8 +211,10 @@
     }
   }
 
-  els.presetChips.addEventListener("change", () => {
-    const value = els.presetChips.value;
+  els.presetChips.addEventListener("change", (ev) => {
+    const select = ev.target.closest("select.preset-group-select");
+    if (!select || !select.value) return; // placeholder re-selected or unrelated event - no-op
+    const value = select.value;
     if (value.startsWith("pyth:")) selectPythSymbol(value.slice(5));
     else selectPreset(value);
   });
