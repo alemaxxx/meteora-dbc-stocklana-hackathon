@@ -1,6 +1,7 @@
-# Meteora DBC Launchpad
+# CurveForge
 
-Submission for the **Meteora** track of two hackathons, with the same code:
+A Meteora DBC (Dynamic Bonding Curve) launchpad - including curves quoted directly in real
+tokenized stocks. Submission for the **Meteora** track of two hackathons, with the same code:
 
 1. **Stocklana** (`hackathons.solana.com/hackathons/stocklana`) - "Best Use of Meteora DBC" track,
    $5,000 USDC, deadline **2026-09-25, 4pm ET** (extended).

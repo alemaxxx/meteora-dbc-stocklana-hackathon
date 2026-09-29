@@ -230,6 +230,6 @@ export function startServer() {
   });
 
   app.listen(config.dashboardPort, () => {
-    console.log(`Meteora DBC Launchpad available at http://localhost:${config.dashboardPort}`);
+    console.log(`CurveForge available at http://localhost:${config.dashboardPort}`);
   });
 }
