@@ -136,6 +136,7 @@ export const STOCK_QUOTE_MINTS = {
   RBLX: { symbol: "RBLX", label: "Roblox (RBLX, Backpack Securities)", mint: "RBLXDGRD64AtRamHMFVcjqne3Ar7NLWtFtYNtsrf1cE", decimals: 6, issuer: "Backpack Securities" },
   RDDT: { symbol: "RDDT", label: "Reddit (RDDT, Backpack Securities)", mint: "RDDTGbhHwVXfyCvQMXzzowKjf5qrYBZAnehoXW83ooh", decimals: 6, issuer: "Backpack Securities" },
   RIVN: { symbol: "RIVN", label: "Rivian (RIVN, Backpack Securities)", mint: "RcZmt84VMJv9bDhKqmw1uWDahYrUT468VwAChTnfD8p", decimals: 6, issuer: "Backpack Securities" },
+  RKLB: { symbol: "RKLB", label: "Rocket Lab (RKLB, Backpack Securities)", mint: "RKLBnAXGqv31iZomqsuAWkQm1aqC7JwwvbCfzGdqAhz", decimals: 6, issuer: "Backpack Securities" },
   RUM: { symbol: "RUM", label: "Rumble (RUM, Backpack Securities)", mint: "RUMsPfFZFnN1ZmGANwP7FNMJMjKH4m9RiMePrtVtLe7", decimals: 6, issuer: "Backpack Securities" },
   SCHH: { symbol: "SCHH", label: "Schwab US REIT ETF (SCHH, Backpack Securities)", mint: "SCHHJ3jRdSjeFEVAaLrnYdx3Brphn92Ys7z1qkiCtPX", decimals: 6, issuer: "Backpack Securities" },
   SHOP: { symbol: "SHOP", label: "Shopify (SHOP, Backpack Securities)", mint: "SH55hfaipFAbwT42nQYhRoM5o5t61QpkmJ6p62vXB3m", decimals: 6, issuer: "Backpack Securities" },

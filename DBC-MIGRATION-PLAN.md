@@ -1204,6 +1204,31 @@ strak-registry-fetch + on-chain-verify pipeline. No real DAMM v2 migration has b
 Backpack Securities-quoted pool specifically (same caveat as section 5.21 - the compatibility
 reasoning is strong but not empirically proven the way AAPLx's was).
 
+## 5.23. Twenty-third round (2026-09-29) - RKLB, spotted via @MeteoraEco on X
+
+Found via a real-time source this time, not a registry sweep: @MeteoraEco (Meteora's community/
+ecosystem X account, not the official one) posted that `$RKLB` (Rocket Lab) had just gone live on
+Solana via Sunrise/Backpack Securities and could be used as a Meteora DBC quote pair - posted only
+~2 hours before this was read.
+
+**Finding the real address took more digging than usual** - CryptoRank's page only showed a truncated
+address (`RKLBn...dqAhz`); DexScreener's search API returned several unrelated copycat tokens also
+symbol-named `RKLB` (a common pump.fun pattern - same symbol, totally different mint) alongside the
+real one. Identified the correct one by matching the truncated CryptoRank prefix/suffix against
+DexScreener's full addresses: `RKLBnAXGqv31iZomqsuAWkQm1aqC7JwwvbCfzGdqAhz` - the only candidate
+whose start (`RKLBn`) and end (`dqAhz`) matched. Verified on-chain the same way as every prior
+round: badged, Token-2022, 6 decimals, identical extension profile
+(MetadataPointer/PermanentDelegate/DefaultAccountState/PausableConfig/ConfidentialTransferMint/
+TransferHook-inactive/ScaledUiAmountConfig/TokenMetadata) to all 60 prior Backpack Securities entries.
+Added to `STOCK_QUOTE_MINTS` in alphabetical position. Total Backpack Securities presets: 61 (65
+stock-quoted presets overall, 4 xStocks + 61 Backpack).
+
+**Also set up during this round**: a recurring scheduled cloud routine ("MeteoraEco watcher - new
+stock tickers", daily) that checks @MeteoraEco for exactly this kind of announcement going forward,
+verifies any new ticker on-chain the same way, and opens a PR (never pushes to main directly) rather
+than deploying unsupervised - a human still reviews and merges. This manual round (RKLB) was done in
+parallel with setting that routine up, at the user's request.
+
 ## 6. Suggested next steps
 
 1. ~~Validate the curve presets against Meteora's official calculator~~

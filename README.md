@@ -74,19 +74,21 @@ section 5.17 of `DBC-MIGRATION-PLAN.md` for the full writeup, including two real
 other than SOL existed) and an honest incident report (a real transaction fired during local testing
 that shouldn't have).
 
-**Second stock issuer added (2026-09-26): Backpack Securities.** 60 presets now quote directly
+**Second stock issuer added (2026-09-26, +1 more on 2026-09-29): Backpack Securities.** 61 presets now quote directly
 against real Backpack Securities-issued stock tokens (SpaceX, Micron, Moderna, Nike, Boeing, Costco,
 Intel, Shopify, and many more - see `STOCK_QUOTE_MINTS` in `src/dbcConfig.js`) - a SEPARATE, competing
 tokenized-stock issuer from Backed Finance's xStocks above (different mints, different legal
 structure: direct 1:1 redeemable security entitlement instead of a cash-settled tracker). Backpack's
 own CEO has publicly stated a plan to expand from its current ~41-200 tokenized stocks to ~10,000.
-Every one of the 60 mints was individually verified on-chain (not assumed from a list) - all came back
+Every one of the 61 mints was individually verified on-chain (not assumed from a list) - all came back
 badged, all Token-2022 with the identical extension set (permanentDelegate, inactive transferHook,
 pausableConfig, scaledUiAmountConfig) - so the same DAMM v2 migration compatibility reasoning already
 proven for xStocks applies. Real mint addresses sourced from the community-maintained
 [usestrak/strak](https://github.com/usestrak/strak) registry, cross-checked against addresses already
-independently verified via web search before trusting the rest. Still not exhaustive - see section
-5.21/5.22 of `DBC-MIGRATION-PLAN.md`.
+independently verified via web search before trusting the rest, plus one (RKLB) found in real time via
+a Meteora ecosystem X post. Still not exhaustive - see sections 5.21-5.23 of `DBC-MIGRATION-PLAN.md`.
+A daily scheduled routine now watches for new announcements like this one automatically and opens a PR
+(never auto-deploys) when it verifies a new ticker.
 
 **Preset picker UI (2026-09-26)**: with the catalog now this large, the "Curve preset" field renders
 one dropdown PER category (fee-shape curves, xStocks, Backpack Securities, live-priced) instead of one
