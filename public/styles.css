@@ -76,7 +76,8 @@ html, body {
 .topnav__cta { text-decoration: none; padding: 8px 16px; font-size: 13px; }
 @media (max-width: 760px) {
   .topnav { flex-wrap: wrap; gap: 10px; }
-  .topnav__links { order: 3; width: 100%; overflow-x: auto; }
+  .topnav__links { order: 3; width: 100%; flex-wrap: wrap; }
+  .topnav__actions { margin-left: auto; }
 }
 
 /* .topbar/.tagline/.stat retired 2026-09-30 (replaced by .topnav across
