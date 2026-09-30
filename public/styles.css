@@ -133,7 +133,10 @@ html, body {
 }
 
 /* ---- launch panel + summary sidebar ---- */
-.launch-layout { display: grid; grid-template-columns: 1fr 280px; gap: 20px; align-items: start; margin: 28px 0 24px; }
+/* Capped narrower than .app's 1280px on purpose - a form reads better
+   constrained even on a wide screen, unlike the Home hero's marketing
+   copy which benefits from filling more of the viewport. */
+.launch-layout { display: grid; grid-template-columns: 1fr 280px; gap: 20px; align-items: start; max-width: 900px; margin: 28px auto 24px; }
 @media (max-width: 760px) { .launch-layout { grid-template-columns: 1fr; } }
 
 .panel {
