@@ -47,23 +47,46 @@ html, body {
 
 .app { max-width: 900px; margin: 0 auto; padding: 24px 20px 64px; }
 
-/* ---- topbar ---- */
-.topbar {
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
-  gap: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border);
+/* ---- shared top nav (2026-09-30, part of the multi-page site structure:
+   Home / Launch / Explore / Docs, mirroring how real launchpads like
+   StonkFun structure their site instead of cramming everything into one
+   page) - duplicated markup across pages on purpose (no build step in
+   this project), but the styling and wallet-button behavior (navBar.js)
+   are shared. ---- */
+.topnav {
+  display: flex; align-items: center; gap: 24px; max-width: 1100px; margin: 0 auto;
+  padding: 14px 20px; border-bottom: 1px solid var(--border);
 }
+.topnav__brand { display: flex; align-items: center; gap: 8px; text-decoration: none; color: var(--text); font-weight: 700; font-size: 15px; }
+.topnav__brand .brand-logo { width: 24px; height: 24px; }
+.topnav__links { display: flex; align-items: center; gap: 4px; flex: 1; }
+.topnav__link {
+  font-size: 13px; font-weight: 500; color: var(--text-muted); text-decoration: none;
+  padding: 8px 12px; border-radius: 6px; transition: color 0.15s ease, background-color 0.15s ease;
+}
+.topnav__link:hover { color: var(--text); background: var(--panel-alt); }
+.topnav__link.is-active { color: var(--text); background: var(--panel-alt); }
+.topnav__actions { display: flex; align-items: center; gap: 10px; }
+.topnav__icon-btn {
+  display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px;
+  border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); text-decoration: none;
+  font-size: 14px; transition: color 0.15s ease, border-color 0.15s ease;
+}
+.topnav__icon-btn:hover { color: var(--text); border-color: var(--brand-amber); }
+.topnav__cta { text-decoration: none; padding: 8px 16px; font-size: 13px; }
+@media (max-width: 760px) {
+  .topnav { flex-wrap: wrap; gap: 10px; }
+  .topnav__links { order: 3; width: 100%; overflow-x: auto; }
+}
+
+/* .topbar/.tagline/.stat retired 2026-09-30 (replaced by .topnav across
+   Home/Launch/Explore/Docs) - .eyebrow and .brand-logo are still used
+   (hero section, nav brand mark). */
 .eyebrow {
   display: block; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em;
   text-transform: uppercase; color: var(--text-muted); margin-bottom: 2px;
 }
-.topbar h1 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px; }
 .brand-logo { width: 32px; height: 32px; object-fit: contain; }
-.tagline { font-size: 13px; color: var(--text-muted); line-height: 1.5; max-width: 56ch; margin-top: 6px; }
-
-.stat { display: flex; flex-direction: column; gap: 3px; align-items: flex-end; }
-.stat__label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint); }
-.stat__value { font-size: 14px; font-weight: 600; color: var(--text); font-family: var(--font-mono); }
-.topbar__right { display: flex; align-items: center; gap: 16px; }
 #wallet-connect-btn.is-connected { border-color: var(--accent-mine); color: var(--accent-mine); }
 
 /* ---- copy button (wallet/mint address) ---- */
@@ -74,6 +97,34 @@ html, body {
   color: var(--text-faint); font-size: 12px; line-height: 1; cursor: pointer; vertical-align: middle;
 }
 .copy-btn:hover { color: var(--text); border-color: var(--accent-info); }
+
+/* ---- Home page: hero + feature grid ---- */
+.hero { text-align: center; padding: 48px 0 32px; max-width: 640px; margin: 0 auto; }
+.hero__title { font-size: 34px; font-weight: 700; letter-spacing: -0.01em; margin: 12px 0 14px; }
+.hero__subtitle { font-size: 14px; color: var(--text-muted); line-height: 1.6; margin: 0 0 24px; }
+.hero__cta { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+.hero__cta .btn-primary, .hero__cta .btn-secondary { text-decoration: none; padding: 12px 22px; font-size: 14px; }
+.hero__stat { font-size: 12px; color: var(--brand-amber); font-family: var(--font-mono); margin: 18px 0 0; }
+
+.feature-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin: 12px 0 40px; }
+@media (max-width: 640px) { .feature-grid { grid-template-columns: 1fr; } }
+.feature-card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+.feature-card h3 { margin: 0 0 8px; font-size: 14px; font-weight: 700; }
+.feature-card p { margin: 0; font-size: 12px; color: var(--text-muted); line-height: 1.55; }
+
+/* ---- Docs page ---- */
+.docs { max-width: 720px; }
+.docs__title { font-size: 26px; margin: 24px 0 20px; }
+.docs__section { margin-bottom: 28px; }
+.docs__section h2 { font-size: 16px; margin: 0 0 10px; color: var(--brand-amber); }
+.docs__section p, .docs__section li { font-size: 13px; color: var(--text-muted); line-height: 1.65; }
+.docs__section ul, .docs__section ol { padding-left: 20px; margin: 0; }
+.docs__section li { margin-bottom: 8px; }
+.docs__section li strong { color: var(--text); }
+.docs__section code {
+  font-family: var(--font-mono); font-size: 12px; background: var(--panel-alt);
+  border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px;
+}
 
 /* ---- launch panel + summary sidebar ---- */
 .launch-layout { display: grid; grid-template-columns: 1fr 280px; gap: 20px; align-items: start; margin: 28px 0 24px; }

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Explore tokens · CurveForge</title>
+  <link rel="icon" type="image/webp" href="logo.webp" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://unpkg.com/@solana/web3.js@1.95.3/lib/index.iife.min.js"></script>
+</head>
+<body>
+  <header class="topnav">
+    <a href="index.html" class="topnav__brand"><img src="logo.webp" alt="" class="brand-logo" />CurveForge</a>
+    <nav class="topnav__links">
+      <a href="index.html" class="topnav__link">Home</a>
+      <a href="launch.html" class="topnav__link">Launch</a>
+      <a href="explore.html" class="topnav__link is-active">Explore</a>
+      <a href="docs.html" class="topnav__link">Docs</a>
+    </nav>
+    <div class="topnav__actions">
+      <a href="https://x.com/CurveForge" target="_blank" rel="noopener" class="topnav__icon-btn" title="CurveForge on X">𝕏</a>
+      <button type="button" class="btn-secondary" id="wallet-connect-btn">Connect Wallet</button>
+    </div>
+  </header>
+
+  <div class="app">
+    <h2 class="subsection-title" style="margin-top: 8px;">Launched tokens</h2>
+    <p class="field__hint" style="margin: -4px 0 14px;">
+      Every token launched on CurveForge, newest first. Connect the wallet you launched with to claim
+      creator fees or migrate a curve that's reached its threshold.
+    </p>
+    <div class="table-wrap">
+      <table class="grid">
+        <thead>
+          <tr>
+            <th>Token</th>
+            <th>Preset</th>
+            <th>When</th>
+            <th>Status</th>
+            <th>Pool</th>
+          </tr>
+        </thead>
+        <tbody id="launched-rows"></tbody>
+      </table>
+      <p class="empty-state" id="launched-empty">No tokens launched yet.</p>
+    </div>
+  </div>
+
+  <script src="uiKit.js"></script>
+  <script src="main.js"></script>
+  <script type="module" src="walletConnect.js"></script>
+  <script src="navBar.js"></script>
+  <script src="explore.js"></script>
+</body>
+</html>

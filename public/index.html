@@ -9,119 +9,83 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
-  <script src="https://unpkg.com/@solana/web3.js@1.95.3/lib/index.iife.min.js"></script>
 </head>
 <body>
+  <header class="topnav">
+    <a href="index.html" class="topnav__brand"><img src="logo.webp" alt="" class="brand-logo" />CurveForge</a>
+    <nav class="topnav__links">
+      <a href="index.html" class="topnav__link is-active">Home</a>
+      <a href="launch.html" class="topnav__link">Launch</a>
+      <a href="explore.html" class="topnav__link">Explore</a>
+      <a href="docs.html" class="topnav__link">Docs</a>
+    </nav>
+    <div class="topnav__actions">
+      <a href="https://x.com/CurveForge" target="_blank" rel="noopener" class="topnav__icon-btn" title="CurveForge on X">𝕏</a>
+      <button type="button" class="btn-secondary" id="wallet-connect-btn">Connect Wallet</button>
+    </div>
+  </header>
+
   <div class="app">
-    <header class="topbar">
-      <div>
-        <span class="eyebrow">stocklana · meteora track</span>
-        <h1><img src="logo.webp" alt="" class="brand-logo" />CurveForge</h1>
-        <p class="tagline">
-          Launch a token directly on a native Meteora bonding curve (Dynamic Bonding Curve) - the
-          curve already is the liquidity, and it migrates on its own to a DAMM v2 pool once it hits
-          the configured threshold. Focused cut of the <a href="https://github.com/alemaxxx/lauch-token" target="_blank" rel="noopener">Lançar Token Bot</a>.
+    <section class="hero">
+      <span class="eyebrow">stocklana · colosseum crypto world's fair · meteora track</span>
+      <h1 class="hero__title">Forge a token on a real bonding curve.</h1>
+      <p class="hero__subtitle">
+        CurveForge launches tokens directly on Meteora's Dynamic Bonding Curve - no presale, no team
+        allocation, the curve already is the liquidity. Quote your launch in SOL, or directly against
+        real tokenized stocks like AAPL, TSLA and NVDA.
+      </p>
+      <div class="hero__cta">
+        <a href="launch.html" class="btn-primary">Launch a token</a>
+        <a href="explore.html" class="btn-secondary">Explore launched tokens</a>
+      </div>
+      <p class="hero__stat" id="hero-stat"></p>
+    </section>
+
+    <section class="feature-grid">
+      <div class="feature-card">
+        <h3>Real stock-quoted launches</h3>
+        <p>
+          Quote a launch directly against a real tokenized stock or ETF - xStocks and Backpack
+          Securities, both individually verified on-chain before being listed here.
         </p>
       </div>
-      <div class="topbar__right">
-        <button type="button" class="btn-secondary" id="wallet-connect-btn">Connect Wallet</button>
+      <div class="feature-card">
+        <h3>No presale, no team cut</h3>
+        <p>The curve itself is the liquidity from the moment your token exists - trading starts immediately, nothing held back.</p>
       </div>
-    </header>
-
-    <div class="launch-layout">
-    <section class="panel">
-      <h2 class="panel__title">Launch new token</h2>
-      <p class="panel__subtitle">
-        Never automatic - only sends the transaction when you confirm below. Launching pays from
-        <strong>your connected wallet</strong>, not ours - connect one to launch.
-      </p>
-
-      <div class="image-row">
-        <img id="launch-image" class="image-preview" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 84 84'%3E%3Crect width='84' height='84' fill='%23171c25'/%3E%3Cpath d='M28 52l10-12 8 9 6-7 12 14H28z' fill='%232a3140'/%3E%3Ccircle cx='32' cy='30' r='5' fill='%232a3140'/%3E%3C/svg%3E" alt="Token image preview" />
-        <div class="image-actions">
-          <button type="button" class="btn-secondary" id="launch-image-upload-btn">Choose image</button>
-          <input type="file" id="launch-image-file" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
-          <span class="field__hint">or paste with Ctrl+V</span>
-        </div>
+      <div class="feature-card">
+        <h3>Migrates automatically</h3>
+        <p>Once the curve's threshold is reached, it migrates on its own to a permanent DAMM v2 liquidity pool - no manual step required.</p>
       </div>
-
-      <div class="field-row">
-        <div class="field">
-          <label for="launch-name">Token name</label>
-          <input id="launch-name" type="text" placeholder="e.g. Iron Bull" autocomplete="off" />
-        </div>
-        <div class="field">
-          <label for="launch-symbol">Symbol</label>
-          <input id="launch-symbol" type="text" placeholder="e.g. IRONBULL" maxlength="10" autocomplete="off" />
-        </div>
-      </div>
-      <p class="field__hint" style="margin-top: -8px; margin-bottom: 14px;">
-        This mints a real SPL token on Solana mainnet with this exact name and symbol - it can't be changed after launch.
-      </p>
-
-      <div class="field">
-        <label>Curve preset</label>
-        <div class="preset-picker">
-          <div class="preset-picker__tabs" id="preset-tabs"></div>
-          <input type="text" id="preset-search" placeholder="Search by symbol or name…" autocomplete="off" />
-          <div class="preset-picker__grid" id="preset-grid"></div>
-        </div>
-        <p class="field__hint" id="preset-hint"></p>
-      </div>
-
-      <div class="field">
-        <label for="launch-firstbuy" id="launch-firstbuy-label">SOL for initial buy (optional)</label>
-        <input id="launch-firstbuy" type="text" placeholder="leave empty to skip buying" autocomplete="off" />
-        <p class="field__hint">
-          Optional - the curve is already its own liquidity even without this buy; anyone can
-          already trade as soon as the token exists.
-        </p>
-      </div>
-
-      <p class="trust-note">
-        No presale, no team allocation - the curve already is the liquidity, and trading starts the
-        moment your token exists.
-      </p>
-      <p class="warning-box">
-        BETA - code validated against the official Meteora SDK, but every launch sends a real
-        transaction on-chain (mint + curve). Double-check name, symbol and values carefully before
-        confirming.
-      </p>
-      <p class="error-box" id="launch-error" hidden></p>
-      <p class="success-box" id="launch-success" hidden></p>
-
-      <div style="margin-top: 16px;">
-        <button type="button" class="btn-primary" id="launch-confirm-btn">Launch Token</button>
+      <div class="feature-card">
+        <h3>Built on Meteora, on Solana</h3>
+        <p>Every pool is a real Meteora Dynamic Bonding Curve program instance - tested end-to-end on mainnet, from launch to migration to fee claiming.</p>
       </div>
     </section>
 
-    <aside class="launch-summary">
-      <h3>Launch summary</h3>
-      <dl class="summary-list" id="summary-list"></dl>
-    </aside>
-    </div>
-
-    <h2 class="subsection-title">Launched tokens</h2>
-    <div class="table-wrap">
-      <table class="grid">
-        <thead>
-          <tr>
-            <th>Token</th>
-            <th>Preset</th>
-            <th>When</th>
-            <th>Status</th>
-            <th>Pool</th>
-          </tr>
-        </thead>
-        <tbody id="launched-rows"></tbody>
-      </table>
-      <p class="empty-state" id="launched-empty">No tokens launched yet.</p>
-    </div>
+    <p class="field__hint" style="text-align: center; margin-top: 32px;">
+      Extracted from the <a href="https://github.com/alemaxxx/lauch-token" target="_blank" rel="noopener">Lançar Token Bot</a> ·
+      <a href="https://github.com/alemaxxx/meteora-dbc-stocklana-hackathon" target="_blank" rel="noopener">View source on GitHub</a>
+    </p>
   </div>
 
   <script src="uiKit.js"></script>
   <script src="main.js"></script>
   <script type="module" src="walletConnect.js"></script>
-  <script src="app.js"></script>
+  <script src="navBar.js"></script>
+  <script>
+    // Small honest stat - real count pulled from the live API, not a
+    // hardcoded/invented number (it grows as more tickers get added, see
+    // dbcConfig.js and the daily @MeteoraEco-watching routine).
+    fetch("/api/dbc-presets")
+      .then((r) => r.json())
+      .then((data) => {
+        const stockPresets = (data.presets ?? []).filter((p) => p.quoteSymbol).length;
+        document.getElementById("hero-stat").textContent = stockPresets > 0
+          ? `${stockPresets} real stock-quoted presets available right now.`
+          : "";
+      })
+      .catch(() => {});
+  </script>
 </body>
 </html>

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Docs · CurveForge</title>
+  <link rel="icon" type="image/webp" href="logo.webp" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topnav">
+    <a href="index.html" class="topnav__brand"><img src="logo.webp" alt="" class="brand-logo" />CurveForge</a>
+    <nav class="topnav__links">
+      <a href="index.html" class="topnav__link">Home</a>
+      <a href="launch.html" class="topnav__link">Launch</a>
+      <a href="explore.html" class="topnav__link">Explore</a>
+      <a href="docs.html" class="topnav__link is-active">Docs</a>
+    </nav>
+    <div class="topnav__actions">
+      <a href="https://x.com/CurveForge" target="_blank" rel="noopener" class="topnav__icon-btn" title="CurveForge on X">𝕏</a>
+      <button type="button" class="btn-secondary" id="wallet-connect-btn">Connect Wallet</button>
+    </div>
+  </header>
+
+  <div class="app docs">
+    <h1 class="docs__title">How CurveForge works</h1>
+
+    <section class="docs__section">
+      <h2>What it does</h2>
+      <ol>
+        <li><strong>Launches a token on a Meteora Dynamic Bonding Curve (DBC)</strong> - mints the token and initializes the curve in one transaction, paid for and owned by your connected wallet, not the platform's. The curve already <em>is</em> the liquidity: anyone can trade the moment the token exists, with no presale and no team allocation.</li>
+        <li><strong>Tracks the curve's progress</strong> toward its preset's migration threshold.</li>
+        <li><strong>Migrates to a real DAMM v2 pool</strong> automatically once the threshold is reached.</li>
+        <li><strong>Lets you withdraw accumulated trading fees</strong> - creator and partner fees, claimed separately.</li>
+      </ol>
+      <p>Every action (launch, migrate, claim) requires an explicit click and confirmation - nothing runs automatically in the background.</p>
+    </section>
+
+    <section class="docs__section">
+      <h2>Curve presets</h2>
+      <p>Four categories, all quoted in either SOL or a real tokenized stock:</p>
+      <ul>
+        <li><strong>Fee-shape curves</strong> - Low fee, Default, Flat, Exponential, Long, and Compounding DAMM v2 - all SOL-quoted, migrating at 10 SOL accumulated in the curve. They differ in how the trading fee decays over time and, for one preset, how the migrated pool's fees are collected.</li>
+        <li><strong>xStocks (Backed Finance)</strong> - quotes the curve directly against a real, cash-settled tokenized stock (AAPL, TSLA, NVDA, SPY) instead of SOL. 1 unit of quote already equals 1 real share - no price conversion involved.</li>
+        <li><strong>Backpack Securities</strong> - a second, larger tokenized-stock issuer (a direct, 1:1 redeemable security entitlement, legally different from xStocks) - dozens of tickers, growing over time as new ones are verified on-chain and added.</li>
+        <li><strong>Live-priced (Pyth)</strong> - picks a real stock (TSLA or QQQ) and anchors the curve's SOL-denominated market-cap targets to that stock's live Pyth price, instead of a fixed SOL number.</li>
+      </ul>
+    </section>
+
+    <section class="docs__section">
+      <h2>Real stock-quoted launches</h2>
+      <p>
+        Every stock-quoted preset is backed by a real, on-chain-verified mint: Token-2022, badged by
+        Meteora for DBC use, with a consistent extension profile (permanent delegate, an inactive
+        transfer hook, pausable config, scaled UI amount) confirmed individually for every single
+        ticker before it's listed here - never assumed from a registry alone.
+      </p>
+    </section>
+
+    <section class="docs__section">
+      <h2>Public developer API</h2>
+      <p><code>GET /api/dbc-pool/:address</code> - read-only, CORS-open, works for any Meteora DBC pool on-chain (pool address or base mint), not just ones launched on CurveForge. Returns mint, migration status, live curve progress, migration threshold, and fee metrics.</p>
+    </section>
+
+    <section class="docs__section">
+      <h2>Tested on mainnet</h2>
+      <p>
+        The full lifecycle - launch, curve completion, migration to DAMM v2, and fee claiming - has
+        been run end-to-end on Solana mainnet with real transactions, not just simulated. Source is
+        public on <a href="https://github.com/alemaxxx/meteora-dbc-stocklana-hackathon" target="_blank" rel="noopener">GitHub</a>.
+      </p>
+    </section>
+  </div>
+
+  <script src="uiKit.js"></script>
+  <script src="main.js"></script>
+  <script type="module" src="walletConnect.js"></script>
+  <script src="navBar.js"></script>
+</body>
+</html>
