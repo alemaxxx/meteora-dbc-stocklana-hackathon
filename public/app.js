@@ -11,6 +11,7 @@
     presetHint: document.getElementById("preset-hint"),
     firstBuy: document.getElementById("launch-firstbuy"),
     firstBuyLabel: document.getElementById("launch-firstbuy-label"),
+    summaryList: document.getElementById("summary-list"),
     error: document.getElementById("launch-error"),
     success: document.getElementById("launch-success"),
     confirmBtn: document.getElementById("launch-confirm-btn"),
@@ -24,6 +25,7 @@
   let activeGroup = null;
   let selectedPresetId = null;
   let selectedPythSymbol = null;
+  let lastPythPreview = null; // { stockUsd, solUsd, migrationMarketCap } from the last successful Pyth fetch, for the summary panel
   let imageDataUrl = null;
   let connectedWallet = null; // base58 address of the browser wallet paying for launches
   let connectedWalletHandle = null; // { wallet, account } pair from walletConnect.js, needed to sign later
@@ -144,6 +146,76 @@
     return group;
   }
 
+  // ---- launch summary panel - derived, plain-language meaning of the
+  // currently selected preset (see project_frontend_redesign_research
+  // memory: StonkFun's "launch summary" side panel). Only ever shows
+  // numbers already present on the preset object or already returned by a
+  // live Pyth fetch - never an invented/estimated figure (e.g. no "SOL
+  // cost estimate", since nothing in this codebase actually measures
+  // that). ----
+  function formatFeeRange(preset) {
+    const start = (preset.startingFeeBps / 100).toString().replace(/\.0$/, "");
+    const end = (preset.endingFeeBps / 100).toString().replace(/\.0$/, "");
+    if (preset.startingFeeBps === preset.endingFeeBps && !preset.schedulerDurationSeconds) return `Flat ${start}%`;
+    const hours = preset.schedulerDurationSeconds / 3600;
+    const durationLabel = hours >= 1 ? `${hours}h` : `${preset.schedulerDurationSeconds}s`;
+    return `${start}% → ${end}% over ${durationLabel}`;
+  }
+
+  function summaryRow(label, value) {
+    return `<div class="summary-row"><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`;
+  }
+
+  function renderSummary() {
+    const name = els.name.value.trim();
+    const symbol = els.symbol.value.trim().toUpperCase();
+    const tokenLabel = name || symbol ? `${name || "?"}${symbol ? ` (${symbol})` : ""}` : "—";
+    const firstBuyRaw = els.firstBuy.value.trim();
+
+    let rows = [summaryRow("Token", tokenLabel)];
+
+    if (selectedPythSymbol) {
+      const quoteLabel = `SOL (live-anchored to ${selectedPythSymbol})`;
+      rows.push(summaryRow("Quote asset", quoteLabel));
+      rows.push(summaryRow("Migrates to", "DAMM v2 pool"));
+      if (lastPythPreview && lastPythPreview.symbol === selectedPythSymbol) {
+        rows.push(summaryRow(`${selectedPythSymbol} price`, `$${lastPythPreview.stockUsd.toFixed(2)}`));
+        rows.push(summaryRow("Migration threshold", `${lastPythPreview.migrationMarketCap.toFixed(4)} SOL`));
+      } else {
+        rows.push(summaryRow("Migration threshold", "Fetching live price…"));
+      }
+      rows.push(summaryRow("Initial buy", firstBuyRaw ? `${firstBuyRaw} SOL` : "None (curve starts empty)"));
+    } else {
+      const preset = allPresets.find((p) => p.id === selectedPresetId);
+      if (!preset) {
+        els.summaryList.innerHTML = `<p class="summary-list__empty">Pick a curve preset to see what it means.</p>`;
+        return;
+      }
+      const quoteSymbol = preset.quoteSymbol ?? "SOL";
+      rows.push(summaryRow("Quote asset", quoteSymbol));
+      rows.push(summaryRow("Total supply", preset.totalTokenSupply.toLocaleString("en-US")));
+      rows.push(summaryRow("Migrates to LP", `${preset.percentageSupplyOnMigration}% of supply`));
+      rows.push(summaryRow("Migration threshold", `${preset.migrationQuoteThreshold} ${quoteSymbol}`));
+      rows.push(summaryRow("Trading fee", formatFeeRange(preset)));
+      if (preset.migratedPoolFee?.collectFeeMode === MIGRATED_COLLECT_FEE_MODE_COMPOUNDING) {
+        rows.push(summaryRow("Migrated pool", `Compounds ${preset.migratedPoolFee.compoundingFeeBps / 100}% of fees`));
+      } else {
+        rows.push(summaryRow("Migrates to", "DAMM v2 pool"));
+      }
+      rows.push(summaryRow("Initial buy", firstBuyRaw ? `${firstBuyRaw} ${quoteSymbol}` : `None (curve starts empty)`));
+    }
+
+    els.summaryList.innerHTML = rows.join("");
+  }
+  // Numeric value of the SDK's MigratedCollectFeeMode.Compounding (= 2, a
+  // plain numeric enum - checked against the installed SDK's compiled
+  // output rather than guessed) - recognized here without importing the
+  // whole SDK client-side, just to label the compounding-damm-v2 preset
+  // correctly in the summary panel.
+  const MIGRATED_COLLECT_FEE_MODE_COMPOUNDING = 2;
+
+  [els.name, els.symbol, els.firstBuy].forEach((el) => el.addEventListener("input", renderSummary));
+
   async function loadPresets() {
     try {
       const res = await fetch("/api/dbc-presets");
@@ -252,14 +324,17 @@
     // the initial-buy field's label needs to reflect that or "0.05" would
     // look like SOL when it's actually 0.05 of a real tokenized share.
     els.firstBuyLabel.textContent = `${preset?.quoteSymbol ?? "SOL"} for initial buy (optional)`;
+    renderSummary();
   }
 
   async function selectPythSymbol(symbol) {
     selectedPresetId = null;
     selectedPythSymbol = symbol;
+    lastPythPreview = null;
     revealPresetInGrid(`pyth:${symbol}`);
     els.firstBuyLabel.textContent = "SOL for initial buy (optional)";
     els.presetHint.textContent = `Fetching ${symbol}'s live price from Pyth…`;
+    renderSummary();
     try {
       const res = await fetch(`/api/pyth-presets/${encodeURIComponent(symbol)}/preview`);
       const data = await res.json();
@@ -269,6 +344,8 @@
       els.presetHint.textContent =
         `${symbol} @ $${data.stockUsd.toFixed(2)} (SOL @ $${data.solUsd.toFixed(2)}) - ` +
         `curve migrates at ${data.migrationMarketCap.toFixed(4)} SOL, anchored to this live price.`;
+      lastPythPreview = { symbol, stockUsd: data.stockUsd, solUsd: data.solUsd, migrationMarketCap: data.migrationMarketCap };
+      renderSummary();
     } catch (err) {
       if (selectedPythSymbol !== symbol) return;
       els.presetHint.textContent = `Couldn't fetch ${symbol}'s live Pyth price (${err.message}). Pick a different preset.`;
