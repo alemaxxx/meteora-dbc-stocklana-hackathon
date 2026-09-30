@@ -45,7 +45,12 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 
-.app { max-width: 900px; margin: 0 auto; padding: 24px 20px 64px; }
+/* Container width + type scale (2026-09-30): widened from 900px/1100px and
+   switched key font-sizes to clamp() so the site fills more of a real
+   laptop screen (StonkFun-style) instead of a narrow centered column,
+   while still shrinking fluidly on a smaller 14" laptop or mobile instead
+   of jumping at a fixed breakpoint. */
+.app { max-width: 1280px; margin: 0 auto; padding: 24px clamp(20px, 3vw, 40px) 64px; }
 
 /* ---- shared top nav (2026-09-30, part of the multi-page site structure:
    Home / Launch / Explore / Docs, mirroring how real launchpads like
@@ -54,15 +59,15 @@ html, body {
    this project), but the styling and wallet-button behavior (navBar.js)
    are shared. ---- */
 .topnav {
-  display: flex; align-items: center; gap: 24px; max-width: 1100px; margin: 0 auto;
-  padding: 14px 20px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 24px; max-width: 1280px; margin: 0 auto;
+  padding: 16px clamp(20px, 3vw, 40px); border-bottom: 1px solid var(--border);
 }
-.topnav__brand { display: flex; align-items: center; gap: 8px; text-decoration: none; color: var(--text); font-weight: 700; font-size: 15px; }
-.topnav__brand .brand-logo { width: 24px; height: 24px; }
+.topnav__brand { display: flex; align-items: center; gap: 8px; text-decoration: none; color: var(--text); font-weight: 700; font-size: clamp(15px, 1.1vw, 18px); }
+.topnav__brand .brand-logo { width: 28px; height: 28px; }
 .topnav__links { display: flex; align-items: center; gap: 4px; flex: 1; }
 .topnav__link {
-  font-size: 13px; font-weight: 500; color: var(--text-muted); text-decoration: none;
-  padding: 8px 12px; border-radius: 6px; transition: color 0.15s ease, background-color 0.15s ease;
+  font-size: clamp(13px, 0.9vw, 15px); font-weight: 500; color: var(--text-muted); text-decoration: none;
+  padding: 9px 14px; border-radius: 6px; transition: color 0.15s ease, background-color 0.15s ease;
 }
 .topnav__link:hover { color: var(--text); background: var(--panel-alt); }
 .topnav__link.is-active { color: var(--text); background: var(--panel-alt); }
@@ -100,18 +105,18 @@ html, body {
 .copy-btn:hover { color: var(--text); border-color: var(--accent-info); }
 
 /* ---- Home page: hero + feature grid ---- */
-.hero { text-align: center; padding: 48px 0 32px; max-width: 640px; margin: 0 auto; }
-.hero__title { font-size: 34px; font-weight: 700; letter-spacing: -0.01em; margin: 12px 0 14px; }
-.hero__subtitle { font-size: 14px; color: var(--text-muted); line-height: 1.6; margin: 0 0 24px; }
-.hero__cta { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
-.hero__cta .btn-primary, .hero__cta .btn-secondary { text-decoration: none; padding: 12px 22px; font-size: 14px; }
-.hero__stat { font-size: 12px; color: var(--brand-amber); font-family: var(--font-mono); margin: 18px 0 0; }
+.hero { text-align: center; padding: clamp(48px, 7vw, 88px) 0 clamp(32px, 4vw, 48px); max-width: 900px; margin: 0 auto; }
+.hero__title { font-size: clamp(34px, 4.2vw, 58px); font-weight: 700; letter-spacing: -0.01em; margin: 14px 0 18px; }
+.hero__subtitle { font-size: clamp(14px, 1.15vw, 18px); color: var(--text-muted); line-height: 1.6; margin: 0 0 28px; max-width: 760px; margin-inline: auto; }
+.hero__cta { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; }
+.hero__cta .btn-primary, .hero__cta .btn-secondary { text-decoration: none; padding: 14px 26px; font-size: clamp(14px, 1vw, 16px); }
+.hero__stat { font-size: clamp(12px, 0.9vw, 14px); color: var(--brand-amber); font-family: var(--font-mono); margin: 22px 0 0; }
 
-.feature-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin: 12px 0 40px; }
+.feature-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: clamp(14px, 1.4vw, 22px); margin: 20px 0 40px; }
 @media (max-width: 640px) { .feature-grid { grid-template-columns: 1fr; } }
-.feature-card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
-.feature-card h3 { margin: 0 0 8px; font-size: 14px; font-weight: 700; }
-.feature-card p { margin: 0; font-size: 12px; color: var(--text-muted); line-height: 1.55; }
+.feature-card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: clamp(18px, 1.8vw, 26px); }
+.feature-card h3 { margin: 0 0 10px; font-size: clamp(14px, 1.15vw, 17px); font-weight: 700; }
+.feature-card p { margin: 0; font-size: clamp(12px, 0.95vw, 14px); color: var(--text-muted); line-height: 1.6; }
 
 /* ---- Docs page ---- */
 .docs { max-width: 720px; }
