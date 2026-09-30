@@ -17,12 +17,16 @@
   --accent-mine: #b892ff;
   --accent-error: #ff5c5c;
 
-  /* CurveForge brand colors - same purple/teal pair as the forge logo,
-     reusing --accent-mine/--accent-success (already close matches) rather
-     than introducing yet another pair of near-duplicate colors. */
+  /* CurveForge brand colors - purple-to-amber, matching the logo
+     (2026-09-30: recolored from purple/teal to tie closer to Meteora's
+     own purple+orange identity, since pools are created on Meteora
+     specifically - and to the "forge" concept). --brand-amber is
+     deliberately its own color, distinct from --accent-warm/--accent-hot,
+     so the brand gradient never gets visually confused with a
+     warning/error state elsewhere in the UI. */
   --brand-purple: var(--accent-mine);
-  --brand-teal: var(--accent-success);
-  --brand-gradient: linear-gradient(135deg, var(--brand-purple), var(--brand-teal));
+  --brand-amber: #ff9d4d;
+  --brand-gradient: linear-gradient(135deg, var(--brand-purple), var(--brand-amber));
 
   --font-display: "Space Grotesk", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
@@ -136,7 +140,7 @@ html, body {
   border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; cursor: pointer;
   transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
 }
-.preset-tab:hover { color: var(--text); border-color: var(--brand-teal); }
+.preset-tab:hover { color: var(--text); border-color: var(--brand-amber); }
 .preset-tab.is-active { background: var(--brand-gradient); color: var(--bg); border-color: transparent; font-weight: 600; }
 .preset-tab__count { opacity: 0.7; margin-left: 4px; }
 .preset-picker__grid {
@@ -149,7 +153,7 @@ html, body {
   cursor: pointer; font-family: var(--font-display);
   transition: border-color 0.15s ease, background-color 0.15s ease;
 }
-.preset-card:hover { border-color: var(--brand-teal); }
+.preset-card:hover { border-color: var(--brand-amber); }
 .preset-card.is-selected { border-color: var(--brand-purple); background: rgba(184, 146, 255, 0.1); }
 .preset-card__badge {
   width: 26px; height: 26px; border-radius: 50%; background: var(--brand-gradient); color: var(--bg);
@@ -175,7 +179,7 @@ html, body {
 .btn-danger:hover { opacity: 0.88; }
 
 .trust-note {
-  font-size: 11px; color: var(--brand-teal); line-height: 1.5; margin: 14px 0 0;
+  font-size: 11px; color: var(--brand-amber); line-height: 1.5; margin: 14px 0 0;
   display: flex; align-items: center; gap: 6px;
 }
 .trust-note::before { content: "🔒"; font-size: 11px; }
