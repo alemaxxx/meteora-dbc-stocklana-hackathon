@@ -48,13 +48,16 @@
       <div class="field-row">
         <div class="field">
           <label for="launch-name">Token name</label>
-          <input id="launch-name" type="text" placeholder="e.g. Narrative Wave" autocomplete="off" />
+          <input id="launch-name" type="text" placeholder="e.g. Iron Bull" autocomplete="off" />
         </div>
         <div class="field">
           <label for="launch-symbol">Symbol</label>
-          <input id="launch-symbol" type="text" placeholder="e.g. NARWAVE" maxlength="10" autocomplete="off" />
+          <input id="launch-symbol" type="text" placeholder="e.g. IRONBULL" maxlength="10" autocomplete="off" />
         </div>
       </div>
+      <p class="field__hint" style="margin-top: -8px; margin-bottom: 14px;">
+        This mints a real SPL token on Solana mainnet with this exact name and symbol - it can't be changed after launch.
+      </p>
 
       <div class="field">
         <label>Curve preset</label>
@@ -75,6 +78,10 @@
         </p>
       </div>
 
+      <p class="trust-note">
+        No presale, no team allocation - the curve already is the liquidity, and trading starts the
+        moment your token exists.
+      </p>
       <p class="warning-box">
         BETA - code validated against the official Meteora SDK, but every launch sends a real
         transaction on-chain (mint + curve). Double-check name, symbol and values carefully before
