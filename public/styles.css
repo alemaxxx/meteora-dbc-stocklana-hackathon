@@ -53,7 +53,7 @@ html, body {
   text-transform: uppercase; color: var(--text-muted); margin-bottom: 2px;
 }
 .topbar h1 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px; }
-.brand-logo { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 2px var(--bg), 0 0 12px rgba(184, 146, 255, 0.45); }
+.brand-logo { width: 32px; height: 32px; object-fit: contain; }
 .tagline { font-size: 13px; color: var(--text-muted); line-height: 1.5; max-width: 56ch; margin-top: 6px; }
 
 .stat { display: flex; flex-direction: column; gap: 3px; align-items: flex-end; }
@@ -71,11 +71,37 @@ html, body {
 }
 .copy-btn:hover { color: var(--text); border-color: var(--accent-info); }
 
-/* ---- launch panel ---- */
+/* ---- launch panel + summary sidebar ---- */
+.launch-layout { display: grid; grid-template-columns: 1fr 280px; gap: 20px; align-items: start; margin: 28px 0 24px; }
+@media (max-width: 760px) { .launch-layout { grid-template-columns: 1fr; } }
+
 .panel {
   background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 22px; margin: 28px 0 24px;
+  padding: 22px; margin: 0;
 }
+
+/* Derived, plain-language summary of the currently-selected preset - see
+   project_frontend_redesign_research memory (StonkFun's "launch summary"
+   panel pattern). Only ever shows values computed from the preset object
+   or a live Pyth fetch already in hand - no invented/estimated numbers
+   (e.g. no "estimated launch cost", since nothing in this codebase
+   actually measures that). */
+.launch-summary {
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 18px; position: sticky; top: 20px;
+}
+.launch-summary h3 {
+  margin: 0 0 12px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint);
+}
+.summary-list { margin: 0; }
+.summary-row {
+  display: flex; justify-content: space-between; gap: 10px; padding: 8px 0;
+  border-bottom: 1px solid var(--border); font-size: 12px;
+}
+.summary-row:last-child { border-bottom: none; }
+.summary-row dt { color: var(--text-muted); margin: 0; }
+.summary-row dd { color: var(--text); font-family: var(--font-mono); text-align: right; margin: 0; }
+.summary-list__empty { font-size: 12px; color: var(--text-faint); }
 .panel__title { font-size: 16px; font-weight: 700; margin: 0 0 4px; }
 .panel__subtitle { font-size: 12px; color: var(--text-faint); margin: 0 0 18px; line-height: 1.5; }
 
