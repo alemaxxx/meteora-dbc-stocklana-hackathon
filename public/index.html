@@ -57,7 +57,11 @@
 
       <div class="field">
         <label>Curve preset</label>
-        <div class="preset-group-selects" id="preset-chips"></div>
+        <div class="preset-picker">
+          <div class="preset-picker__tabs" id="preset-tabs"></div>
+          <input type="text" id="preset-search" placeholder="Search by symbol or name…" autocomplete="off" />
+          <div class="preset-picker__grid" id="preset-grid"></div>
+        </div>
         <p class="field__hint" id="preset-hint"></p>
       </div>
 

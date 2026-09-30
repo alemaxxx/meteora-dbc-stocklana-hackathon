@@ -5,7 +5,9 @@
     imageFileInput: document.getElementById("launch-image-file"),
     name: document.getElementById("launch-name"),
     symbol: document.getElementById("launch-symbol"),
-    presetChips: document.getElementById("preset-chips"),
+    presetTabs: document.getElementById("preset-tabs"),
+    presetSearch: document.getElementById("preset-search"),
+    presetGrid: document.getElementById("preset-grid"),
     presetHint: document.getElementById("preset-hint"),
     firstBuy: document.getElementById("launch-firstbuy"),
     firstBuyLabel: document.getElementById("launch-firstbuy-label"),
@@ -18,6 +20,8 @@
   };
 
   let allPresets = [];
+  let presetGroups = new Map(); // group label -> preset[] (includes the synthetic "pyth:" entries)
+  let activeGroup = null;
   let selectedPresetId = null;
   let selectedPythSymbol = null;
   let imageDataUrl = null;
@@ -106,16 +110,40 @@
   });
 
   // ---- curve presets (fixed SOL presets + Pyth-anchored ones) ----
-  // Rendered as ONE <select> PER GROUP (2026-09-26, replacing a single
-  // dropdown with <optgroup> sections) - grouped by preset.group (set in
-  // dbcConfig.js) so each category (fee-shape curves, one per stock
-  // issuer, live-priced) gets its own compact dropdown instead of one
-  // long combined list. Only one dropdown can hold a real selection at a
-  // time - picking an option in any of them resets every other dropdown
-  // back to its placeholder (see syncGroupSelects), so it's always
-  // obvious which preset is actually active. Pyth-anchored options are
-  // prefixed "pyth:" in their <option value> to distinguish them from a
-  // plain preset id without a second selection mechanism.
+  // Rendered as a scoped SEARCH + CATEGORY TABS + CARD GRID (2026-09-30,
+  // replacing one <select> per group) - grouped by preset.group (set in
+  // dbcConfig.js). A dropdown-per-category stops scaling once the
+  // Backpack Securities catalog keeps growing (60+ tickers already); this
+  // mirrors the pattern a real competitor (StonkFun) uses for the exact
+  // same problem - see project_frontend_redesign_research memory.
+  // Pyth-anchored options are prefixed "pyth:" in their id to distinguish
+  // them from a plain preset id without a second selection mechanism.
+
+  // Turns a preset into {badge, title, subtitle} for its card - each
+  // group's label format is different (see dbcConfig.js), so this picks
+  // out the short symbol/name that actually matters to scan quickly
+  // instead of showing the full, long preset.label on every card.
+  function presetDisplay(preset) {
+    if (preset.id.startsWith("pyth:")) {
+      const title = preset.id.slice(5);
+      const company = preset.label.split(": ")[1]?.split(" (")[0] ?? title;
+      return { badge: title.slice(0, 2).toUpperCase(), title, subtitle: company };
+    }
+    if (preset.quoteSymbol) {
+      // "Quoted in real {Company Name} ({SYMBOL...}) - ..." (dbcConfig.js)
+      const company = preset.label.split("real ")[1]?.split(" (")[0] ?? preset.quoteSymbol;
+      return { badge: preset.quoteSymbol.slice(0, 2).toUpperCase(), title: preset.quoteSymbol, subtitle: company };
+    }
+    // Fee-shape curves: "{Name} ({fee details}) - {note}" - just the name is short enough to be the title.
+    const title = preset.label.split(" (")[0];
+    return { badge: title.slice(0, 2).toUpperCase(), title, subtitle: "SOL-quoted curve" };
+  }
+
+  function shortGroupLabel(group) {
+    if (group.startsWith("Real stock — ")) return group.slice("Real stock — ".length).split(" (")[0];
+    return group;
+  }
+
   async function loadPresets() {
     try {
       const res = await fetch("/api/dbc-presets");
@@ -151,19 +179,13 @@
       // Sorted alphabetically by display label within each group (2026-09-26)
       // - with 59+ stock-quoted presets now, browsing them in whatever order
       // they happen to be defined in dbcConfig.js stopped being usable.
-      els.presetChips.innerHTML = [...groups.entries()]
-        .map(([group, presets]) => [group, [...presets].sort((a, b) => a.label.localeCompare(b.label))])
-        .map(
-          ([group, presets]) =>
-            `<div class="field">
-              <label>${escapeHtml(group)}</label>
-              <select class="preset-group-select" data-group="${escapeHtml(group)}">
-                <option value="">— none selected —</option>
-                ${presets.map((p) => `<option value="${p.id}">${escapeHtml(p.label.split(" - ")[0])}</option>`).join("")}
-              </select>
-            </div>`
-        )
-        .join("");
+      presetGroups = new Map(
+        [...groups.entries()].map(([group, presets]) => [group, [...presets].sort((a, b) => a.label.localeCompare(b.label))])
+      );
+      activeGroup = presetGroups.keys().next().value ?? null;
+
+      renderTabs();
+      renderGrid();
 
       if (allPresets.length > 0) selectPreset(allPresets[0].id);
     } catch (err) {
@@ -171,20 +193,58 @@
     }
   }
 
-  // Sets the dropdown that actually contains `value` to it, and blanks
-  // every other group's dropdown back to its placeholder - keeps exactly
-  // one of the N group selects showing a real selection at a time.
-  function syncGroupSelects(value) {
-    els.presetChips.querySelectorAll("select.preset-group-select").forEach((sel) => {
-      const hasValue = [...sel.options].some((o) => o.value === value);
-      sel.value = hasValue ? value : "";
-    });
+  function renderTabs() {
+    els.presetTabs.innerHTML = [...presetGroups.entries()]
+      .map(
+        ([group, presets]) =>
+          `<button type="button" class="preset-tab${group === activeGroup ? " is-active" : ""}" data-group="${escapeHtml(group)}">${escapeHtml(shortGroupLabel(group))}<span class="preset-tab__count">${presets.length}</span></button>`
+      )
+      .join("");
+  }
+
+  function renderGrid() {
+    const presets = presetGroups.get(activeGroup) ?? [];
+    const query = els.presetSearch.value.trim().toLowerCase();
+    const filtered = query
+      ? presets.filter((p) => p.label.toLowerCase().includes(query) || p.id.toLowerCase().includes(query))
+      : presets;
+
+    if (filtered.length === 0) {
+      els.presetGrid.innerHTML = `<p class="preset-picker__empty">No presets match "${escapeHtml(els.presetSearch.value)}" in this category.</p>`;
+      return;
+    }
+
+    const activeId = selectedPythSymbol ? `pyth:${selectedPythSymbol}` : selectedPresetId;
+    els.presetGrid.innerHTML = filtered
+      .map((p) => {
+        const { badge, title, subtitle } = presetDisplay(p);
+        return `<button type="button" class="preset-card${p.id === activeId ? " is-selected" : ""}" data-id="${p.id}" title="${escapeHtml(p.label)}">
+          <span class="preset-card__badge">${escapeHtml(badge)}</span>
+          <span class="preset-card__title">${escapeHtml(title)}</span>
+          <span class="preset-card__subtitle">${escapeHtml(subtitle)}</span>
+        </button>`;
+      })
+      .join("");
+  }
+
+  // Switches to whichever tab/group actually holds `id` (if it isn't the
+  // currently active one) and re-renders the grid so its card shows as
+  // selected - used when a preset is picked programmatically (the
+  // default on load) rather than by clicking a card directly.
+  function revealPresetInGrid(id) {
+    if (!presetGroups.get(activeGroup)?.some((p) => p.id === id)) {
+      const owningGroup = [...presetGroups.entries()].find(([, presets]) => presets.some((p) => p.id === id))?.[0];
+      if (owningGroup) activeGroup = owningGroup;
+    }
+    els.presetSearch.value = "";
+    renderTabs();
+    renderGrid();
   }
 
   function selectPreset(id) {
     selectedPresetId = id;
     selectedPythSymbol = null;
-    syncGroupSelects(id);
+    revealPresetInGrid(id);
     const preset = allPresets.find((p) => p.id === id);
     els.presetHint.textContent = preset?.label ?? "";
     // Presets quoted in a real xStock (see dbcConfig.js's "stock-quoted-*"
@@ -197,7 +257,7 @@
   async function selectPythSymbol(symbol) {
     selectedPresetId = null;
     selectedPythSymbol = symbol;
-    syncGroupSelects(`pyth:${symbol}`);
+    revealPresetInGrid(`pyth:${symbol}`);
     els.firstBuyLabel.textContent = "SOL for initial buy (optional)";
     els.presetHint.textContent = `Fetching ${symbol}'s live price from Pyth…`;
     try {
@@ -215,12 +275,23 @@
     }
   }
 
-  els.presetChips.addEventListener("change", (ev) => {
-    const select = ev.target.closest("select.preset-group-select");
-    if (!select || !select.value) return; // placeholder re-selected or unrelated event - no-op
-    const value = select.value;
-    if (value.startsWith("pyth:")) selectPythSymbol(value.slice(5));
-    else selectPreset(value);
+  els.presetTabs.addEventListener("click", (ev) => {
+    const tab = ev.target.closest(".preset-tab");
+    if (!tab) return;
+    activeGroup = tab.dataset.group;
+    els.presetSearch.value = "";
+    renderTabs();
+    renderGrid();
+  });
+
+  els.presetSearch.addEventListener("input", renderGrid);
+
+  els.presetGrid.addEventListener("click", (ev) => {
+    const card = ev.target.closest(".preset-card");
+    if (!card) return;
+    const id = card.dataset.id;
+    if (id.startsWith("pyth:")) selectPythSymbol(id.slice(5));
+    else selectPreset(id);
   });
 
   // ---- launch ----

@@ -17,6 +17,13 @@
   --accent-mine: #b892ff;
   --accent-error: #ff5c5c;
 
+  /* CurveForge brand colors - same purple/teal pair as the forge logo,
+     reusing --accent-mine/--accent-success (already close matches) rather
+     than introducing yet another pair of near-duplicate colors. */
+  --brand-purple: var(--accent-mine);
+  --brand-teal: var(--accent-success);
+  --brand-gradient: linear-gradient(135deg, var(--brand-purple), var(--brand-teal));
+
   --font-display: "Space Grotesk", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 
@@ -46,7 +53,7 @@ html, body {
   text-transform: uppercase; color: var(--text-muted); margin-bottom: 2px;
 }
 .topbar h1 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px; }
-.brand-logo { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+.brand-logo { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 2px var(--bg), 0 0 12px rgba(184, 146, 255, 0.45); }
 .tagline { font-size: 13px; color: var(--text-muted); line-height: 1.5; max-width: 56ch; margin-top: 6px; }
 
 .stat { display: flex; flex-direction: column; gap: 3px; align-items: flex-end; }
@@ -89,14 +96,43 @@ html, body {
 }
 .image-actions { display: flex; flex-direction: column; gap: 6px; }
 
-/* #preset-chips holds one <select> PER preset.group (2026-09-26,
-   replacing a single dropdown with <optgroup> sections) - each is a
-   normal .field, just nested and tightened up a bit since they're all
-   sub-parts of the outer "Curve preset" field rather than independent
-   top-level fields. */
-.preset-group-selects { display: flex; flex-direction: column; gap: 10px; }
-.preset-group-selects .field { margin-bottom: 0; }
-.preset-group-selects .field label { color: var(--text); font-weight: 600; }
+/* #preset-chips: search + category tabs + card grid (2026-09-30,
+   replacing the one-<select>-per-group picker) - the tab count keeps
+   growing as more stock-quoted presets get added (see dbcConfig.js), and
+   a flat list of dropdowns doesn't scale past a few dozen options; a
+   scoped search + tabs + clickable cards does (same pattern StonkFun
+   uses for the identical problem - see project_frontend_redesign_research
+   memory). */
+.preset-picker { display: flex; flex-direction: column; gap: 10px; }
+.preset-picker__tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.preset-tab {
+  font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); background: transparent;
+  border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+.preset-tab:hover { color: var(--text); border-color: var(--brand-teal); }
+.preset-tab.is-active { background: var(--brand-gradient); color: var(--bg); border-color: transparent; font-weight: 600; }
+.preset-tab__count { opacity: 0.7; margin-left: 4px; }
+.preset-picker__grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px;
+  max-height: 280px; overflow-y: auto; padding: 2px;
+}
+.preset-card {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left;
+  background: var(--panel-alt); border: 1px solid var(--border); border-radius: 8px; padding: 10px;
+  cursor: pointer; font-family: var(--font-display);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.preset-card:hover { border-color: var(--brand-teal); }
+.preset-card.is-selected { border-color: var(--brand-purple); background: rgba(184, 146, 255, 0.1); }
+.preset-card__badge {
+  width: 26px; height: 26px; border-radius: 50%; background: var(--brand-gradient); color: var(--bg);
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: -0.02em;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.preset-card__title { font-size: 12px; font-weight: 600; color: var(--text); }
+.preset-card__subtitle { font-size: 10px; color: var(--text-muted); line-height: 1.3; }
+.preset-picker__empty { font-size: 12px; color: var(--text-faint); padding: 10px 4px; grid-column: 1 / -1; }
 
 .btn-secondary, .btn-primary, .btn-danger {
   font-family: var(--font-display); font-weight: 600; font-size: 13px; border-radius: 8px;
@@ -105,7 +141,7 @@ html, body {
 }
 .btn-secondary { background: transparent; color: var(--text-muted); }
 .btn-secondary:hover { color: var(--text); }
-.btn-primary { background: var(--accent-mine); color: var(--bg); border-color: var(--accent-mine); }
+.btn-primary { background: var(--brand-gradient); color: var(--bg); border-color: transparent; }
 .btn-primary:hover { opacity: 0.88; }
 .btn-primary:disabled { opacity: 0.5; cursor: default; }
 .btn-primary:active:not(:disabled), .btn-danger:active:not(:disabled) { transform: translateY(1px); }
