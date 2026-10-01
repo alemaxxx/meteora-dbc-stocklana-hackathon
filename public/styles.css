@@ -327,6 +327,7 @@ html, body {
   display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted);
   cursor: pointer; user-select: none;
 }
+.my-tokens-toggle[hidden] { display: none; }
 .my-tokens-toggle input { accent-color: var(--brand-amber); width: 15px; height: 15px; cursor: pointer; }
 .table-wrap { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); overflow-x: auto; }
 table.grid { width: 100%; border-collapse: collapse; min-width: 640px; }
