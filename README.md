@@ -90,10 +90,25 @@ a Meteora ecosystem X post. Still not exhaustive - see sections 5.21-5.23 of `DB
 A daily scheduled routine now watches for new announcements like this one automatically and opens a PR
 (never auto-deploys) when it verifies a new ticker.
 
-**Preset picker UI (2026-09-26)**: with the catalog now this large, the "Curve preset" field renders
-one dropdown PER category (fee-shape curves, xStocks, Backpack Securities, live-priced) instead of one
-long list - picking an option in any dropdown resets the others, and each dropdown's options are
-sorted alphabetically.
+**Preset picker UI (2026-09-26, replaced 2026-09-30)**: the "Curve preset" field now has a search box
+scoped to the selected category, category tabs with live counts, and a clickable card grid - replacing
+the earlier one-dropdown-per-category layout, which stopped scaling once the catalog passed 150+
+stock-quoted presets. See `public/app.js`.
+
+**Third stock issuer added (2026-10-01): Ondo.** 92 more presets quote directly against real
+Ondo-issued stock tokens (Microsoft, Alphabet, Amazon, JPMorgan, Visa, Walmart, and many more - see
+`STOCK_QUOTE_MINTS` in `src/dbcConfig.js`) - named explicitly in Meteora's own Crypto World's Fair
+wishlist ("xStocks, Backpack Onchain, **Ondo RFQ**, and the rest of the catalog"). Ondo's own live
+catalog has 452 tickers (`app.ondo.finance`'s public `/api/v2/assets` endpoint); real mint addresses
+were cross-referenced via Jupiter's token API (`lite-api.jup.ag/tokens/v2/search`, filtered to
+`tags.includes("ondo")` + the real Token-2022 program id), never trusted from a single source. Every
+one of 93 candidate large/well-known tickers was individually checked on-chain the same way as every
+other issuer here (real `getTokenBadge` + Token-2022 extensions) - 92 passed with the identical
+7-extension profile already proven for xStocks/Backpack; the one rejection (GOOG, Alphabet's Class C
+share) genuinely has no Meteora token badge yet, unlike GOOGL (Class A) - a real finding, not an
+oversight. Decimals are 9 for every Ondo mint (confirmed per-mint, not assumed - different from
+xStocks' 8 and Backpack's 6). **The stock-quoted catalog now totals 157 presets across 3 issuers**
+(4 xStocks + 61 Backpack Securities + 92 Ondo), up from 65 the day before.
 
 ## Six curve presets, plus one live-priced mode (2026-09-17)
 
