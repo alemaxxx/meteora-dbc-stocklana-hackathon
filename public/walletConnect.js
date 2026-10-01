@@ -44,6 +44,14 @@ async function connect(wallet) {
   return { address: account.address, account };
 }
 
+// Not every Wallet Standard wallet implements "standard:disconnect" (it's
+// optional in the spec) - when it's missing, there's nothing more to do on
+// the wallet's side; the caller (navBar.js) still forgets the local
+// connected-wallet state either way.
+async function disconnect(wallet) {
+  await wallet.features["standard:disconnect"]?.disconnect();
+}
+
 /**
  * Signs a (possibly already partially-signed) transaction, given as raw
  * bytes, and returns the fully-signed bytes back. Wallet Standard wallets
@@ -58,4 +66,4 @@ async function signTransaction(wallet, account, transactionBytes) {
   return signedTransaction;
 }
 
-window.WalletConnect = { listWallets, onWalletsChanged, connect, signTransaction };
+window.WalletConnect = { listWallets, onWalletsChanged, connect, disconnect, signTransaction };

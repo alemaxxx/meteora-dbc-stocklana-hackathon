@@ -20,6 +20,12 @@
     listeners.forEach((cb) => cb(state));
   }
 
+  function resetButton() {
+    btn.textContent = "Connect Wallet";
+    btn.classList.remove("is-connected");
+    btn.title = "";
+  }
+
   async function connectWallet() {
     const wallets = window.WalletConnect?.listWallets() ?? [];
     if (!wallets.length) {
@@ -33,13 +39,28 @@
       setConnected(address, { wallet, account });
       btn.textContent = `${wallet.name}: ${window.shortAddr(address)}`;
       btn.classList.add("is-connected");
+      btn.title = "Click to disconnect";
     } catch (err) {
       window.toast?.(`Wallet connection failed: ${err.message}`, { type: "error" });
     }
   }
 
+  async function disconnectWallet() {
+    const handle = state.handle;
+    setConnected(null, null);
+    resetButton();
+    try {
+      await window.WalletConnect?.disconnect(handle?.wallet);
+    } catch (err) {
+      // Not every wallet implements standard:disconnect - local state is
+      // already cleared either way, so this is informational only.
+      console.error("Wallet-side disconnect failed (local state already cleared):", err);
+    }
+  }
+
   btn.addEventListener("click", () => {
-    if (!state.address) connectWallet();
+    if (state.address) disconnectWallet();
+    else connectWallet();
   });
 
   // Read via window.CurveForgeWallet.address / .handle - .handle is the

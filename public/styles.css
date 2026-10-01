@@ -94,6 +94,7 @@ html, body {
 }
 .brand-logo { width: 32px; height: 32px; object-fit: contain; }
 #wallet-connect-btn.is-connected { border-color: var(--accent-mine); color: var(--accent-mine); }
+#wallet-connect-btn.is-connected:hover { border-color: var(--accent-error); color: var(--accent-error); }
 
 /* ---- copy button (wallet/mint address) ---- */
 .copy-btn {
