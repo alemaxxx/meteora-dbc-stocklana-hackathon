@@ -198,19 +198,23 @@ section 5.15 of `DBC-MIGRATION-PLAN.md` for the full report:
    connected at all (`launch/prepare`'s Arweave upload, `migrate`, `claim-partner-fee`); added a
    small in-memory per-IP limiter.
 
-## Life after the hackathon: a real business plan, not just a demo (2026-09-22)
+## Life after the hackathon: a real business plan, not just a demo (2026-09-22, revised 2026-09-30)
 
-Meteora's own Crypto World's Fair brief suggests, as one of its "ideas we'd love to see," a **"DBC
+This project's real, working revenue path is simpler and already live: Meteora's DBC program has a
+built-in partner-fee mechanism, and every preset here sets `creatorTradingFeePercentage` explicitly -
+the platform/creator earns a cut of trading fees on every curve it creates, claimable today via
+`claim-partner-fee` (not speculative, not a future feature).
+
+Meteora's own Crypto World's Fair brief also suggests, as one of its "ideas we'd love to see," a **"DBC
 Config Preset Marketplace - popular launchpad configs that builders can easily pay-to-use."** This
-project already has nine real, tested presets across three families - fee-shape (`baixa-taxa-2h-linear`,
-`default-2h-linear`, `flat-1pct`, `exponencial-2h`, `long-24h-linear`), migration-behavior
-(`compounding-damm-v2`), and quote-asset (`stock-quoted-aaplx/tslax/nvdax/spyx`) - a working seed for
-exactly that marketplace, not a hypothetical: a competing attempt at this same idea
-(`aequus`) admits its own "pay-to-use" mechanism is an untested hackathon stub, never even run. The
-path from here to a real marketplace is short: charge per-launch for premium presets, keep the basics
-free. Separately, Meteora has stated that "select qualified teams... building innovative AI or RWA
-use cases with Meteora DBC" during this period may be eligible for discretionary infrastructure
-grants - a named funding path beyond the prize itself.
+project's nine real, tested presets (fee-shape, migration-behavior, and quote-asset families) could
+have seeded exactly that - but a direct competitor in this same bounty, **Barkbork**, has already
+shipped a real version of it (config authors earn the partner-fee share whenever anyone launches
+against their published config). Worth naming honestly rather than re-claiming: that specific
+business-model niche is no longer open ground for this project. Separately, Meteora has stated that
+"select qualified teams... building innovative AI or RWA use cases with Meteora DBC" during this
+period may be eligible for discretionary infrastructure grants - a named funding path beyond the prize
+itself.
 
 ## What's still left to validate
 
