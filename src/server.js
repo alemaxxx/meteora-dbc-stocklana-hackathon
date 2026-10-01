@@ -9,6 +9,7 @@ import { prepareTokenLaunch, confirmTokenLaunch, getLaunchedTokens, getLaunchedT
 import { PYTH_STOCK_SYMBOLS, computePythAnchoredMarketCaps } from "./pythPricing.js";
 import { getPublicPoolInfo } from "./dbcPoolInfo.js";
 import { getDammPoolInfo } from "./dammPoolInfo.js";
+import { getConvictionPoolStatus, preparePoolCreationTransaction, preparePositionTransaction, submitConvictionTransaction } from "./dlmmConviction.js";
 import { rateLimit } from "./rateLimit.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -267,6 +268,52 @@ export function startServer() {
     } catch (err) {
       console.error("Failed to read public DAMM v2 pool info:", err);
       res.status(500).json({ error: err.message });
+    }
+  });
+
+  // "DLMM Conviction Pools" (2026-10-01) - a second, concentrated-liquidity
+  // position opened alongside an already-migrated DBC pool, manually
+  // triggered from Explore. Never automatic. See dlmmConviction.js's
+  // header comment for the full design and the real on-chain
+  // "token launch owner proof" requirement this surfaces to the caller.
+  app.get("/api/conviction/:dammPoolAddress/status", async (req, res) => {
+    try {
+      const status = await getConvictionPoolStatus(req.params.dammPoolAddress, req.query.wallet || null);
+      if (!status) return res.status(404).json({ error: "No migrated DAMM v2 pool found for that address." });
+      res.json(status);
+    } catch (err) {
+      console.error("Failed to read Conviction Pool status:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/conviction/prepare-pool", costlyRouteLimit, async (req, res) => {
+    try {
+      const prep = await preparePoolCreationTransaction(req.body);
+      res.json(prep);
+    } catch (err) {
+      console.error("Failed to prepare Conviction Pool creation:", err);
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/conviction/prepare-position", costlyRouteLimit, async (req, res) => {
+    try {
+      const prep = await preparePositionTransaction(req.body);
+      res.json(prep);
+    } catch (err) {
+      console.error("Failed to prepare Conviction Pool position:", err);
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/conviction/submit", costlyRouteLimit, async (req, res) => {
+    try {
+      const result = await submitConvictionTransaction(req.body);
+      res.json(result);
+    } catch (err) {
+      console.error("Failed to submit Conviction Pool transaction:", err);
+      res.status(400).json({ error: err.message });
     }
   });
 

@@ -54,6 +54,7 @@
           <span class="fee-rate__base damm-price" data-pool="${token.poolAddress}" data-quote-symbol="${escapeHtml(token.quoteSymbol ?? "SOL")}">loading live price…</span>
           <div class="dbc-actions">
             <button type="button" class="sf-action-btn dbc-claim-btn" data-id="${token.id}">Claim fees</button>
+            <button type="button" class="sf-action-btn dbc-conviction-btn" data-pool="${token.poolAddress}" data-symbol="${escapeHtml(token.symbol ?? "")}" data-quote-symbol="${escapeHtml(token.quoteSymbol ?? "SOL")}">Open Conviction Pool</button>
           </div>`;
       } else {
         poolCell = `<a class="sf-meteora-link" href="${solscanLink(token.poolAddress)}" target="_blank" rel="noopener" title="${token.poolAddress}">DBC curve ↗</a>
@@ -112,6 +113,64 @@
         }
       })
     );
+  }
+
+  // Small dedicated dialog for the one case that needs real numeric input
+  // (base + quote amounts to seed a Conviction Pool position) - reuses the
+  // same .modal-overlay/.modal shell as confirmDialog/walletPickerDialog
+  // in uiKit.js for visual consistency, kept local since nothing else in
+  // the app needs a two-field numeric form.
+  function amountsDialog(baseSymbol, quoteSymbol) {
+    return new Promise((resolve) => {
+      const overlay = document.createElement("div");
+      overlay.className = "modal-overlay confirm-overlay";
+      overlay.innerHTML = `
+        <div class="modal confirm-modal" role="dialog" aria-modal="true" aria-labelledby="conviction-amounts-title">
+          <div class="modal__header"><h2 id="conviction-amounts-title">Open Conviction Pool</h2></div>
+          <div class="modal__body">
+            <p class="confirm-modal__message">
+              This deposits real capital into a new concentrated liquidity position (±3% around
+              the current price) - both amounts leave your wallet. This is not reversible without
+              later removing the position yourself.
+            </p>
+            <div class="field">
+              <label for="conviction-base-amount">${escapeHtml(baseSymbol)} amount</label>
+              <input type="number" id="conviction-base-amount" min="0" step="any" placeholder="0.0" />
+            </div>
+            <div class="field">
+              <label for="conviction-quote-amount">${escapeHtml(quoteSymbol)} amount</label>
+              <input type="number" id="conviction-quote-amount" min="0" step="any" placeholder="0.0" />
+            </div>
+          </div>
+          <div class="modal__footer">
+            <button type="button" class="btn-secondary confirm-modal__cancel">Cancel</button>
+            <button type="button" class="btn-primary confirm-modal__ok">Open position</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+      const baseInput = overlay.querySelector("#conviction-base-amount");
+      const quoteInput = overlay.querySelector("#conviction-quote-amount");
+      baseInput.focus();
+
+      function settle(result) {
+        overlay.remove();
+        resolve(result);
+      }
+      overlay.querySelector(".confirm-modal__cancel").addEventListener("click", () => settle(null));
+      overlay.querySelector(".confirm-modal__ok").addEventListener("click", () => {
+        const baseAmountUi = Number(baseInput.value);
+        const quoteAmountUi = Number(quoteInput.value);
+        if (!(baseAmountUi > 0) || !(quoteAmountUi > 0)) {
+          toast("Both amounts need to be greater than zero.", { type: "error" });
+          return;
+        }
+        settle({ baseAmountUi, quoteAmountUi });
+      });
+      overlay.addEventListener("click", (ev) => {
+        if (ev.target === overlay) settle(null);
+      });
+    });
   }
 
   function visibleTokens() {
@@ -255,6 +314,114 @@
       toast(results.join(" · "), { type: results.every((r) => r.includes("claimed")) ? "success" : "warning", duration: 10000 });
       claimBtn.disabled = false;
       claimBtn.textContent = original;
+      return;
+    }
+
+    // "DLMM Conviction Pool" (2026-10-01) - manually triggered only, never
+    // automatic. Two real on-chain transactions, both wallet-signed by
+    // the connected wallet (same prepare/sign/submit shape as everything
+    // else - see WALLET-INTEGRATION.md): one creates a new DLMM pool for
+    // this pair if it doesn't exist yet, the second opens a concentrated
+    // (±3%) position in it - the actual "conviction" liquidity, which
+    // deposits real capital from the connected wallet.
+    const convictionBtn = ev.target.closest(".dbc-conviction-btn");
+    if (convictionBtn) {
+      const connectedWallet = window.CurveForgeWallet?.address;
+      if (!connectedWallet) {
+        toast("Connect your wallet first - this deposits real capital from the connected wallet.", { type: "error" });
+        return;
+      }
+
+      const dammPoolAddress = convictionBtn.dataset.pool;
+      const baseSymbol = convictionBtn.dataset.symbol || "token";
+      const quoteSymbol = convictionBtn.dataset.quoteSymbol || "SOL";
+      const original = convictionBtn.textContent;
+      convictionBtn.disabled = true;
+
+      async function signAndSubmit(transactionBase64, blockhash, lastValidBlockHeight) {
+        const walletHandle = window.CurveForgeWallet.handle;
+        const txBytes = Uint8Array.from(atob(transactionBase64), (c) => c.charCodeAt(0));
+        const tx = solanaWeb3.Transaction.from(txBytes);
+        const unsignedBytes = tx.serialize({ requireAllSignatures: false });
+        const signedBytes = await window.WalletConnect.signTransaction(walletHandle.wallet, walletHandle.account, unsignedBytes);
+        let binary = "";
+        for (const b of signedBytes) binary += String.fromCharCode(b);
+        const signedTransactionBase64 = btoa(binary);
+
+        const subRes = await fetch("/api/conviction/submit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ signedTransactionBase64, blockhash, lastValidBlockHeight }),
+        });
+        const subData = await subRes.json();
+        if (!subRes.ok) throw new Error(subData.error ?? `HTTP ${subRes.status}`);
+        return subData;
+      }
+
+      try {
+        convictionBtn.textContent = "Checking…";
+        const statusRes = await fetch(`/api/conviction/${encodeURIComponent(dammPoolAddress)}/status?wallet=${encodeURIComponent(connectedWallet)}`);
+        const status = await statusRes.json();
+        if (!statusRes.ok) throw new Error(status.error ?? `HTTP ${statusRes.status}`);
+
+        let dlmmPoolAddress = status.dlmmPoolAddress;
+
+        if (!dlmmPoolAddress) {
+          if (status.creatorHasRequiredBalance === false) {
+            throw new Error(
+              `Your connected wallet needs to hold some ${baseSymbol} to open a Conviction Pool - Meteora's own program requires this as proof against spam pool creation.`
+            );
+          }
+          const confirmed = await confirmDialog(
+            `No DLMM pool exists yet for this token - this first creates one (a separate, small transaction), priced at the current market rate.`,
+            { title: "Create a new DLMM pool?", confirmText: "Create pool" }
+          );
+          if (!confirmed) {
+            convictionBtn.disabled = false;
+            convictionBtn.textContent = original;
+            return;
+          }
+
+          convictionBtn.textContent = "Creating pool…";
+          const prepPoolRes = await fetch("/api/conviction/prepare-pool", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ baseMint: status.baseMint, quoteMint: status.quoteMint, creatorPublicKey: connectedWallet, livePrice: status.livePrice }),
+          });
+          const prepPool = await prepPoolRes.json();
+          if (!prepPoolRes.ok) throw new Error(prepPool.error ?? `HTTP ${prepPoolRes.status}`);
+
+          convictionBtn.textContent = "Approve pool creation…";
+          await signAndSubmit(prepPool.transactionBase64, prepPool.blockhash, prepPool.lastValidBlockHeight);
+          dlmmPoolAddress = prepPool.poolAddress;
+          toast("DLMM pool created - now set up the position.", { type: "success" });
+        }
+
+        const amounts = await amountsDialog(baseSymbol, quoteSymbol);
+        if (!amounts) {
+          convictionBtn.disabled = false;
+          convictionBtn.textContent = original;
+          return;
+        }
+
+        convictionBtn.textContent = "Approve position…";
+        const prepPosRes = await fetch("/api/conviction/prepare-position", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dlmmPoolAddress, baseMint: status.baseMint, quoteMint: status.quoteMint, creatorPublicKey: connectedWallet, baseAmountUi: amounts.baseAmountUi, quoteAmountUi: amounts.quoteAmountUi }),
+        });
+        const prepPos = await prepPosRes.json();
+        if (!prepPosRes.ok) throw new Error(prepPos.error ?? `HTTP ${prepPosRes.status}`);
+
+        convictionBtn.textContent = "Confirming on-chain…";
+        await signAndSubmit(prepPos.transactionBase64, prepPos.blockhash, prepPos.lastValidBlockHeight);
+        toast(`Conviction Pool position opened (${baseSymbol}).`, { type: "success", duration: 10000 });
+      } catch (err) {
+        toast(`Conviction Pool failed: ${err.message}`, { type: "error", duration: 10000 });
+      } finally {
+        convictionBtn.disabled = false;
+        convictionBtn.textContent = original;
+      }
     }
   });
 
