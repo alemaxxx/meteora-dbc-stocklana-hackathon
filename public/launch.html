@@ -14,13 +14,16 @@
 <body>
   <header class="topnav">
     <a href="index.html" class="topnav__brand"><img src="logo.webp" alt="" class="brand-logo" />CurveForge</a>
-    <nav class="topnav__links">
+    <nav class="topnav__links" id="nav-links">
       <a href="index.html" class="topnav__link">Home</a>
       <a href="launch.html" class="topnav__link is-active">Launch</a>
       <a href="explore.html" class="topnav__link">Explore</a>
       <a href="docs.html" class="topnav__link">Docs</a>
     </nav>
     <div class="topnav__actions">
+      <button type="button" class="topnav__burger" id="nav-burger" aria-label="Toggle menu" aria-expanded="false" aria-controls="nav-links">
+        <span></span><span></span><span></span>
+      </button>
       <a href="https://x.com/CurveForge" target="_blank" rel="noopener" class="topnav__icon-btn" title="CurveForge on X">𝕏</a>
       <button type="button" class="btn-secondary" id="wallet-connect-btn">Connect Wallet</button>
     </div>

@@ -8,6 +8,23 @@
 // and walletConnect.js (window.WalletConnect) loaded first - see each
 // page's <script> order.
 (function () {
+  // Mobile hamburger menu (2026-10-01) - independent of the wallet button
+  // below, so it still works on any page even if that button is missing.
+  const burger = document.getElementById("nav-burger");
+  const links = document.getElementById("nav-links");
+  if (burger && links) {
+    burger.addEventListener("click", () => {
+      const isOpen = links.classList.toggle("is-open");
+      burger.setAttribute("aria-expanded", String(isOpen));
+    });
+    links.querySelectorAll(".topnav__link").forEach((link) => {
+      link.addEventListener("click", () => {
+        links.classList.remove("is-open");
+        burger.setAttribute("aria-expanded", "false");
+      });
+    });
+  }
+
   const btn = document.getElementById("wallet-connect-btn");
   if (!btn) return;
 

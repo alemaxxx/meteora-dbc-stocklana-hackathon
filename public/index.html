@@ -13,13 +13,16 @@
 <body>
   <header class="topnav">
     <a href="index.html" class="topnav__brand"><img src="logo.webp" alt="" class="brand-logo" />CurveForge</a>
-    <nav class="topnav__links">
+    <nav class="topnav__links" id="nav-links">
       <a href="index.html" class="topnav__link is-active">Home</a>
       <a href="launch.html" class="topnav__link">Launch</a>
       <a href="explore.html" class="topnav__link">Explore</a>
       <a href="docs.html" class="topnav__link">Docs</a>
     </nav>
     <div class="topnav__actions">
+      <button type="button" class="topnav__burger" id="nav-burger" aria-label="Toggle menu" aria-expanded="false" aria-controls="nav-links">
+        <span></span><span></span><span></span>
+      </button>
       <a href="https://x.com/CurveForge" target="_blank" rel="noopener" class="topnav__icon-btn" title="CurveForge on X">𝕏</a>
       <button type="button" class="btn-secondary" id="wallet-connect-btn">Connect Wallet</button>
     </div>
@@ -30,15 +33,31 @@
       <span class="eyebrow">stocklana · colosseum crypto world's fair · meteora track</span>
       <h1 class="hero__title">Forge a token on a real bonding curve.</h1>
       <p class="hero__subtitle">
-        CurveForge launches tokens directly on Meteora's Dynamic Bonding Curve - no presale, no team
-        allocation, the curve already is the liquidity. Quote your launch in SOL, or directly against
-        real tokenized stocks like AAPL, TSLA and NVDA.
+        Launch a token with instant, built-in liquidity - no presale, no team allocation. It's powered
+        by a Dynamic Bonding Curve (a formula that sets the price automatically as people buy). Quote
+        your launch in SOL, or directly against real tokenized stocks like AAPL, TSLA and NVDA.
       </p>
       <div class="hero__cta">
         <a href="launch.html" class="btn-primary">Launch a token</a>
         <a href="explore.html" class="btn-secondary">Explore launched tokens</a>
       </div>
-      <p class="hero__stat" id="hero-stat"></p>
+      <div class="hero__curve" aria-hidden="true">
+        <svg viewBox="0 0 400 120" class="hero__curve-svg">
+          <path d="M 10 110 Q 150 100 220 60 T 390 15" fill="none" stroke="url(#curveGrad)" stroke-width="3" stroke-linecap="round" />
+          <defs>
+            <linearGradient id="curveGrad" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="var(--brand-purple)" />
+              <stop offset="100%" stop-color="var(--brand-amber)" />
+            </linearGradient>
+          </defs>
+          <circle cx="10" cy="110" r="4" fill="var(--brand-purple)" />
+          <circle cx="390" cy="15" r="4" fill="var(--brand-amber)" />
+        </svg>
+      </div>
+      <p class="hero__stat" id="hero-stat">Real stock-quoted presets available now.</p>
+      <div class="hero__tickers">
+        <span>AAPL</span><span>TSLA</span><span>NVDA</span><span>MSFT</span><span>AMZN</span><span>+150 more</span>
+      </div>
     </section>
 
     <section class="feature-grid">
@@ -64,8 +83,8 @@
     </section>
 
     <p class="field__hint" style="text-align: center; margin-top: 32px;">
-      Extracted from the <a href="https://github.com/alemaxxx/lauch-token" target="_blank" rel="noopener">Lançar Token Bot</a> ·
-      <a href="https://github.com/alemaxxx/meteora-dbc-stocklana-hackathon" target="_blank" rel="noopener">View source on GitHub</a>
+      Open source on <a href="https://github.com/alemaxxx/meteora-dbc-stocklana-hackathon" target="_blank" rel="noopener">GitHub</a> ·
+      built on production code from the <a href="https://github.com/alemaxxx/lauch-token" target="_blank" rel="noopener">Lançar Token Bot</a>
     </p>
   </div>
 
