@@ -72,6 +72,39 @@ export const STOCK_QUOTE_MINTS = {
   TSLAx: { symbol: "TSLAx", label: "Tesla (TSLAx)", mint: "XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB", decimals: 8, issuer: "xStocks (Backed Finance)" },
   NVDAx: { symbol: "NVDAx", label: "NVIDIA (NVDAx)", mint: "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh", decimals: 8, issuer: "xStocks (Backed Finance)" },
   SPYx: { symbol: "SPYx", label: "S&P 500 (SPYx)", mint: "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W", decimals: 8, issuer: "xStocks (Backed Finance)" },
+  // 27 more xStocks added 2026-10-01 - found by diffing this catalog against
+  // the community-maintained usestrak/strak registry (public/data/equities.json)
+  // after the daily @MeteoraEco ticker-watch routine stalled mid-run. Every
+  // one individually re-verified on-chain (dbcClient.state.getTokenBadge +
+  // Token-2022 extension profile via getMint/getExtensionTypes), not trusted
+  // from the registry alone - same discipline as every other entry here.
+  AMDx: { symbol: "AMDx", label: "AMD (AMDx)", mint: "XsXcJ6GZ9kVnjqGsjBnktRcuwMBmvKWh8S93RefZ1rF", decimals: 8, issuer: "xStocks (Backed Finance)" },
+  AMZNx: { symbol: "AMZNx", label: "Amazon (AMZNx)", mint: "Xs3eBt7uRfJX8QUs4suhyU8p2M6DoUDrJyWBa8LLZsg", decimals: 8, issuer: "xStocks (Backed Finance)" },
+  AVGOx: { symbol: "AVGOx", label: "Broadcom (AVGOx)", mint: "XsgSaSvNSqLTtFuyWPBhK9196Xb9Bbdyjj4fH3cPJGo", decimals: 8, issuer: "xStocks (Backed Finance)" },
+  "BRK.Bx": { symbol: "BRK.Bx", label: "Berkshire Hathaway (BRK.Bx)", mint: "Xs6B6zawENwAbWVi7w92rjazLuAr5Az59qgWKcNb45x", decimals: 8, issuer: "xStocks (Backed Finance)" },
+  COINx: { symbol: "COINx", label: "Coinbase (COINx)", mint: "Xs7ZdzSHLU9ftNJsii5fCeJhoRWSC32SQGzGQtePxNu", decimals: 8, issuer: "xStocks (Backed Finance)" },
+  CRCLx: { symbol: "CRCLx", label: "Circle (CRCLx)", mint: "XsueG8BtpquVJX9LVLLEGuViXUungE6WmK5YZ3p3bd1", decimals: 8, issuer: "xStocks (Backed Finance)" },
+  DFDVx: { symbol: "DFDVx", label: "DeFi Development Corp (DFDVx)", mint: "Xs2yquAgsHByNzx68WJC55WHjHBvG9JsMB7CWjTLyPy", decimals: 8, issuer: "xStocks (Backed Finance)" },
+  GLDx: { symbol: "GLDx", label: "Gold (GLDx)", mint: "Xsv9hRk1z5ystj9MhnA7Lq4vjSsLwzL2nxrwmwtD3re", decimals: 8, issuer: "xStocks (Backed Finance)" },
+  GMEx: { symbol: "GMEx", label: "GameStop (GMEx)", mint: "Xsf9mBktVB9BSU5kf4nHxPq5hCBJ2j2ui3ecFGxPRGc", decimals: 8, issuer: "xStocks (Backed Finance)" },
+  GOOGLx: { symbol: "GOOGLx", label: "Alphabet (GOOGLx)", mint: "XsCPL9dNWBMvFtTmwcCA5v3xWPSMEBCszbQdiLLq6aN", decimals: 8, issuer: "xStocks (Backed Finance)" },
+  HOODx: { symbol: "HOODx", label: "Robinhood (HOODx)", mint: "XsvNBAYkrDRNhA7wPHQfX3ZUXZyZLdnCQDfHZ56bzpg", decimals: 8, issuer: "xStocks (Backed Finance)" },
+  INTCx: { symbol: "INTCx", label: "Intel (INTCx)", mint: "XshPgPdXFRWB8tP1j82rebb2Q9rPgGX37RuqzohmArM", decimals: 8, issuer: "xStocks (Backed Finance)" },
+  KOx: { symbol: "KOx", label: "Coca-Cola (KOx)", mint: "XsaBXg8dU5cPM6ehmVctMkVqoiRG2ZjMo1cyBJ3AykQ", decimals: 8, issuer: "xStocks (Backed Finance)" },
+  MCDx: { symbol: "MCDx", label: "McDonald's (MCDx)", mint: "XsqE9cRRpzxcGKDXj1BJ7Xmg4GRhZoyY1KpmGSxAWT2", decimals: 8, issuer: "xStocks (Backed Finance)" },
+  METAx: { symbol: "METAx", label: "Meta Platforms (METAx)", mint: "Xsa62P5mvPszXL1krVUnU5ar38bBSVcWAB6fmPCo5Zu", decimals: 8, issuer: "xStocks (Backed Finance)" },
+  MSFTx: { symbol: "MSFTx", label: "Microsoft (MSFTx)", mint: "XspzcW1PRtgf6Wj92HCiZdjzKCyFekVD8P5Ueh3dRMX", decimals: 8, issuer: "xStocks (Backed Finance)" },
+  MSTRx: { symbol: "MSTRx", label: "MicroStrategy (MSTRx)", mint: "XsP7xzNPvEHS1m6qfanPUGjNmdnmsLKEoNAnHjdxxyZ", decimals: 8, issuer: "xStocks (Backed Finance)" },
+  PLTRx: { symbol: "PLTRx", label: "Palantir (PLTRx)", mint: "XsoBhf2ufR8fTyNSjqfU71DYGaE6Z3SUGAidpzriAA4", decimals: 8, issuer: "xStocks (Backed Finance)" },
+  QQQx: { symbol: "QQQx", label: "Nasdaq-100 (QQQx)", mint: "Xs8S1uUs1zvS2p7iwtsG3b6fkhpvmwz4GYU3gWAmWHZ", decimals: 8, issuer: "xStocks (Backed Finance)" },
+  SPCXx: { symbol: "SPCXx", label: "SpaceX (SPCXx)", mint: "Xs3oZwbHvqis4NYcf4YKWmEia2eC84wSiVrcYcTqpH8", decimals: 8, issuer: "xStocks (Backed Finance)" },
+  STRCx: { symbol: "STRCx", label: "Strategy Preferred (STRCx)", mint: "Xs78JED6PFZxWc2wCEPspZW9kL3Se5J7L5TChKgsidH", decimals: 8, issuer: "xStocks (Backed Finance)" },
+  TQQQx: { symbol: "TQQQx", label: "ProShares UltraPro QQQ (TQQQx)", mint: "XsjQP3iMAaQ3kQScQKthQpx9ALRbjKAjQtHg6TFomoc", decimals: 8, issuer: "xStocks (Backed Finance)" },
+  TSMx: { symbol: "TSMx", label: "Taiwan Semiconductor (TSMx)", mint: "XsafvsGtzFqqHgTnA3aPC83EAMkacU5mcGtcSayhpVV", decimals: 8, issuer: "xStocks (Backed Finance)" },
+  UNHx: { symbol: "UNHx", label: "UnitedHealth (UNHx)", mint: "XszvaiXGPwvk2nwb3o9C1CX4K6zH8sez11E6uyup6fe", decimals: 8, issuer: "xStocks (Backed Finance)" },
+  VIDAx: { symbol: "VIDAx", label: "Vida Global (VIDAx)", mint: "XsfCC9VL4DamVGNgdJpfLXB3sBVa158Gbx8sh7NzmTk", decimals: 8, issuer: "xStocks (Backed Finance)" },
+  WMTx: { symbol: "WMTx", label: "Walmart (WMTx)", mint: "Xs151QeqTCiuKtinzfRATnUESM2xTU6V9Wy8Vy538ci", decimals: 8, issuer: "xStocks (Backed Finance)" },
+  XOMx: { symbol: "XOMx", label: "Exxon Mobil (XOMx)", mint: "XsaHND8sHyfMfsWPj6kSdd5VwvCayZvjYgKmmcNL5qh", decimals: 8, issuer: "xStocks (Backed Finance)" },
   // Backpack Securities - a SEPARATE, competing tokenized-stock issuer from
   // Backed Finance's xStocks above (confirmed 2026-09-26: different mints,
   // different legal structure - direct 1:1 redeemable security entitlement
@@ -243,10 +276,12 @@ export const STOCK_QUOTE_MINTS = {
   SBUXon: { symbol: "SBUXon", label: "Starbucks (SBUXon, Ondo)", mint: "iPFqjcZQTNMNXA4kbShbMhfAVD8yr8Uq9UtXMV6ondo", decimals: 9, issuer: "Ondo" },
   SCHWon: { symbol: "SCHWon", label: "Charles Schwab (SCHWon, Ondo)", mint: "cnc6M1zXLdrGR5LAQVcaJDfgezMiVWNtGQsVy1Kondo", decimals: 9, issuer: "Ondo" },
   SLBon: { symbol: "SLBon", label: "SLB (SLBon, Ondo)", mint: "i7ZS13SF6BCKbzvLujp2UqLNMgM1XVnZ7A7wC6tondo", decimals: 9, issuer: "Ondo" },
+  SLVon: { symbol: "SLVon", label: "iShares Silver Trust (SLVon, Ondo)", mint: "iy11ytbSGcUnrjE6Lfv78TFqxKyUESfku1FugS9ondo", decimals: 9, issuer: "Ondo" },
   SMCIon: { symbol: "SMCIon", label: "Super Micro Computer (SMCIon, Ondo)", mint: "jLca79XzcewRuBZyaJxVxuKpUHcEix1X4CP1RP9ondo", decimals: 9, issuer: "Ondo" },
   SOFIon: { symbol: "SOFIon", label: "SoFi Technologies (SOFIon, Ondo)", mint: "mqL8yXQpeSvc7NgrAtLLPtRvUiWyLoG5RWLv16iondo", decimals: 9, issuer: "Ondo" },
   SPGIon: { symbol: "SPGIon", label: "S&P Global (SPGIon, Ondo)", mint: "JrTYw7A9jihX5TwpRStYviEbsYf2X2VJpZ13719ondo", decimals: 9, issuer: "Ondo" },
   SPOTon: { symbol: "SPOTon", label: "Spotify (SPOTon, Ondo)", mint: "jzCvs2Pk8tDcfsFRqnEMjurgaQW4iQfEkandUR8ondo", decimals: 9, issuer: "Ondo" },
+  SPYon: { symbol: "SPYon", label: "SPDR S&P 500 ETF Trust (SPYon, Ondo)", mint: "k18WJUULWheRkSpSquYGdNNmtuE2Vbw1hpuUi92ondo", decimals: 9, issuer: "Ondo" },
   STLDon: { symbol: "STLDon", label: "Steel Dynamics (STLDon, Ondo)", mint: "n7DwzSkv1SBkcA9qj8LU9sZ9sRn72Z6spU2w2b9ondo", decimals: 9, issuer: "Ondo" },
   TCOMon: { symbol: "TCOMon", label: "Trip.com Group (TCOMon, Ondo)", mint: "9PMjLqd8zPdKkJUXarnit5t7tPL3cCscwHzy7ATondo", decimals: 9, issuer: "Ondo" },
   TMOon: { symbol: "TMOon", label: "Thermo Fisher Scientific (TMOon, Ondo)", mint: "T699bgtXQw4CJ59rQ4VzLsupVQUzoL5RmuhHnKrondo", decimals: 9, issuer: "Ondo" },

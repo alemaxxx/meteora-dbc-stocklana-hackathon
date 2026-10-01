@@ -110,6 +110,22 @@ oversight. Decimals are 9 for every Ondo mint (confirmed per-mint, not assumed -
 xStocks' 8 and Backpack's 6). **The stock-quoted catalog now totals 157 presets across 3 issuers**
 (4 xStocks + 61 Backpack Securities + 92 Ondo), up from 65 the day before.
 
+**27 more xStocks + 2 more Ondo tickers added (2026-10-01, later same day).** Found by diffing
+`STOCK_QUOTE_MINTS` against the community-maintained
+[usestrak/strak](https://github.com/usestrak/strak) registry (93 Solana equities listed there as of
+this check) after the daily @MeteoraEco ticker-watch routine stalled mid-run verifying an unrelated
+candidate ($BE) that couldn't be re-confirmed without a logged-in X session. All 29 candidates found
+this way were individually re-verified on-chain the same way as every other entry (real
+`dbcClient.state.getTokenBadge` + Token-2022 extension profile) before being added - 27 xStocks
+(Meta, Microsoft, Amazon, Alphabet, Coinbase, AMD, and more, including some non-equity ETFs like
+GLD/QQQ/TQQQ) matched the identical profile already proven for the first 4 xStocks; 2 Ondo
+candidates (SLV, SPY) initially looked like they failed verification against the xStocks/Backpack
+extension profile, but turned out to legitimately use Ondo's own slightly different 7-extension set
+(no `permanentDelegate`, no `scaledUiAmountConfig` - confirmed by comparing against an
+already-verified Ondo mint) - a reminder that "verified" means matching the real issuer's own
+profile, not a single hardcoded one. **The stock-quoted catalog now totals 186 presets across 3
+issuers** (31 xStocks + 61 Backpack Securities + 94 Ondo).
+
 ## Six curve presets, plus one live-priced mode (2026-09-17)
 
 - `baixa-taxa-2h-linear` (default) and `default-2h-linear` - the two original presets (see the real
