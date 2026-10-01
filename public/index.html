@@ -99,7 +99,7 @@
     fetch("/api/dbc-presets")
       .then((r) => r.json())
       .then((data) => {
-        const stockPresets = (data.presets ?? []).filter((p) => p.quoteSymbol).length;
+        const stockPresets = (data.presets ?? []).filter((p) => p.group?.startsWith("Real stock")).length;
         document.getElementById("hero-stat").textContent = stockPresets > 0
           ? `${stockPresets} real stock-quoted presets available right now.`
           : "";

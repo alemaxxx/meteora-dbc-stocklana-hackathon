@@ -97,6 +97,9 @@
       const company = preset.label.split(": ")[1]?.split(" (")[0] ?? title;
       return { badge: title.slice(0, 2).toUpperCase(), title, subtitle: company };
     }
+    if (preset.group === "USDC-quoted") {
+      return { badge: "US", title: preset.quoteSymbol, subtitle: "USDC-quoted curve" };
+    }
     if (preset.quoteSymbol) {
       // "Quoted in real {Company Name} ({SYMBOL...}) - ..." (dbcConfig.js)
       const company = preset.label.split("real ")[1]?.split(" (")[0] ?? preset.quoteSymbol;

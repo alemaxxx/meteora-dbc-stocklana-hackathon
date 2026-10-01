@@ -17,7 +17,7 @@ import {
   deriveTokenBadgeAddress,
 } from "@meteora-ag/dynamic-bonding-curve-sdk";
 import { connection, dbcClient } from "./connection.js";
-import { requireWalletKeypair, SOL_MINT } from "./config.js";
+import { requireWalletKeypair, SOL_MINT, USDC_MINT } from "./config.js";
 import { getMintInfo } from "./tokenInfo.js";
 import { sendAndConfirmWithRetry } from "./txHelpers.js";
 import { computePythAnchoredMarketCaps, PYTH_STOCK_SYMBOLS, isPythStockSymbolSupported } from "./pythPricing.js";
@@ -363,6 +363,29 @@ export const DBC_CURVE_PRESETS = [
       compoundingFeeBps: 5000, // 50% of trading fees compound back into the pool's own liquidity, the rest still pays out
     },
   },
+  // Added 2026-10-01 - competitive research found a direct competitor
+  // (EquiCurve) accepts both SOL and USDC as quote, where this project
+  // only offered SOL. Confirmed on-chain first (not assumed) that USDC
+  // needs no Meteora token badge - it's a plain legacy SPL Token mint,
+  // same no-op path as SOL (see resolveTokenBadge below). Reuses the
+  // already-validated "low fee" 3%→0.5%/2h schedule rather than inventing
+  // a new one. The 1,000 USDC threshold is a reasoned round-number default
+  // (roughly in the same ballpark as 10 SOL at recent prices, ~$1,180) -
+  // a genuine product-taste choice, not a precisely researched optimum;
+  // worth revisiting once there's real usage data.
+  {
+    id: "usdc-quoted-low-fee",
+    group: "USDC-quoted",
+    quoteMint: USDC_MINT,
+    quoteSymbol: "USDC",
+    label: "Quoted in USDC (3%→0.5% over 2h, migrates at 1,000 USDC accumulated in the curve) - trades directly against USDC instead of SOL",
+    totalTokenSupply: 1_000_000_000,
+    percentageSupplyOnMigration: 20,
+    migrationQuoteThreshold: 1000,
+    startingFeeBps: 300,
+    endingFeeBps: 50,
+    schedulerDurationSeconds: 7200,
+  },
   // Added 2026-09-22 - direct response to how several other Stocklana
   // submissions raised the bar on "tokenized stock" ideas: they quote the
   // DBC pool directly in a REAL tokenized stock (xStock), not just use one
@@ -432,6 +455,7 @@ function sharedCurveConfig(
     totalTokenSupply = 1_000_000_000,
     migrationFeeOption = MigrationFeeOption.FixedBps100,
     migratedPoolFee,
+    enableFirstSwapWithMinFee = false,
   }
 ) {
   return {
@@ -452,7 +476,19 @@ function sharedCurveConfig(
       collectFeeMode: CollectFeeMode.QuoteToken, // fee always in the quote (SOL/SPYx/...), never in the new token - more predictable to withdraw later (see dbcMigration.js)
       creatorTradingFeePercentage: 100, // 100% of the creator fee stays with us (no third-party partner in this project)
       poolCreationFee: 0,
-      enableFirstSwapWithMinFee: false,
+      // Real on-chain anti-sniper field (not the quote-simulation-only
+      // eligibleForFirstSwapWithMinFee used in simulatePresetBuys below) -
+      // confirmed in the SDK's embedded IDL. Overridable per-preset, but
+      // no preset sets it true yet: the on-chain validation only credits
+      // the minimum fee to a swap bundled ATOMICALLY with pool creation
+      // (a createPoolWithFirstBuy-style call), which this project doesn't
+      // build yet - our "initial buy" is a separate, later transaction.
+      // Turning this on without that atomic path would make the minimum
+      // fee permanently unreachable at best, and risks every ineligible
+      // swap hitting the program's FirstSwapValidationFailed error at
+      // worst (undocumented condition - needs a real devnet swap test
+      // before any preset relies on it).
+      enableFirstSwapWithMinFee,
     },
     migration: {
       migrationOption: MigrationOption.MET_DAMM_V2, // V1 is deprecated for new configs

@@ -34,3 +34,9 @@ export function requireWalletKeypair() {
 }
 
 export const SOL_MINT = "So11111111111111111111111111111111111111112";
+// Mainnet USDC - confirmed on-chain 2026-10-01 that it needs no Meteora
+// token badge for DBC use (getTokenBadge returns null, same as SOL):
+// it's a plain legacy SPL Token mint (owner TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA),
+// not a Token-2022 mint with extensions the program would need to be
+// vouched for.
+export const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
