@@ -333,6 +333,23 @@ table.grid { width: 100%; border-collapse: collapse; min-width: 640px; }
 .grid tbody tr:last-child td { border-bottom: none; }
 .grid tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
 
+/* Below 700px the table.grid's 640px min-width forces an awkward
+   horizontal scroll with action buttons (Migrate/Claim) off-screen -
+   collapse to a stacked card list instead, using each td's data-label
+   (set in explore.js) in place of the now-hidden header row. */
+@media (max-width: 700px) {
+  table.grid { min-width: 0; }
+  .grid thead { display: none; }
+  .grid, .grid tbody, .grid tr, .grid td { display: block; width: 100%; }
+  .grid tbody tr { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+  .grid tbody tr:last-child { border-bottom: none; }
+  .grid tbody td { padding: 6px 0; border-bottom: none; }
+  .grid tbody td::before {
+    content: attr(data-label); display: block; font-size: 10px; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text-faint); font-weight: 600; margin-bottom: 2px;
+  }
+}
+
 .pool-name { font-weight: 600; }
 .pool-addr { display: block; font-family: var(--font-mono); font-size: 11px; color: var(--text-faint); margin-top: 2px; }
 .mono { font-family: var(--font-mono); color: var(--text-muted); font-size: 12px; }

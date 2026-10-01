@@ -66,14 +66,14 @@
       ? `🔴 Live: ${token.pythSymbol} (Pyth-anchored)`
       : (preset ? preset.label.split(" - ")[0] : token.presetId ?? "—");
     tr.innerHTML = `
-      <td>
+      <td data-label="Token">
         <span class="pool-name">${escapeHtml(token.name ?? "?")}${token.symbol ? ` (${escapeHtml(token.symbol)})` : ""}</span>
         <span class="pool-addr">${token.mint ? shortAddr(token.mint) : "—"}${token.mint ? `<button type="button" class="copy-btn" data-copy="${token.mint}" title="Copy mint">⧉</button>` : ""}</span>
       </td>
-      <td class="mono">${presetLabel}</td>
-      <td class="mono">${formatShortTime(token.createdAt)}</td>
-      <td>${statusHtml}</td>
-      <td>${poolCell}</td>
+      <td class="mono" data-label="Preset">${presetLabel}</td>
+      <td class="mono" data-label="When">${formatShortTime(token.createdAt)}</td>
+      <td data-label="Status">${statusHtml}</td>
+      <td data-label="Pool">${poolCell}</td>
     `;
     return tr;
   }
