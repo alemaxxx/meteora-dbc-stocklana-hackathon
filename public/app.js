@@ -12,6 +12,7 @@
     firstBuy: document.getElementById("launch-firstbuy"),
     firstBuyLabel: document.getElementById("launch-firstbuy-label"),
     summaryList: document.getElementById("summary-list"),
+    simulationList: document.getElementById("simulation-list"),
     error: document.getElementById("launch-error"),
     success: document.getElementById("launch-success"),
     confirmBtn: document.getElementById("launch-confirm-btn"),
@@ -181,6 +182,46 @@
 
   [els.name, els.symbol, els.firstBuy].forEach((el) => el.addEventListener("input", renderSummary));
 
+  // ---- pre-launch simulation (2026-09-30) - shows what buying into the
+  // curve actually looks like at 3 fixed sizes (1%/10%/50% of the
+  // migration threshold), computed server-side with the SDK's own quote
+  // math (see dbcConfig.js) - never invented numbers. For Pyth-anchored
+  // presets, also shows each amount's live real-world USD value. ----
+  let simulationRequestId = 0;
+  const SIMULATION_LABELS = { 1: "Small buy", 10: "Medium buy", 50: "Large buy (half the threshold)" };
+
+  function renderSimulationRows(points, quoteSymbol, showUsd) {
+    els.simulationList.innerHTML = points
+      .map((p) => {
+        const usdPart = showUsd && p.amountInUsd !== undefined ? ` (~$${p.amountInUsd.toFixed(2)})` : "";
+        return `<div class="simulation-row">
+          <div class="simulation-row__head">
+            <span>${escapeHtml(SIMULATION_LABELS[p.percentOfThreshold] ?? `${p.percentOfThreshold}% of threshold`)}</span>
+            <span>${p.amountInUi.toLocaleString("en-US", { maximumSignificantDigits: 4 })} ${escapeHtml(quoteSymbol)}${usdPart}</span>
+          </div>
+          <div class="simulation-row__detail">→ ${Math.round(p.outputTokensUi).toLocaleString("en-US")} tokens · ${p.feeBps.toFixed(1)} bps fee right now</div>
+        </div>`;
+      })
+      .join("");
+  }
+
+  async function loadSimulation(kind, idOrSymbol) {
+    const requestId = ++simulationRequestId;
+    els.simulationList.innerHTML = `<p class="simulation-list__loading">Simulating…</p>`;
+    try {
+      const url =
+        kind === "pyth" ? `/api/pyth-presets/${encodeURIComponent(idOrSymbol)}/simulate` : `/api/dbc-presets/${encodeURIComponent(idOrSymbol)}/simulate`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (requestId !== simulationRequestId) return; // selection moved on while this was in flight
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      renderSimulationRows(data.points, data.quoteSymbol, kind === "pyth");
+    } catch (err) {
+      if (requestId !== simulationRequestId) return;
+      els.simulationList.innerHTML = `<p class="simulation-list__empty">Couldn't simulate this preset (${escapeHtml(err.message)}).</p>`;
+    }
+  }
+
   async function loadPresets() {
     try {
       const res = await fetch("/api/dbc-presets");
@@ -290,6 +331,7 @@
     // look like SOL when it's actually 0.05 of a real tokenized share.
     els.firstBuyLabel.textContent = `${preset?.quoteSymbol ?? "SOL"} for initial buy (optional)`;
     renderSummary();
+    loadSimulation("preset", id);
   }
 
   async function selectPythSymbol(symbol) {
@@ -300,6 +342,7 @@
     els.firstBuyLabel.textContent = "SOL for initial buy (optional)";
     els.presetHint.textContent = `Fetching ${symbol}'s live price from Pyth…`;
     renderSummary();
+    loadSimulation("pyth", symbol);
     try {
       const res = await fetch(`/api/pyth-presets/${encodeURIComponent(symbol)}/preview`);
       const data = await res.json();

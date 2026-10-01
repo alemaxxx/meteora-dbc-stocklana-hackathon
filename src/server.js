@@ -3,7 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { config, SOL_MINT } from "./config.js";
 import { getWalletTokenBalance } from "./walletBalance.js";
-import { DBC_CURVE_PRESETS } from "./dbcConfig.js";
+import { DBC_CURVE_PRESETS, simulatePresetBuys, simulatePythPresetBuys } from "./dbcConfig.js";
 import { getDbcCurveProgress, migrateDbcPoolIfReady, claimPartnerFees, prepareClaimCreatorFeeTransaction, submitClaimCreatorFeeTransaction } from "./dbcMigration.js";
 import { prepareTokenLaunch, confirmTokenLaunch, getLaunchedTokens, getLaunchedTokenById, markDbcPoolMigrated } from "./tokenLauncher.js";
 import { PYTH_STOCK_SYMBOLS, computePythAnchoredMarketCaps } from "./pythPricing.js";
@@ -63,6 +63,30 @@ export function startServer() {
       res.json(preview);
     } catch (err) {
       console.error("Failed to fetch Pyth preview:", err);
+      res.status(502).json({ error: err.message });
+    }
+  });
+
+  // ---- Pre-launch simulation (2026-09-30) - what buying into a curve
+  // actually looks like before it exists, using the SDK's own quote math.
+  // Read-only, no wallet/signature needed - see dbcConfig.js's
+  // simulatePresetBuys/simulatePythPresetBuys for the real mechanics. ----
+  app.get("/api/dbc-presets/:id/simulate", async (req, res) => {
+    try {
+      const simulation = await simulatePresetBuys(req.params.id);
+      res.json(simulation);
+    } catch (err) {
+      console.error("Failed to simulate preset:", err);
+      res.status(err.message?.startsWith("Unknown preset") ? 404 : 500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/pyth-presets/:symbol/simulate", async (req, res) => {
+    try {
+      const simulation = await simulatePythPresetBuys(req.params.symbol);
+      res.json(simulation);
+    } catch (err) {
+      console.error("Failed to simulate Pyth-anchored preset:", err);
       res.status(502).json({ error: err.message });
     }
   });

@@ -1,4 +1,5 @@
 import { Keypair, PublicKey } from "@solana/web3.js";
+import BN from "bn.js";
 import {
   buildCurve,
   buildCurveWithMarketCap,
@@ -12,10 +13,11 @@ import {
   MigrationFeeOption,
   MigratedCollectFeeMode,
   DammV2DynamicFeeMode,
+  SwapMode,
   deriveTokenBadgeAddress,
 } from "@meteora-ag/dynamic-bonding-curve-sdk";
 import { connection, dbcClient } from "./connection.js";
-import { requireWalletKeypair } from "./config.js";
+import { requireWalletKeypair, SOL_MINT } from "./config.js";
 import { getMintInfo } from "./tokenInfo.js";
 import { sendAndConfirmWithRetry } from "./txHelpers.js";
 import { computePythAnchoredMarketCaps, PYTH_STOCK_SYMBOLS, isPythStockSymbolSupported } from "./pythPricing.js";
@@ -380,7 +382,7 @@ function sharedCurveConfig(
  * liquidity math for us (equivalent to the preparePoolCreationParams that
  * poolCreator.js already uses for DAMM v2, just on the DBC side).
  */
-async function buildConfigParameters(preset, quoteMint) {
+export async function buildConfigParameters(preset, quoteMint) {
   const quoteInfo = await getMintInfo(connection, quoteMint);
 
   return buildCurve({
@@ -405,7 +407,7 @@ const PYTH_ANCHORED_FEE_SCHEDULE = { startingFeeBps: 300, endingFeeBps: 50, sche
  * pythPricing.js for where the market caps come from and the real
  * limitations found (trial API key, only TSLA/QQQ entitled).
  */
-async function buildPythAnchoredConfigParameters(symbol, quoteMint) {
+export async function buildPythAnchoredConfigParameters(symbol, quoteMint) {
   const quoteInfo = await getMintInfo(connection, quoteMint);
   const { initialMarketCap, migrationMarketCap } = await computePythAnchoredMarketCaps(symbol);
 
@@ -414,6 +416,71 @@ async function buildPythAnchoredConfigParameters(symbol, quoteMint) {
     initialMarketCap,
     migrationMarketCap,
   });
+}
+
+// ---- Pre-launch simulation (2026-09-30) - "what would buying into this
+// curve actually look like" BEFORE spending a single lamport, using the
+// SDK's own getQuoteFromInputAmount (bit-exact against the on-chain
+// program's swap math, not an approximation - confirmed live by probing
+// its real output against several currentPoint values before trusting
+// it). Several real competitors in this same Meteora DBC bounty
+// (CurveLab, Curvature, CurveCraft, Barkbork) independently converged on
+// this exact kind of simulation; see project_competitive_landscape
+// memory. currentPoint is fixed at 0 (right at activation, zero elapsed
+// time) since there's no real "now" for a curve that doesn't exist yet -
+// this answers "what does the very first buyer see," the most honest
+// reference point for a pre-launch preview. ----
+function simulateCurveBuys(config, quoteDecimals) {
+  const threshold = config.migrationQuoteThreshold;
+  return [1, 10, 50].map((pct) => {
+    const amountIn = threshold.muln(pct).divn(100);
+    if (amountIn.isZero()) return { percentOfThreshold: pct, amountInUi: 0, outputTokensUi: 0, feeBps: 0 };
+    const quote = dbcClient.pool.getQuoteFromInputAmount({
+      config,
+      swapBaseForQuote: false,
+      amountIn,
+      swapMode: SwapMode.ExactIn,
+      currentPoint: new BN(0),
+      // false = a normal buyer's experience, not an exempted anti-snipe
+      // first-swap (confirmed live: passing true here forces the MINIMUM
+      // fee regardless of currentPoint, which would misrepresent the
+      // actual fee schedule every real buyer sees).
+      eligibleForFirstSwapWithMinFee: false,
+    });
+    return {
+      percentOfThreshold: pct,
+      amountInUi: Number(amountIn.toString()) / 10 ** quoteDecimals,
+      outputTokensUi: Number(quote.outputAmount.toString()) / 10 ** 6, // tokenBaseDecimal is always SIX, see sharedCurveConfig
+      feeBps: (Number(quote.tradingFee.toString()) / Number(amountIn.toString())) * 10000,
+    };
+  });
+}
+
+/** Simulates buys for a regular (fee-shape or stock-quoted) preset. */
+export async function simulatePresetBuys(presetId) {
+  const preset = findDbcCurvePreset(presetId);
+  if (!preset) throw new Error(`Unknown preset: "${presetId}".`);
+  const quoteMint = preset.quoteMint ?? SOL_MINT;
+  const [quoteInfo, config] = await Promise.all([getMintInfo(connection, quoteMint), buildConfigParameters(preset, quoteMint)]);
+  return { quoteSymbol: preset.quoteSymbol ?? "SOL", points: simulateCurveBuys(config, quoteInfo.decimals) };
+}
+
+/**
+ * Simulates buys for a Pyth-anchored preset, ALSO converting each
+ * simulated SOL amount into its live real-world USD value - the specific
+ * combination (pre-launch simulation + a real, currently-live asset
+ * price) none of the simulation-focused competitors above actually do,
+ * since their simulators work on generic/hypothetical curves.
+ */
+export async function simulatePythPresetBuys(symbol) {
+  if (!isPythStockSymbolSupported(symbol)) throw new Error(`Unsupported Pyth-anchored symbol: "${symbol}".`);
+  const [quoteInfo, config, { stockUsd, solUsd }] = await Promise.all([
+    getMintInfo(connection, SOL_MINT),
+    buildPythAnchoredConfigParameters(symbol, SOL_MINT),
+    computePythAnchoredMarketCaps(symbol),
+  ]);
+  const points = simulateCurveBuys(config, quoteInfo.decimals).map((p) => ({ ...p, amountInUsd: p.amountInUi * solUsd }));
+  return { quoteSymbol: "SOL", stockUsd, solUsd, points };
 }
 
 /**

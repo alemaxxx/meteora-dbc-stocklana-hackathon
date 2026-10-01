@@ -172,6 +172,23 @@ html, body {
 .summary-row dt { color: var(--text-muted); margin: 0; }
 .summary-row dd { color: var(--text); font-family: var(--font-mono); text-align: right; margin: 0; }
 .summary-list__empty { font-size: 12px; color: var(--text-faint); }
+
+/* ---- pre-launch simulation (2026-09-30) - uses the SDK's own
+   getQuoteFromInputAmount to show what buying into the curve actually
+   looks like at a few fixed sizes, before any real transaction - see
+   dbcConfig.js's simulatePresetBuys/simulatePythPresetBuys. ---- */
+.simulation-heading {
+  margin: 18px 0 10px; padding-top: 14px; border-top: 1px solid var(--border);
+  font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint);
+}
+.simulation-list { display: flex; flex-direction: column; gap: 8px; }
+.simulation-row {
+  background: var(--panel-alt); border: 1px solid var(--border); border-radius: 6px;
+  padding: 8px 10px; font-size: 11px;
+}
+.simulation-row__head { display: flex; justify-content: space-between; color: var(--text); font-family: var(--font-mono); font-weight: 600; }
+.simulation-row__detail { color: var(--text-muted); margin-top: 3px; }
+.simulation-list__empty, .simulation-list__loading { font-size: 11px; color: var(--text-faint); }
 .panel__title { font-size: 16px; font-weight: 700; margin: 0 0 4px; }
 .panel__subtitle { font-size: 12px; color: var(--text-faint); margin: 0 0 18px; line-height: 1.5; }
 
