@@ -86,6 +86,7 @@
     <section class="docs__section">
       <h2>Public developer API</h2>
       <p><code>GET /api/dbc-pool/:address</code> - read-only, CORS-open, works for any Meteora DBC pool on-chain (pool address or base mint), not just ones launched on CurveForge. Returns mint, migration status, live curve progress, migration threshold, and fee metrics.</p>
+      <p><code>GET /api/damm-pool/:address</code> - the migrated-pool counterpart: read-only, CORS-open, works for any Meteora DAMM v2 pool. Returns live price, liquidity, and a swap quote preview at a few fixed sizes - no swap execution yet.</p>
     </section>
 
     <section class="docs__section">

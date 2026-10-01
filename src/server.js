@@ -8,6 +8,7 @@ import { getDbcCurveProgress, migrateDbcPoolIfReady, claimPartnerFees, prepareCl
 import { prepareTokenLaunch, confirmTokenLaunch, getLaunchedTokens, getLaunchedTokenById, markDbcPoolMigrated } from "./tokenLauncher.js";
 import { PYTH_STOCK_SYMBOLS, computePythAnchoredMarketCaps } from "./pythPricing.js";
 import { getPublicPoolInfo } from "./dbcPoolInfo.js";
+import { getDammPoolInfo } from "./dammPoolInfo.js";
 import { rateLimit } from "./rateLimit.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -249,6 +250,22 @@ export function startServer() {
       res.json(info);
     } catch (err) {
       console.error("Failed to read public pool info:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Added 2026-10-01 - the migrated-pool counterpart to /api/dbc-pool
+  // above: read-only price/liquidity/quote-preview for any Meteora DAMM
+  // v2 pool, not just ones launched here. No swap-transaction endpoint
+  // yet - see dammPoolInfo.js's header comment for why.
+  app.get("/api/damm-pool/:address", async (req, res) => {
+    res.set("Access-Control-Allow-Origin", "*");
+    try {
+      const info = await getDammPoolInfo(req.params.address);
+      if (!info) return res.status(404).json({ error: "No DAMM v2 pool found for that address." });
+      res.json(info);
+    } catch (err) {
+      console.error("Failed to read public DAMM v2 pool info:", err);
       res.status(500).json({ error: err.message });
     }
   });

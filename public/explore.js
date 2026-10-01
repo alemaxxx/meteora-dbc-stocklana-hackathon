@@ -51,6 +51,7 @@
       if (token.dbcMigrated) {
         poolCell = `<a class="sf-meteora-link" href="${meteoraLink(token.poolAddress)}" target="_blank" rel="noopener" title="${token.poolAddress}">open on Meteora ↗</a>
           <span class="fee-rate__base">migrated to DAMM v2</span>
+          <span class="fee-rate__base damm-price" data-pool="${token.poolAddress}" data-quote-symbol="${escapeHtml(token.quoteSymbol ?? "SOL")}">loading live price…</span>
           <div class="dbc-actions">
             <button type="button" class="sf-action-btn dbc-claim-btn" data-id="${token.id}">Claim fees</button>
           </div>`;
@@ -88,6 +89,29 @@
       ? "No tokens launched yet from this wallet."
       : "No tokens launched yet.";
     for (const t of tokens) els.launchedRows.appendChild(renderRow(t));
+    loadDammPrices();
+  }
+
+  // Fills in the live DAMM v2 price for every migrated token's row, via
+  // the new read-only /api/damm-pool endpoint (dammPoolInfo.js) - lazy,
+  // after the rows render, same spirit as the Launch page's simulation
+  // panel loading after preset selection rather than blocking the table.
+  async function loadDammPrices() {
+    const priceEls = [...document.querySelectorAll(".damm-price")];
+    await Promise.all(
+      priceEls.map(async (el) => {
+        try {
+          const res = await fetch(`/api/damm-pool/${encodeURIComponent(el.dataset.pool)}`);
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+          const price = Number(data.priceAInB);
+          el.textContent = `1 token ≈ ${price.toLocaleString("en-US", { maximumSignificantDigits: 4 })} ${el.dataset.quoteSymbol}`;
+        } catch (err) {
+          el.textContent = "live price unavailable";
+          console.error("Failed to load DAMM v2 price:", err);
+        }
+      })
+    );
   }
 
   function visibleTokens() {
