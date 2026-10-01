@@ -8,9 +8,12 @@
   const els = {
     launchedRows: document.getElementById("launched-rows"),
     launchedEmpty: document.getElementById("launched-empty"),
+    myTokensToggle: document.getElementById("my-tokens-toggle"),
+    myTokensCheckbox: document.getElementById("my-tokens-checkbox"),
   };
 
   let allPresets = []; // only for resolving a launched token's preset label - fetched once, read-only here
+  let allTokens = []; // last fetch, filtered client-side by the "My tokens only" toggle below
 
   // Same escaping discipline as app.js (public form input rendered as
   // HTML - see that file's note on the 2026-09-20 stored-XSS fix).
@@ -78,18 +81,41 @@
     return tr;
   }
 
+  function renderTokens(tokens) {
+    els.launchedRows.innerHTML = "";
+    els.launchedEmpty.hidden = tokens.length > 0;
+    els.launchedEmpty.textContent = els.myTokensCheckbox.checked
+      ? "No tokens launched yet from this wallet."
+      : "No tokens launched yet.";
+    for (const t of tokens) els.launchedRows.appendChild(renderRow(t));
+  }
+
+  function visibleTokens() {
+    const wallet = window.CurveForgeWallet?.address;
+    if (!els.myTokensCheckbox.checked || !wallet) return allTokens;
+    return allTokens.filter((t) => t.creatorPublicKey === wallet);
+  }
+
   async function refreshLaunchedTokens() {
     try {
       const res = await fetch("/api/launched-tokens");
       const data = await res.json();
-      const tokens = data.tokens ?? [];
-      els.launchedRows.innerHTML = "";
-      els.launchedEmpty.hidden = tokens.length > 0;
-      for (const t of tokens) els.launchedRows.appendChild(renderRow(t));
+      allTokens = data.tokens ?? [];
+      renderTokens(visibleTokens());
     } catch (err) {
       console.error("Failed to list launched tokens:", err);
     }
   }
+
+  // "My tokens only" toggle (2026-10-01) - the public list stays visible to
+  // everyone (social proof / activity feed), this just narrows it down for
+  // whoever has their own wallet connected. Only shown once connected.
+  els.myTokensCheckbox.addEventListener("change", () => renderTokens(visibleTokens()));
+  window.CurveForgeWallet?.onChange((state) => {
+    els.myTokensToggle.hidden = !state.address;
+    if (!state.address) els.myTokensCheckbox.checked = false;
+    renderTokens(visibleTokens());
+  });
 
   // ---- DBC actions (progress/migrate/claim) - always click-triggered ----
   document.addEventListener("click", async (ev) => {

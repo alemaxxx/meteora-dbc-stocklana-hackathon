@@ -318,10 +318,16 @@ html, body {
 }
 
 /* ---- launched tokens table ---- */
+.subsection-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
 .subsection-title {
   margin: 8px 0 8px; font-size: 14px; font-weight: 600; color: var(--text-muted);
   text-transform: uppercase; letter-spacing: 0.04em;
 }
+.my-tokens-toggle {
+  display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted);
+  cursor: pointer; user-select: none;
+}
+.my-tokens-toggle input { accent-color: var(--brand-amber); width: 15px; height: 15px; cursor: pointer; }
 .table-wrap { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); overflow-x: auto; }
 table.grid { width: 100%; border-collapse: collapse; min-width: 640px; }
 .grid thead th {
