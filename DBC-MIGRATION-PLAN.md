@@ -1229,6 +1229,32 @@ verifies any new ticker on-chain the same way, and opens a PR (never pushes to m
 than deploying unsupervised - a human still reviews and merges. This manual round (RKLB) was done in
 parallel with setting that routine up, at the user's request.
 
+## 5.24. Twenty-fourth round (2026-10-01) - 49 more Ondo tickers, from the full 452-ticker catalog
+
+The original Ondo batch (section above, same day) only checked 93 of Ondo's full 452-ticker catalog,
+curated toward large/recognizable names and time-boxed. This round went back to the source -
+`app.ondo.finance/api/v2/assets`, Ondo's own public, unauthenticated endpoint - fetched the complete
+452-ticker list, and diffed it against `STOCK_QUOTE_MINTS` to find everything still missing (361
+tickers). Rather than check all 361 (many are ETFs, bonds, and small/mid-cap names), curated a
+second batch of 50 large/recognizable real companies not yet covered: Apple, NVIDIA, Tesla, IBM,
+Pfizer, Nike, Shopify, Robinhood, CoreWeave, Snowflake, and more.
+
+Verified the same way as every prior round: Jupiter's token search API
+(`lite-api.jup.ag/tokens/v2/search?query=<SYMBOLon>`, filtered to `tags.includes("ondo")`) for the
+real mint address, then `dbcClient.state.getTokenBadge()` + `getMint`/`getExtensionTypes` against a
+public RPC for the actual on-chain badge + Token-2022 extension profile - never trusted from the
+registry or Jupiter's tags alone. **49/50 passed** with Ondo's established 7-extension profile
+(no `PermanentDelegate`/`ScaledUiAmountConfig`, unlike xStocks/Backpack). **One rejection: `GOOGon`
+(Alphabet Class C)** - re-confirmed independently (different session, different batch) that it has
+no Meteora token badge, matching the first Ondo batch's exact same finding for the same ticker - a
+useful cross-check that the "GOOG has no badge, GOOGL does" finding wasn't a one-off fluke.
+
+Merged alphabetically into the existing Ondo block in `STOCK_QUOTE_MINTS`. **Total catalog now 206
+stock-quoted presets across 3 issuers** (4 xStocks + 61 Backpack Securities + 141 Ondo), up from 157.
+Opened as its own PR (not stacked on the other open ticker PR, to keep each independently
+reviewable). Ondo's catalog still has ~310 unchecked tickers (mostly ETFs/bonds/smaller caps) -
+a natural future batch if there's time.
+
 ## 6. Suggested next steps
 
 1. ~~Validate the curve presets against Meteora's official calculator~~

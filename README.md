@@ -110,6 +110,18 @@ oversight. Decimals are 9 for every Ondo mint (confirmed per-mint, not assumed -
 xStocks' 8 and Backpack's 6). **The stock-quoted catalog now totals 157 presets across 3 issuers**
 (4 xStocks + 61 Backpack Securities + 92 Ondo), up from 65 the day before.
 
+**49 more Ondo tickers added (2026-10-01, later same day)** - the original Ondo batch above only
+checked 93 of Ondo's full 452-ticker catalog ("curated toward large/recognizable names,
+time-boxed"); this round went back to `app.ondo.finance/api/v2/assets` for the complete list, diffed
+it against `STOCK_QUOTE_MINTS`, and checked a further 50 recognizable large-cap candidates (Apple,
+NVIDIA, Tesla, IBM, Pfizer, Nike, Shopify, Robinhood, and more) the same way as every entry here
+(real `getTokenBadge` + Token-2022 extensions via Jupiter-sourced mint addresses). 49/50 passed;
+`GOOGon` (Alphabet Class C) was independently re-checked and failed again with no token badge -
+consistent with the first batch's finding, not a fluke. **The stock-quoted catalog now totals 206
+presets across 3 issuers** (4 xStocks + 61 Backpack Securities + 141 Ondo). Still not Ondo's full
+452-ticker catalog - ~310 tickers remain unchecked (mostly ETFs, bonds, and smaller-cap names
+deliberately not prioritized in either batch).
+
 ## Six curve presets, plus one live-priced mode (2026-09-17)
 
 - `baixa-taxa-2h-linear` (default) and `default-2h-linear` - the two original presets (see the real
