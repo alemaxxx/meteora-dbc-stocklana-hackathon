@@ -1229,15 +1229,43 @@ verifies any new ticker on-chain the same way, and opens a PR (never pushes to m
 than deploying unsupervised - a human still reviews and merges. This manual round (RKLB) was done in
 parallel with setting that routine up, at the user's request.
 
-## 5.24. Twenty-fourth round (2026-10-01) - 49 more Ondo tickers, from the full 452-ticker catalog
+## 5.24. Twenty-fourth round (2026-10-01) - 29 more tickers, found via registry diff after the daily watcher stalled
 
-The original Ondo batch (section above, same day) only checked 93 of Ondo's full 452-ticker catalog,
-curated toward large/recognizable names and time-boxed. This round went back to the source -
-`app.ondo.finance/api/v2/assets`, Ondo's own public, unauthenticated endpoint - fetched the complete
-452-ticker list, and diffed it against `STOCK_QUOTE_MINTS` to find everything still missing (361
-tickers). Rather than check all 361 (many are ETFs, bonds, and small/mid-cap names), curated a
-second batch of 50 large/recognizable real companies not yet covered: Apple, NVIDIA, Tesla, IBM,
-Pfizer, Nike, Shopify, Robinhood, CoreWeave, Snowflake, and more.
+The daily @MeteoraEco ticker-watch routine (set up in section 5.23) ran and found a candidate
+($BE), but its session stalled mid-verification without finishing or opening a PR, and the
+candidate post couldn't be re-found via a logged-out X session afterward. Rather than guess at it,
+did a different, fully offline check instead: diffed `STOCK_QUOTE_MINTS` against the full
+community-maintained [usestrak/strak](https://github.com/usestrak/strak) registry (93 Solana
+equities listed) to find any tickers the registry already knew about that this project hadn't
+added yet. Found 29: 27 xStocks (Meta, Microsoft, Amazon, Alphabet, Coinbase, AMD, Intel, Walmart,
+Broadcom, UnitedHealth, Exxon Mobil, and others, plus a few non-equity ETFs - GLD, QQQ, TQQQ) and 2
+Ondo (SLV, SPY).
+
+Every candidate was independently re-verified on-chain the same way as every prior entry (real
+`dbcClient.state.getTokenBadge` call + `getMint`/`getExtensionTypes` against a public RPC, never
+trusted from the registry alone) via a standalone temporary script, deleted after use. 27/29 passed
+cleanly against the xStocks extension profile already established. The 2 Ondo candidates (SLV, SPY)
+initially looked like failures against that same profile (missing `PermanentDelegate` and
+`ScaledUiAmountConfig`) - cross-checked against an already-verified Ondo mint (`ABBVon`) and
+confirmed Ondo's real extension profile is legitimately smaller (7 extensions, no
+PermanentDelegate/ScaledUiAmountConfig) - both passed once checked against the right profile. A
+reminder that "verified" means matching the specific issuer's own real profile, not one hardcoded
+set reused for every issuer.
+
+Added to `STOCK_QUOTE_MINTS` in the existing alphabetical-by-symbol convention for each issuer
+section. **Total catalog now 186 stock-quoted presets across 3 issuers** (31 xStocks + 61 Backpack
+Securities + 94 Ondo), up from 157. The stalled $BE candidate was left alone - not added, since it
+was never actually verified.
+
+## 5.25. Twenty-fifth round (2026-10-01) - 49 more Ondo tickers, from the full 452-ticker catalog
+
+The Ondo batch from section 5.3/README (same day) only checked 93 of Ondo's full 452-ticker
+catalog, curated toward large/recognizable names and time-boxed. This round went back to the
+source - `app.ondo.finance/api/v2/assets`, Ondo's own public, unauthenticated endpoint - fetched
+the complete 452-ticker list, and diffed it against `STOCK_QUOTE_MINTS` to find everything still
+missing (361 tickers). Rather than check all 361 (many are ETFs, bonds, and small/mid-cap names),
+curated a second batch of 50 large/recognizable real companies not yet covered: Apple, NVIDIA,
+Tesla, IBM, Pfizer, Nike, Shopify, Robinhood, CoreWeave, Snowflake, and more.
 
 Verified the same way as every prior round: Jupiter's token search API
 (`lite-api.jup.ag/tokens/v2/search?query=<SYMBOLon>`, filtered to `tags.includes("ondo")`) for the
@@ -1246,12 +1274,12 @@ public RPC for the actual on-chain badge + Token-2022 extension profile - never 
 registry or Jupiter's tags alone. **49/50 passed** with Ondo's established 7-extension profile
 (no `PermanentDelegate`/`ScaledUiAmountConfig`, unlike xStocks/Backpack). **One rejection: `GOOGon`
 (Alphabet Class C)** - re-confirmed independently (different session, different batch) that it has
-no Meteora token badge, matching the first Ondo batch's exact same finding for the same ticker - a
-useful cross-check that the "GOOG has no badge, GOOGL does" finding wasn't a one-off fluke.
+no Meteora token badge, matching the earlier Ondo batch's exact same finding for the same ticker -
+a useful cross-check that the "GOOG has no badge, GOOGL does" finding wasn't a one-off fluke.
 
-Merged alphabetically into the existing Ondo block in `STOCK_QUOTE_MINTS`. **Total catalog now 206
-stock-quoted presets across 3 issuers** (4 xStocks + 61 Backpack Securities + 141 Ondo), up from 157.
-Opened as its own PR (not stacked on the other open ticker PR, to keep each independently
+Merged alphabetically into the existing Ondo block in `STOCK_QUOTE_MINTS`. **Total catalog now 235
+stock-quoted presets across 3 issuers** (31 xStocks + 61 Backpack Securities + 143 Ondo), up from
+186. Opened as its own PR (not stacked on the other open ticker PR, to keep each independently
 reviewable). Ondo's catalog still has ~310 unchecked tickers (mostly ETFs/bonds/smaller caps) -
 a natural future batch if there's time.
 
@@ -1280,19 +1308,17 @@ a natural future batch if there's time.
    extension~~ **DONE on 2026-09-17 for Phantom** (see section 5.8) - real signature, real
    confirmed transaction. Still needs a test with a SECOND wallet installed (Solflare/Backpack) to
    confirm the picker modal actually works, not just the single-wallet path.
-6. **Researched, not built: DLMM "Conviction Pools"** - the one remaining idea from the Crypto
-   World's Fair brief ("creative end-to-end launch flows using DBC, DAMM v2 and DLMM... Conviction
-   Pools with DLMM"). Confirmed `@meteora-ag/dlmm@1.9.14` exists on npm and is compatible with this
-   project's stack (same `@solana/web3.js`/`@coral-xyz/anchor` major versions). "Conviction Pool"
-   isn't a term with a findable, formal Meteora definition (checked `docs.meteora.ag`'s DLMM
-   section) - it reads as illustrative brief language, not a pre-built feature, meaning it's open
-   to interpretation rather than something to integrate against a spec. Deliberately NOT
-   implemented blind: unlike the five ideas built this round (each had one clear, literal reading
-   straight from the brief), this one has several plausible directions - e.g. seeding a DLMM pool
-   with concentrated liquidity around the DBC migration price once a pool graduates, or letting
-   long-term holders lock graduated tokens into a DLMM position as a public signal of conviction -
-   and picking one is a product decision, not a technical one, better made with the user's input
-   than guessed at alone. Biggest remaining differentiator if there's time before either deadline.
+6. ~~Researched, not built: DLMM "Conviction Pools"~~ **DONE on 2026-10-01** - implemented as a
+   second, narrowly-banded (~3%) concentrated-liquidity DLMM position opened manually (always an
+   explicit click + wallet signature) alongside an already-migrated DAMM v2 pool, via
+   `src/dlmmConviction.js` + 4 new `/api/conviction/*` routes + an "Open Conviction Pool" button on
+   Explore. An earlier research pass had wrongly concluded the DLMM SDK had no usable high-level
+   API (a CJS/ESM interop testing bug - checked `require(...).default`, which is `undefined`,
+   instead of `require(...)` itself, which IS the class); corrected, then verified via real mainnet
+   `simulateTransaction` calls before shipping. Found a real, previously-undocumented-to-us
+   on-chain precondition in the process: creating a permissionless DLMM pool requires the creator's
+   own canonical ATA for the base mint to hold a non-zero balance (an anti-spam check) - surfaced to
+   users via a `creatorHasRequiredBalance` status field instead of a cryptic on-chain error.
 7. Test a real `migrateDbcPoolIfReady` for the `compounding-damm-v2` preset (section 5.10) once a
    pool launched with it reaches its threshold - the riskiest untested code path added this round.
 8. ~~Multi-wallet picker (section 5.8/5.9) still only tested with one real wallet (Phantom)~~
