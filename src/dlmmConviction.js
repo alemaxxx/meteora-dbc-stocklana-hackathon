@@ -103,34 +103,41 @@ function getConvictionPoolFactors() {
  * surfaces it as a clear, actionable precondition instead of letting the
  * user hit a cryptic on-chain error.
  */
+/**
+ * Pure (no RPC/network) resolution of which side of a DAMM v2 pool is the
+ * base (launched) token vs the quote, by checking which mint is a known
+ * quote mint this platform actually uses - see the KNOWN_QUOTE_MINTS
+ * comment above for why this can't just assume tokenA is always base.
+ * Extracted as its own pure function so this specific logic (the fix for
+ * a real bug found 2026-10-02) can be unit-tested without a live RPC
+ * connection - see test/dlmmConviction.test.js.
+ */
+export function resolveBaseQuote(dammInfo) {
+  const aIsQuote = KNOWN_QUOTE_MINTS.has(dammInfo.tokenAMint);
+  const bIsQuote = KNOWN_QUOTE_MINTS.has(dammInfo.tokenBMint);
+  if (aIsQuote && !bIsQuote) {
+    return {
+      baseMint: dammInfo.tokenBMint,
+      quoteMint: dammInfo.tokenAMint,
+      // priceAInB is A-in-terms-of-B; we need base-in-terms-of-quote = B-in-terms-of-A
+      livePrice: 1 / Number(dammInfo.priceAInB),
+    };
+  }
+  if (bIsQuote && !aIsQuote) {
+    return { baseMint: dammInfo.tokenAMint, quoteMint: dammInfo.tokenBMint, livePrice: Number(dammInfo.priceAInB) };
+  }
+  // Neither side (or both) matched a known quote mint - most likely a pool
+  // this platform didn't launch. Fall back to the DAMM pool's own A/B
+  // order rather than failing outright, since this endpoint is a public,
+  // works-for-any-pool API, not restricted to our own launches.
+  return { baseMint: dammInfo.tokenAMint, quoteMint: dammInfo.tokenBMint, livePrice: Number(dammInfo.priceAInB) };
+}
+
 export async function getConvictionPoolStatus(dammPoolAddress, walletPublicKey) {
   const dammInfo = await getDammPoolInfo(dammPoolAddress);
   if (!dammInfo) return null;
 
-  // Figure out which side is base vs quote by matching against every known
-  // quote mint this platform uses, rather than assuming tokenA is always
-  // base - see the KNOWN_QUOTE_MINTS comment above for why that assumption
-  // is wrong roughly half the time.
-  const aIsQuote = KNOWN_QUOTE_MINTS.has(dammInfo.tokenAMint);
-  const bIsQuote = KNOWN_QUOTE_MINTS.has(dammInfo.tokenBMint);
-  let baseMintStr, quoteMintStr, livePrice;
-  if (aIsQuote && !bIsQuote) {
-    baseMintStr = dammInfo.tokenBMint;
-    quoteMintStr = dammInfo.tokenAMint;
-    livePrice = 1 / Number(dammInfo.priceAInB); // priceAInB is A-in-terms-of-B; we need base-in-terms-of-quote = B-in-terms-of-A
-  } else if (bIsQuote && !aIsQuote) {
-    baseMintStr = dammInfo.tokenAMint;
-    quoteMintStr = dammInfo.tokenBMint;
-    livePrice = Number(dammInfo.priceAInB);
-  } else {
-    // Neither side (or both) matched a known quote mint - most likely a
-    // pool this platform didn't launch. Fall back to the DAMM pool's own
-    // A/B order rather than failing outright, since this endpoint is a
-    // public, works-for-any-pool API, not restricted to our own launches.
-    baseMintStr = dammInfo.tokenAMint;
-    quoteMintStr = dammInfo.tokenBMint;
-    livePrice = Number(dammInfo.priceAInB);
-  }
+  const { baseMint: baseMintStr, quoteMint: quoteMintStr, livePrice } = resolveBaseQuote(dammInfo);
 
   const baseMint = new PublicKey(baseMintStr);
   const quoteMint = new PublicKey(quoteMintStr);
