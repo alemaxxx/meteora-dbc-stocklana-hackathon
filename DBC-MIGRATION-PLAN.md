@@ -1283,6 +1283,32 @@ stock-quoted presets across 3 issuers** (31 xStocks + 61 Backpack Securities + 1
 reviewable). Ondo's catalog still has ~310 unchecked tickers (mostly ETFs/bonds/smaller caps) -
 a natural future batch if there's time.
 
+## 5.26. Twenty-sixth round (2026-10-02) - 48 more Ondo tickers, third pass over the same catalog
+
+Picked the obvious next step up without being asked: diffed `STOCK_QUOTE_MINTS` against Ondo's full
+452-ticker catalog again (same `app.ondo.finance/api/v2/assets` source as the two prior Ondo
+rounds), curated a third batch of 50 recognizable large caps from the ~310 still missing - Alibaba,
+Boeing, Johnson & Johnson, Costco, RTX, Lockheed Martin, AMD, GameStop, AMC, Rocket Lab, Galaxy
+Digital, IonQ, Carvana, and more.
+
+Verified identically to every round before it (Jupiter token search tagged `ondo` for the mint
+address, then real `dbcClient.state.getTokenBadge()` + Token-2022 extension check against a public
+RPC). **48/50 passed.** Two real rejections, different failure modes: `AIon` (C3.ai) has no
+Jupiter-indexed mint tagged `ondo` at all yet (not a badge failure - just not listed there), and
+`HTZon` (Hertz) has a real, found mint but genuinely carries no Meteora token badge - left unadded,
+same discipline as every prior rejection in this file (GOOG, GOOGon).
+
+**Also fixed a real bug from the 2026-10-01 batch's own merge script**: the two prior Ondo rounds'
+alphabetical-merge script used `.trim()` on the whole extracted block before re-joining, which
+silently stripped the leading indentation off whichever line happened to sort first each time
+(`AAPLon` and `ABBVon` had lost their 2-space indent - cosmetic, not a functional bug, but sloppy).
+Fixed by normalizing every line's indentation explicitly during this round's merge, and verified by
+re-checking those two lines directly after writing.
+
+Merged alphabetically. **Total catalog now 283 stock-quoted presets across 3 issuers** (31 xStocks +
+61 Backpack Securities + 191 Ondo), up from 235. ~260 Ondo tickers remain unchecked (mostly
+ETFs/bonds/smaller caps) - same natural future-batch note as the last two rounds.
+
 ## 6. Suggested next steps
 
 1. ~~Validate the curve presets against Meteora's official calculator~~
