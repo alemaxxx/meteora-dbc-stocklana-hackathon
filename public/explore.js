@@ -105,7 +105,12 @@
           const res = await fetch(`/api/damm-pool/${encodeURIComponent(el.dataset.pool)}`);
           const data = await res.json();
           if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-          const price = Number(data.priceAInB);
+          // priceBaseInQuote (not the raw priceAInB) - tokenA/tokenB don't
+          // reliably correspond to base/quote (CP-AMM pools are ordered by
+          // raw pubkey, not by which side was the launched token), so using
+          // priceAInB directly showed an inverted price for roughly half of
+          // all migrated pools. See dammPoolInfo.js for the real fix.
+          const price = Number(data.priceBaseInQuote);
           el.textContent = `1 token ≈ ${price.toLocaleString("en-US", { maximumSignificantDigits: 4 })} ${el.dataset.quoteSymbol}`;
         } catch (err) {
           el.textContent = "live price unavailable";
