@@ -138,6 +138,16 @@ presets across 3 issuers** (31 xStocks + 61 Backpack Securities + 143 Ondo). Sti
 452-ticker catalog - ~310 tickers remain unchecked (mostly ETFs, bonds, and smaller-cap names
 deliberately not prioritized in either batch).
 
+**48 more Ondo tickers added (2026-10-02)** - a third pass over the same remaining-candidates list
+(Ondo's full catalog diffed against `STOCK_QUOTE_MINTS`), curating another 50 recognizable large
+caps (Alibaba, Boeing, Johnson & Johnson, Costco, RTX, Lockheed, AMD, GameStop, AMC, Rocket Lab,
+and more). Verified the same way as every batch before it. 48/50 passed; 2 rejections this round:
+`AIon` (C3.ai) had no Jupiter-indexed mint tagged `ondo` at all (not yet listed there, not a badge
+failure), and `HTZon` (Hertz) has a real mint but genuinely no Meteora token badge yet - both left
+unadded. **The stock-quoted catalog now totals 283 presets across 3 issuers** (31 xStocks + 61
+Backpack Securities + 191 Ondo). ~260 Ondo tickers remain unchecked (mostly ETFs, bonds, and
+smaller-cap names).
+
 ## Six curve presets, plus one live-priced mode (2026-09-17)
 
 - `baixa-taxa-2h-linear` (default) and `default-2h-linear` - the two original presets (see the real
