@@ -21,7 +21,7 @@ project's own code). Every config has a `creatorTradingFeePercentage` field - wh
 the creator's share goes to the config's **partner** address automatically, enforced by the
 DBC program on every single trade, with no off-chain bookkeeping.
 
-CurveForge already sets this to 100% (`src/dbcConfig.js:453`, `creatorTradingFeePercentage: 100`)
+CurveForge already sets this to 100% (`src/dbcConfig.js:657`, `creatorTradingFeePercentage: 100`)
 because today it has no third-party partner - every preset's "partner" is the platform itself.
 **A preset marketplace is, architecturally, just: let someone else's wallet be the partner.**
 

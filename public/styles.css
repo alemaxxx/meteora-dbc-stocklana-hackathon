@@ -194,7 +194,7 @@ html, body {
   background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
   padding: 18px; position: sticky; top: 20px;
 }
-.launch-summary h3 {
+.launch-summary h2 {
   margin: 0 0 12px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint);
 }
 .summary-list { margin: 0; }

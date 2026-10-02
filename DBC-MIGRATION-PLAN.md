@@ -1334,6 +1334,71 @@ individual stock in Ondo's catalog. A fifth round would need to either accept sm
 individual names or decide whether ETFs/funds fit this project's "real tokenized stock" framing
 before continuing - a product judgment call, not purely a technical one.
 
+## 5.28. Twenty-eighth round (2026-10-02) - code review finds and fixes 3 real bugs
+
+User explicitly authorized an unattended ~8h overnight session ("faça tudo isso e busque mais
+melhorias que possamos implementar") to run a code-review pass and look for safe improvements -
+nothing touching the three fund-risk decisions still awaiting a real go-ahead (anti-sniper, DAMM v2
+swap execution, preset marketplace). Found and fixed three real, previously-unnoticed bugs, all
+shipped as separate PRs (never self-merged - same discipline as every other change in this file),
+all since merged by the user:
+
+1. **Conviction Pool base/quote mix-up** ([PR #5](https://github.com/alemaxxx/meteora-dbc-stocklana-hackathon/pull/5)) -
+   `getConvictionPoolStatus` (`src/dlmmConviction.js`) assumed the migrated DAMM v2 pool's `tokenA`
+   is always the base (launched) token and `tokenB` the quote. Real finding: CP-AMM pools
+   canonicalize tokenA/tokenB by raw pubkey byte comparison (confirmed reading the DBC SDK's
+   `deriveDammV2PoolAddress` -> `getFirstKey`/`getSecondKey`), independent of which mint was
+   actually launched - this file already explicitly guarded against the identical risk for DLMM's
+   own tokenX/tokenY, just not for the upstream DAMM v2 side. For roughly half of all future
+   migrated pools (coin-flip per pool, 331 possible quote mints), this would have swapped
+   `baseMint`/`quoteMint`, corrupting the `creatorHasRequiredBalance` anti-spam check and inverting
+   the DLMM pool's price/amounts. Fixed by resolving base/quote against every known quote mint this
+   platform uses instead of a positional assumption. **Also added this project's first automated
+   test suite** in the same PR (`node:test`, zero new dependencies, `npm test`) - covers this fix,
+   the 331-entry ticker catalog's structural integrity, and `rateLimit.js`.
+2. **Same bug, more user-facing** ([PR #7](https://github.com/alemaxxx/meteora-dbc-stocklana-hackathon/pull/7)) -
+   `public/explore.js`'s live-price display (shown for EVERY migrated token, not just the opt-in
+   Conviction Pool feature) had the identical flaw: `loadDammPrices` read `priceAInB` straight from
+   `/api/damm-pool/:address` and displayed it as "1 token ≈ X &lt;quote&gt;", correct only for the
+   ~half of pools where base happens to be tokenA. Fixed at the shared source
+   (`src/dammPoolInfo.js`) rather than patching each consumer: added `baseMint`/`quoteMint`/
+   `priceBaseInQuote` fields, additive (kept the raw fields for backward compatibility since this is
+   a public, documented API), and fixed the swap-quote preview the same way.
+3. **Lost transaction signature on launch confirm failure** ([PR #8](https://github.com/alemaxxx/meteora-dbc-stocklana-hackathon/pull/8)) -
+   `connection.confirmTransaction` can throw on a confirmation timeout even when the transaction
+   already landed on-chain - a real "our record vs actual chain state" gap, the same class of pain
+   as the SOLBULL DB-wipe incident (section 5.20), different cause. The broadcast signature was
+   never attached to the thrown error or persisted anywhere, so a real user hitting this would have
+   no way to reconcile what actually happened. Fixed by attaching `err.signature` at the point of
+   failure, persisting it on both success/error paths via a new, additive `signature` column
+   (`ALTER TABLE ... ADD COLUMN IF NOT EXISTS` - safe, nullable, idempotent, zero existing rows
+   touched), and surfacing it in the user-facing error ("check transaction &lt;sig&gt; on Solscan").
+
+**Also found via Railway's traffic metrics, not code review**: large unexplained 4xx spikes (up to
+97% of requests in some one-minute windows) with zero request logging to investigate them. Added a
+failed-request-only logger ([PR #6](https://github.com/alemaxxx/meteora-dbc-stocklana-hackathon/pull/6)) -
+confirmed within minutes of deploying that the spikes are bot scanners probing `/wp-admin/install.php`
+and similar paths, not a bug in this app. Mystery closed, not a real issue.
+
+**Related risk found but deliberately NOT fixed** (flagged for a future session with more room to be
+careful): `txHelpers.js`'s `sendAndConfirmWithRetry` (used by `dbcMigration.js` for migration/
+partner-fee-claim) retries a blockhash-expiry error by submitting a brand-new transaction attempt
+without first re-checking on-chain state - if the original attempt actually landed just after the
+client's confirmation polling gave up, the retry could resubmit `migrateToDammV2` against an
+already-migrated pool. `migrateDbcPoolIfReady` checks `isMigrated` once up front, but not between
+retry attempts inside `sendAndConfirmWithRetry` itself. A known-hard class of Solana reliability
+problem - needs a dedicated look, not a rushed unsupervised fix to money-moving retry logic.
+
+**Also researched and ruled out a 4th stock issuer** (Superstate/Opening Bell) - only one real,
+Meteora-badged ticker (GLXY), already covered via Ondo anyway, not worth a new issuer category. See
+README.md's competitive-landscape notes / project memory for the full writeup.
+
+All 4 PRs verified post-merge: full test suite (17/17) passing, every touched file re-checked for
+valid syntax, the merged `server.js` (touched by 3 of the 4 PRs) read through in full to confirm no
+lost code or duplication, and the live production endpoints (`/api/damm-pool/:address`,
+`/api/conviction/:address/status`, the Explore page's price display) re-tested against the real
+SOLBULL pool after deploy.
+
 ## 6. Suggested next steps
 
 1. ~~Validate the curve presets against Meteora's official calculator~~
