@@ -1309,6 +1309,31 @@ Merged alphabetically. **Total catalog now 283 stock-quoted presets across 3 iss
 61 Backpack Securities + 191 Ondo), up from 235. ~260 Ondo tickers remain unchecked (mostly
 ETFs/bonds/smaller caps) - same natural future-batch note as the last two rounds.
 
+## 5.27. Twenty-seventh round (2026-10-02) - 48 more Ondo tickers, fourth pass
+
+Continued autonomously after the user confirmed PR #3 (round 5.26) was merged and live, then said
+to keep going without needing further check-ins. Same method, fourth time: diffed
+`STOCK_QUOTE_MINTS` against Ondo's full catalog (261 still missing at this point), curated another
+50 recognizable real companies (Citigroup, Petrobras, Novo Nordisk, Eli Lilly, Rockwell Automation,
+Constellation Energy, plus a cluster of Solana-ecosystem-adjacent names already known to this
+community - Rigetti, D-Wave, Archer Aviation, AST SpaceMobile, Bitdeer).
+
+Verified identically to every prior round. **48/50 passed.** Two rejections: `WENon` (Wendy's) and
+`RXRXon` (Recursion Pharmaceuticals) - both have real, found mints but no Meteora token badge yet,
+left unadded.
+
+Merged alphabetically (same indentation-normalizing merge script introduced in round 5.26, to avoid
+repeating that earlier cosmetic bug). **Total catalog now 331 stock-quoted presets across 3
+issuers** (31 xStocks + 61 Backpack Securities + 239 Ondo), up from 283.
+
+**Diminishing-returns note for anyone picking this up later**: eyeballing the remaining ~210 Ondo
+tickers (`app.ondo.finance/api/v2/assets` diffed against the catalog), the overwhelming majority are
+now ETFs, leveraged/inverse funds, bond funds, and commodity trusts rather than individual company
+stocks - the four rounds so far have already picked off essentially every recognizable large-cap
+individual stock in Ondo's catalog. A fifth round would need to either accept smaller/less-known
+individual names or decide whether ETFs/funds fit this project's "real tokenized stock" framing
+before continuing - a product judgment call, not purely a technical one.
+
 ## 6. Suggested next steps
 
 1. ~~Validate the curve presets against Meteora's official calculator~~
