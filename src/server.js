@@ -134,7 +134,10 @@ export function startServer() {
       res.json(result);
     } catch (err) {
       console.error("Failed to submit launch:", err);
-      res.status(500).json({ error: err.message });
+      // err.signature (see tokenLauncher.js/dbcLaunchpad.js) is set when
+      // the transaction was actually broadcast before the failure - surfaced
+      // here so the UI can show it instead of a dead-end error message.
+      res.status(500).json({ error: err.message, signature: err.signature ?? null });
     }
   });
 

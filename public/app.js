@@ -483,7 +483,14 @@
         body: JSON.stringify({ id: prepData.id, signedTransactionBase64 }),
       });
       const data = await subRes.json();
-      if (!subRes.ok) throw new Error(data.error ?? `HTTP ${subRes.status}`);
+      if (!subRes.ok) {
+        // data.signature (see tokenLauncher.js) means the transaction was
+        // actually broadcast before this failure - surface it so the user
+        // (or support) can check what really happened on-chain instead of
+        // a dead-end error with nothing to look up.
+        const base = data.error ?? `HTTP ${subRes.status}`;
+        throw new Error(data.signature ? `${base} (transaction ${data.signature} - check its status on Solscan before retrying)` : base);
+      }
 
       els.success.innerHTML = `Token launched! Mint: <span class="mono">${data.mint}</span> · Pool: <a href="${solscanLink(data.poolAddress)}" target="_blank" rel="noopener" class="sf-meteora-link">DBC curve ↗</a> · <a href="explore.html">View in Explore →</a>`;
       els.success.hidden = false;
