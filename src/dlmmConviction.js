@@ -3,8 +3,24 @@ import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { createRequire } from "module";
 import BN from "bn.js";
 import { connection } from "./connection.js";
+import { SOL_MINT, USDC_MINT } from "./config.js";
+import { STOCK_QUOTE_MINTS } from "./dbcConfig.js";
 import { getMintInfo } from "./tokenInfo.js";
 import { getDammPoolInfo } from "./dammPoolInfo.js";
+
+// Every quote mint this platform has ever used to launch a token - used
+// below to figure out which side of a DAMM v2 pool is actually the base
+// (launched) token vs the quote, since CP-AMM pools (like DLMM, see the
+// tokenX/Y handling in preparePositionTransaction below) canonicalize
+// tokenA/tokenB by raw pubkey byte comparison, NOT by which one was
+// originally "the launched token" - confirmed by reading
+// deriveDammV2PoolAddress's getFirstKey/getSecondKey helpers in the DBC
+// SDK, which sort purely on Buffer.compare. Assuming tokenA is always
+// base (as an earlier version of this file did) is only an even-odds bet
+// per pool - wrong for roughly half of all migrated pools, depending on
+// nothing more meaningful than whether the launched token's randomly
+// generated mint address happens to sort before its quote's.
+const KNOWN_QUOTE_MINTS = new Set([SOL_MINT, USDC_MINT, ...Object.values(STOCK_QUOTE_MINTS).map((s) => s.mint)]);
 
 // @meteora-ag/dlmm's published ESM build (dist/index.mjs) has a broken
 // nested dependency (its own node_modules/@coral-xyz/anchor ships a
@@ -91,8 +107,33 @@ export async function getConvictionPoolStatus(dammPoolAddress, walletPublicKey) 
   const dammInfo = await getDammPoolInfo(dammPoolAddress);
   if (!dammInfo) return null;
 
-  const baseMint = new PublicKey(dammInfo.tokenAMint);
-  const quoteMint = new PublicKey(dammInfo.tokenBMint);
+  // Figure out which side is base vs quote by matching against every known
+  // quote mint this platform uses, rather than assuming tokenA is always
+  // base - see the KNOWN_QUOTE_MINTS comment above for why that assumption
+  // is wrong roughly half the time.
+  const aIsQuote = KNOWN_QUOTE_MINTS.has(dammInfo.tokenAMint);
+  const bIsQuote = KNOWN_QUOTE_MINTS.has(dammInfo.tokenBMint);
+  let baseMintStr, quoteMintStr, livePrice;
+  if (aIsQuote && !bIsQuote) {
+    baseMintStr = dammInfo.tokenBMint;
+    quoteMintStr = dammInfo.tokenAMint;
+    livePrice = 1 / Number(dammInfo.priceAInB); // priceAInB is A-in-terms-of-B; we need base-in-terms-of-quote = B-in-terms-of-A
+  } else if (bIsQuote && !aIsQuote) {
+    baseMintStr = dammInfo.tokenAMint;
+    quoteMintStr = dammInfo.tokenBMint;
+    livePrice = Number(dammInfo.priceAInB);
+  } else {
+    // Neither side (or both) matched a known quote mint - most likely a
+    // pool this platform didn't launch. Fall back to the DAMM pool's own
+    // A/B order rather than failing outright, since this endpoint is a
+    // public, works-for-any-pool API, not restricted to our own launches.
+    baseMintStr = dammInfo.tokenAMint;
+    quoteMintStr = dammInfo.tokenBMint;
+    livePrice = Number(dammInfo.priceAInB);
+  }
+
+  const baseMint = new PublicKey(baseMintStr);
+  const quoteMint = new PublicKey(quoteMintStr);
 
   const { baseFactor, baseFeePowerFactor } = getConvictionPoolFactors();
   const existingPoolAddress = await DLMM.getPairPubkeyIfExists(
@@ -107,16 +148,16 @@ export async function getConvictionPoolStatus(dammPoolAddress, walletPublicKey) 
 
   let creatorHasRequiredBalance = null;
   if (walletPublicKey && !existingPoolAddress) {
-    const baseInfo = await getMintInfo(connection, dammInfo.tokenAMint);
+    const baseInfo = await getMintInfo(connection, baseMintStr);
     const ata = getAssociatedTokenAddressSync(baseMint, new PublicKey(walletPublicKey), true, baseInfo.programId);
     const balance = await connection.getTokenAccountBalance(ata).catch(() => null);
     creatorHasRequiredBalance = Boolean(balance && Number(balance.value.amount) > 0);
   }
 
   return {
-    baseMint: dammInfo.tokenAMint,
-    quoteMint: dammInfo.tokenBMint,
-    livePrice: dammInfo.priceAInB,
+    baseMint: baseMintStr,
+    quoteMint: quoteMintStr,
+    livePrice,
     dlmmPoolExists: Boolean(existingPoolAddress),
     dlmmPoolAddress: existingPoolAddress ? existingPoolAddress.toBase58() : null,
     // null when no wallet was given to check, or a pool already exists (not needed then)
