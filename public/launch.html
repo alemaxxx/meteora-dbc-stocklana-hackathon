@@ -4,6 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Launch a token · CurveForge</title>
+  <meta name="description" content="Launch your own token on Meteora's Dynamic Bonding Curve - pick a curve preset, quote in SOL, USDC, or a real tokenized stock, and go live in one transaction from your own wallet." />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="CurveForge" />
+  <meta property="og:title" content="Launch a token · CurveForge" />
+  <meta property="og:description" content="Pick a curve preset, quote in SOL, USDC, or a real tokenized stock, and go live in one transaction from your own wallet." />
+  <meta property="og:url" content="https://curveforge.finance/launch.html" />
+  <meta property="og:image" content="https://curveforge.finance/logo.webp" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:site" content="@CurveForge" />
   <link rel="icon" type="image/webp" href="logo.webp" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -24,7 +33,7 @@
       <button type="button" class="topnav__burger" id="nav-burger" aria-label="Toggle menu" aria-expanded="false" aria-controls="nav-links">
         <span></span><span></span><span></span>
       </button>
-      <a href="https://x.com/CurveForge" target="_blank" rel="noopener" class="topnav__icon-btn" title="CurveForge on X">𝕏</a>
+      <a href="https://x.com/CurveForge" target="_blank" rel="noopener" class="topnav__icon-btn" title="CurveForge on X" aria-label="CurveForge on X">𝕏</a>
       <button type="button" class="btn-secondary" id="wallet-connect-btn">Connect Wallet</button>
     </div>
   </header>
@@ -32,7 +41,7 @@
   <div class="app">
     <div class="launch-layout">
     <section class="panel">
-      <h2 class="panel__title">Launch new token</h2>
+      <h1 class="panel__title">Launch new token</h1>
       <p class="panel__subtitle">
         Never automatic - only sends the transaction when you confirm below. Launching pays from
         <strong>your connected wallet</strong>, not ours - connect one to launch.
@@ -65,7 +74,7 @@
         <label>Curve preset</label>
         <div class="preset-picker">
           <div class="preset-picker__tabs" id="preset-tabs"></div>
-          <input type="text" id="preset-search" placeholder="Search by symbol or name…" autocomplete="off" />
+          <input type="text" id="preset-search" placeholder="Search by symbol or name…" aria-label="Search curve presets by symbol or name" autocomplete="off" />
           <div class="preset-picker__grid" id="preset-grid"></div>
         </div>
         <p class="field__hint" id="preset-hint"></p>
@@ -98,9 +107,9 @@
     </section>
 
     <aside class="launch-summary">
-      <h3>Launch summary</h3>
+      <h2>Launch summary</h2>
       <dl class="summary-list" id="summary-list"></dl>
-      <h3 class="simulation-heading">Simulated buys (before you spend anything)</h3>
+      <h2 class="simulation-heading">Simulated buys (before you spend anything)</h2>
       <div class="simulation-list" id="simulation-list"></div>
     </aside>
     </div>
