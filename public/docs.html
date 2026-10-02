@@ -107,7 +107,7 @@
     <section class="docs__section">
       <h2>Public developer API</h2>
       <p><code>GET /api/dbc-pool/:address</code> - read-only, CORS-open, works for any Meteora DBC pool on-chain (pool address or base mint), not just ones launched on CurveForge. Returns mint, migration status, live curve progress, migration threshold, and fee metrics.</p>
-      <p><code>GET /api/damm-pool/:address</code> - the migrated-pool counterpart: read-only, CORS-open, works for any Meteora DAMM v2 pool. Returns live price, liquidity, and a swap quote preview at a few fixed sizes - no swap execution yet.</p>
+      <p><code>GET /api/damm-pool/:address</code> - the migrated-pool counterpart: read-only, CORS-open, works for any Meteora DAMM v2 pool. Returns live price, liquidity, and a swap quote preview at a few fixed sizes - no swap execution yet. Includes both the pool's raw <code>tokenAMint</code>/<code>tokenBMint</code>/<code>priceAInB</code> (CP-AMM's own token ordering, which does not reliably correspond to which side is the launched token) and resolved <code>baseMint</code>/<code>quoteMint</code>/<code>priceBaseInQuote</code> fields - use the resolved ones unless you specifically need the raw pool ordering.</p>
       <p><code>GET /api/conviction/:dammPoolAddress/status</code> - read-only, CORS-open. Given a migrated DAMM v2 pool's address, returns whether a Conviction Pool (DLMM) already exists for that pair and its live price; pass <code>?wallet=&lt;address&gt;</code> to also check whether that wallet holds the base token balance required to create one.</p>
     </section>
 
