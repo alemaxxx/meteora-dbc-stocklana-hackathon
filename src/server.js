@@ -21,6 +21,25 @@ export function startServer() {
   // client address instead of Railway's own reverse proxy - without this,
   // every visitor behind the same proxy would share one rate-limit bucket.
   app.set("trust proxy", true);
+
+  // Log only failed (4xx/5xx) requests - added 2026-10-02 after noticing
+  // large 4xx spikes (e.g. 93%+ of requests in some one-minute windows) in
+  // Railway's traffic metrics with no way to see which path or status code
+  // was actually involved (no request logging existed at all, and Railway
+  // doesn't retain per-request HTTP logs long enough to investigate after
+  // the fact). Deliberately NOT logging successful requests - this app
+  // gets real traffic and a log line per 2xx would be mostly noise with no
+  // diagnostic value, this is only here to make the NEXT spike
+  // investigable instead of a dead end.
+  app.use((req, res, next) => {
+    res.on("finish", () => {
+      if (res.statusCode >= 400) {
+        console.warn(`[http] ${res.statusCode} ${req.method} ${req.originalUrl}`);
+      }
+    });
+    next();
+  });
+
   app.use(express.static(PUBLIC_DIR));
   // Higher than the default limit (100kb) - the image arrives as base64 in
   // the launch request body, up to ~5MB of original file (see
