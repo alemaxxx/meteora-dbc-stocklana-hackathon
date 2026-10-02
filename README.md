@@ -20,6 +20,8 @@ just the **Meteora DBC** (Dynamic Bonding Curve) part, without the wave detectio
 form - name, symbol, image, curve preset - and the rest is automatic until the curve is ready to
 migrate.
 
+Open-source under the [MIT License](LICENSE).
+
 ## What it does
 
 1. **Launches a token on the curve** (official SDK's `createPoolWithFirstBuy`) - mints the token

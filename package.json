@@ -4,6 +4,7 @@
   "description": "CurveForge - a token launchpad via Meteora DBC (Dynamic Bonding Curve), including curves quoted directly in real tokenized stocks. Submission for the Meteora track of the Stocklana hackathon and Colosseum's Crypto World's Fair. Extracted from the Lançar Token Bot (github.com/alemaxxx/lauch-token), focused only on the DBC flow: manual form (no wave detection) -> launch on the curve -> track progress -> migrate to DAMM v2 when ready.",
   "type": "module",
   "main": "src/index.js",
+  "license": "MIT",
   "scripts": {
     "start": "node src/index.js",
     "test": "node --test"
