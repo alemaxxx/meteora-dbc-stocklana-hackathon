@@ -21,7 +21,23 @@ function sleep(ms) {
  */
 export async function getMintInfo(connection, mintAddress) {
   const key = mintAddress.toString();
-  if (mintCache.has(key)) return mintCache.get(key);
+
+  // Only the genuinely immutable fields are cached (decimals/programId/mint
+  // never change for a given mint). `currentEpoch` is deliberately NOT part
+  // of the cached value - found 2026-10-02 (code review): it used to be
+  // cached forever alongside the rest, but a Solana epoch only lasts ~2-3
+  // days, and this value feeds straight into real pool-creation transactions
+  // (dbcLaunchpad.js/dbcConfig.js/dlmmConviction.js) for Token-2022 mints,
+  // where it determines which side of a scheduled transfer-fee change is
+  // active. A long-running server process caching a stale epoch for days
+  // could silently use the wrong fee tier for a mint with a scheduled fee
+  // change - recomputed fresh on every call instead (only costs an extra
+  // RPC call for Token-2022 mints, same as before this fix).
+  const cached = mintCache.get(key);
+  if (cached) {
+    const currentEpoch = cached.programId.equals(TOKEN_2022_PROGRAM_ID) ? (await connection.getEpochInfo()).epoch : 0;
+    return { ...cached, currentEpoch };
+  }
 
   const mintPubkey = new PublicKey(mintAddress);
 
@@ -60,7 +76,7 @@ export async function getMintInfo(connection, mintAddress) {
   // mint is Token-2022 (the only one that can have a transfer fee).
   const currentEpoch = programId.equals(TOKEN_2022_PROGRAM_ID) ? (await connection.getEpochInfo()).epoch : 0;
 
-  const result = { decimals: mintInfo.decimals, programId, mint: mintInfo, currentEpoch };
-  mintCache.set(key, result);
-  return result;
+  const cacheable = { decimals: mintInfo.decimals, programId, mint: mintInfo };
+  mintCache.set(key, cacheable);
+  return { ...cacheable, currentEpoch };
 }
