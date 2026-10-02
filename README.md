@@ -148,6 +148,16 @@ unadded. **The stock-quoted catalog now totals 283 presets across 3 issuers** (3
 Backpack Securities + 191 Ondo). ~260 Ondo tickers remain unchecked (mostly ETFs, bonds, and
 smaller-cap names).
 
+**48 more Ondo tickers added (2026-10-02, a fourth pass)** - same gap-diff method, another 50
+recognizable real companies curated (Citigroup, Petrobras, Novo Nordisk, Eli Lilly, Rockwell
+Automation, Constellation Energy, and a cluster of Solana-ecosystem-adjacent names like Rigetti,
+D-Wave, Archer Aviation, AST SpaceMobile). 48/50 passed; 2 rejections this round: `WENon` (Wendy's)
+and `RXRXon` (Recursion Pharmaceuticals) both have real mints but no Meteora token badge yet - left
+unadded. **The stock-quoted catalog now totals 331 presets across 3 issuers** (31 xStocks + 61
+Backpack Securities + 239 Ondo). Remaining ~210 Ondo tickers are overwhelmingly ETFs, bonds, and
+leveraged/commodity funds rather than individual stocks - diminishing returns for further batches
+with this project's "real tokenized stock" framing.
+
 ## Six curve presets, plus one live-priced mode (2026-09-17)
 
 - `baixa-taxa-2h-linear` (default) and `default-2h-linear` - the two original presets (see the real
