@@ -54,6 +54,7 @@ function mapRow(row) {
     dbcPoolAddress: row.dbc_pool_address,
     imageUrl: row.image_url,
     error: row.error,
+    signature: row.signature,
     blockhash: row.blockhash,
     lastValidBlockHeight: row.last_valid_block_height === null ? null : Number(row.last_valid_block_height),
   };
@@ -245,19 +246,29 @@ export async function confirmTokenLaunch({ id, signedTransactionBase64 }) {
     // markDbcPoolMigrated below) - claiming DBC creator/partner fees
     // always needs the ORIGINAL curve account, even after pool_address
     // itself starts pointing at the migrated DAMM v2 pool.
-    await query("UPDATE launched_tokens SET status = 'success', pool_address = $1, dbc_pool_address = $1 WHERE id = $2", [result.poolAddress, id]);
+    await query("UPDATE launched_tokens SET status = 'success', pool_address = $1, dbc_pool_address = $1, signature = $2 WHERE id = $3", [result.poolAddress, result.signature, id]);
     record.poolAddress = result.poolAddress;
     record.dbcPoolAddress = result.poolAddress;
+    record.signature = result.signature;
     record.status = "success";
   } catch (err) {
     const message = extractErrorMessage(err);
     console.error(`[tokenLauncher] failed to confirm launch of ${record.symbol}:`, err);
-    await query("UPDATE launched_tokens SET status = 'error', error = $1 WHERE id = $2", [message, id]);
+    // err.signature (see dbcLaunchpad.js) is set when the transaction was
+    // actually broadcast before the failure - persisted even on the error
+    // path so a real on-chain launch can be found and reconciled later
+    // instead of leaving only an error message with no signature to check.
+    await query("UPDATE launched_tokens SET status = 'error', error = $1, signature = $2 WHERE id = $3", [message, err.signature ?? null, id]);
     record.status = "error";
     record.error = message;
+    record.signature = err.signature ?? null;
   }
 
-  if (record.status === "error") throw new Error(record.error);
+  if (record.status === "error") {
+    const err = new Error(record.error);
+    err.signature = record.signature;
+    throw err;
+  }
   return record;
 }
 

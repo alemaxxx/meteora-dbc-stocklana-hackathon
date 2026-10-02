@@ -70,6 +70,15 @@ export async function ensureSchema() {
       last_valid_block_height BIGINT
     )
   `);
+  // Added 2026-10-02 (code review): the launch transaction's signature,
+  // once it's actually broadcast - including on the 'error' path, where
+  // confirmTransaction can time out even though the transaction already
+  // landed or lands moments later. Without this there was no way to trace
+  // an on-chain launch that our own record incorrectly shows as failed -
+  // additive, nullable column, safe on an existing table (see db.js's own
+  // "CREATE TABLE IF NOT EXISTS" note above for why ALTER is needed here
+  // instead - that statement does nothing once the table already exists).
+  await pool.query(`ALTER TABLE launched_tokens ADD COLUMN IF NOT EXISTS signature TEXT`);
 }
 
 export async function closePool() {

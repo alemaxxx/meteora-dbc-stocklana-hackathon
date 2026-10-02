@@ -149,10 +149,25 @@ async function waitForPoolByBaseMint(mintPubkey, { attempts = 10, delayMs = 2000
 export async function submitLaunchTransaction({ signedTransactionBase64, mint, symbol, blockhash, lastValidBlockHeight }) {
   const tx = Transaction.from(Buffer.from(signedTransactionBase64, "base64"));
   const signature = await connection.sendRawTransaction(tx.serialize());
-  // Confirmation strategy object (blockhash + lastValidBlockHeight) instead
-  // of the deprecated bare-signature overload - matches sendAndConfirmWithRetry
-  // elsewhere and gives a well-defined expiry cutoff instead of guessing.
-  await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, "confirmed");
+  try {
+    // Confirmation strategy object (blockhash + lastValidBlockHeight) instead
+    // of the deprecated bare-signature overload - matches sendAndConfirmWithRetry
+    // elsewhere and gives a well-defined expiry cutoff instead of guessing.
+    await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, "confirmed");
+  } catch (err) {
+    // Found 2026-10-02 (code review): confirmTransaction can throw on a
+    // confirmation TIMEOUT (slow/inconsistent RPC, blockhash expiry) even
+    // when the transaction already landed or lands moments later - a real
+    // "chain state vs our record" gap this project has already been bitten
+    // by once (see project_launched_tokens_delete_incident.md). Without
+    // this, confirmTokenLaunch's catch block would mark the launch
+    // "error" with no way to trace the signature that was actually
+    // broadcast - attaching it here lets the caller persist it for later
+    // reconciliation instead of losing the one piece of evidence needed
+    // to check what really happened on-chain.
+    err.signature = signature;
+    throw err;
+  }
 
   const mintPubkey = new PublicKey(mint);
 
@@ -164,6 +179,7 @@ export async function submitLaunchTransaction({ signedTransactionBase64, mint, s
   if (!poolAccount) {
     const err = new Error(`Token ${symbol} created on DBC (mint ${mint}, tx ${signature}) but couldn't find the pool yet - check on-chain.`);
     err.mint = mint;
+    err.signature = signature;
     throw err;
   }
 
