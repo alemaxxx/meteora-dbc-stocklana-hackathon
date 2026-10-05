@@ -1,7 +1,7 @@
 # CurveForge — demo & pitch video scripts, weekly update, Superteam Earn texts
 
 Updated 2026-10-02 to match what's actually shipped (331 stock-quoted presets, DLMM Conviction
-Pools, automated tests, MIT license). Recording is planned for Sunday 2026-10-04.
+Pools, automated tests, MIT license). Recording moved to Monday 2026-10-05.
 
 Colosseum's Crypto World's Fair submission needs two separate videos:
 - **Demo video** (≤3 min, required) — "Should show the live product, not a slide deck, not a code walkthrough."
@@ -10,8 +10,8 @@ Colosseum's Crypto World's Fair submission needs two separate videos:
 The scripts below are drafts to read from or adapt in your own words — not a transcript to recite
 verbatim. Timings are targets, not hard cuts.
 
-**Key dates (Brasília time):** weekly update (optional) Mon 10/05 12:00 · Colosseum draft Tue 10/06
-08:00 · final Tue 10/13 03:59 (= Oct 12 11:59 PM PDT).
+**Key dates (Brasília time):** weekly update (optional) Mon 10/05 12:00 · Colosseum final submission
+opens Tue 10/06 08:00 (4:00 AM PDT, per the dashboard) · final deadline Tue 10/13 03:59 (= Oct 12 11:59 PM PDT).
 
 ---
 
@@ -63,7 +63,7 @@ Honest framing, do not overclaim: the pool-creation and position transactions we
 > "I ran the whole lifecycle for real on mainnet — launch, completion, migration to DAMM v2, fee claiming — and fixed real bugs along the way. A later code review caught five more, including one that would have inverted prices on about half of migrated pools. There are automated tests, and the repo is MIT open-source."
 
 **What's next:**
-> "Next: a pay-to-use preset marketplace, the model Meteora suggested. It's already designed — Meteora's creator and partner fee split means no custom payment system is needed. And I'll keep growing the stock catalog."
+> "Next: a pay-to-use preset marketplace, an idea from Meteora's own hackathon brief. It's already designed — Meteora's creator and partner fee split means no custom payment system is needed. And I'll keep growing the stock catalog."
 
 **Close:**
 > "That's CurveForge — real stock-quoted launches, built and proven on mainnet. Thanks for watching."
