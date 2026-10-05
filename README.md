@@ -155,8 +155,10 @@ recognizable real companies curated (Citigroup, Petrobras, Novo Nordisk, Eli Lil
 Automation, Constellation Energy, and a cluster of Solana-ecosystem-adjacent names like Rigetti,
 D-Wave, Archer Aviation, AST SpaceMobile). 48/50 passed; 2 rejections this round: `WENon` (Wendy's)
 and `RXRXon` (Recursion Pharmaceuticals) both have real mints but no Meteora token badge yet - left
-unadded. **The stock-quoted catalog now totals 331 presets across 3 issuers** (31 xStocks + 61
-Backpack Securities + 239 Ondo). Remaining ~210 Ondo tickers are overwhelmingly ETFs, bonds, and
+unadded. **The stock-quoted catalog now totals 332 presets across 3 issuers** (31 xStocks + 62
+Backpack Securities + 239 Ondo) - the 332nd is `EWZ` (iShares MSCI Brazil ETF, Backpack Securities),
+added 2026-10-05 after Meteora announced it, with the same on-chain checks as every other entry
+(token badge found, Token-2022, 6 decimals, identical extension set, inactive transfer hook). Remaining ~210 Ondo tickers are overwhelmingly ETFs, bonds, and
 leveraged/commodity funds rather than individual stocks - diminishing returns for further batches
 with this project's "real tokenized stock" framing.
 

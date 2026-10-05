@@ -141,6 +141,10 @@ export const STOCK_QUOTE_MINTS = {
   DKNG: { symbol: "DKNG", label: "DraftKings (DKNG, Backpack Securities)", mint: "DKNGQFNGQmoBdXSRGKJ8tTu7uPDasw5JDcfMmWniNfow", decimals: 6, issuer: "Backpack Securities" },
   DNUT: { symbol: "DNUT", label: "Krispy Kreme (DNUT, Backpack Securities)", mint: "DNUTsCvKbKwu2RM72cUuW3TD9YpzArzACcqYQssjPLSk", decimals: 6, issuer: "Backpack Securities" },
   DRAM: { symbol: "DRAM", label: "Roundhill DRAM Memory ETF (DRAM, Backpack Securities)", mint: "DRAMjSWR7HRfJKjRkvQWYL2bcaejaVhuxEcjf4pAY4Cw", decimals: 6, issuer: "Backpack Securities" },
+  // EWZ added 2026-10-05 after Meteora/Sunrise announced it (iShares MSCI Brazil ETF). Same on-chain
+  // discipline as the rest: getTokenBadge found, Token-2022, 6 decimals, the identical 8-extension set
+  // as AMD, transfer hook programId = 11111...1 (inactive).
+  EWZ: { symbol: "EWZ", label: "iShares MSCI Brazil ETF (EWZ, Backpack Securities)", mint: "EWZzCki1igp2y73UyUM4RCG4QUVMQAtnrQUVNaDHzDxJ", decimals: 6, issuer: "Backpack Securities" },
   FLWS: { symbol: "FLWS", label: "1-800-Flowers.com (FLWS, Backpack Securities)", mint: "FLWSojG1gB5VStYR3Sb4nQFRt43UBYkqih1j2CpVLqgd", decimals: 6, issuer: "Backpack Securities" },
   FLY: { symbol: "FLY", label: "Firefly Aerospace (FLY, Backpack Securities)", mint: "FLYRq3en8r2Z69gN3KyAnDrvnitEJNkwPYY7favinHeD", decimals: 6, issuer: "Backpack Securities" },
   FWDI: { symbol: "FWDI", label: "Forward Industries (FWDI, Backpack Securities)", mint: "FWDtiB5fXHdVAewPqvHPL2dh4aBC1C6GacQbePoQXKjz", decimals: 6, issuer: "Backpack Securities" },
