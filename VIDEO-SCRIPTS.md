@@ -54,7 +54,7 @@ Honest framing, do not overclaim: the pool-creation and position transactions we
 > "Hi, I'm Davi — a solo builder from Cascavel, Brazil. CurveForge is a focused cut of a larger token-launch bot I built and ran, with just the Meteora Dynamic Bonding Curve flow pulled out. I'm also building PowerDamm, a platform for Meteora DAMM v2 pools."
 
 **The opportunity:**
-> "Tokenized stocks on Solana are growing fast — Backpack's CEO has talked publicly about going from around 200 tickers toward 10,000, and Ondo lists over 450. But no launchpad lets you quote a *new* token directly against one of those stocks. Everyone defaults to SOL or USDC."
+> "Tokenized stocks on Solana are growing fast — Backpack's CEO has talked publicly about going from around 200 tickers toward 10,000, and Ondo lists over 450. But new tokens still mostly quote against SOL or USDC."
 
 **What CurveForge does differently:**
 > "CurveForge makes the stock itself the quote asset — the curve trades in AAPL, TSLA, or any of 331 verified presets. Every mint is checked on-chain, Meteora's token badge and the right Token-2022 extensions, never trusted from a registry alone."
