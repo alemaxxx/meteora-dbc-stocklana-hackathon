@@ -1,6 +1,6 @@
 # CurveForge — demo & pitch video scripts, weekly update, Superteam Earn texts
 
-Updated 2026-10-02 to match what's actually shipped (331 stock-quoted presets, DLMM Conviction
+Updated 2026-10-02 to match what's actually shipped (332 stock-quoted presets, DLMM Conviction
 Pools, automated tests, MIT license). Recording moved to Monday 2026-10-05.
 
 Colosseum's Crypto World's Fair submission needs two separate videos:
@@ -21,7 +21,7 @@ opens Tue 10/06 08:00 (4:00 AM PDT, per the dashboard) · final deadline Tue 10/
 > "This is CurveForge — a token launchpad on Solana's Meteora Dynamic Bonding Curve. Every token launches with instant liquidity, no presale, no team allocation. And you can quote it directly against a real tokenized stock — not just SOL."
 
 **Screen: Launch page, click through the preset category tabs (point at the counts), type "tesla" in the search box**
-> "331 stock-quoted presets across three real issuers — 31 from xStocks, 61 from Backpack Securities, 239 from Ondo — plus SOL and USDC curves. Every single stock mint was individually checked on-chain before it was listed."
+> "332 stock-quoted presets across three real issuers — 31 from xStocks, 62 from Backpack Securities, 239 from Ondo — plus SOL and USDC curves. Every single stock mint was individually checked on-chain before it was listed."
 
 **Screen: Launch page, open the "Live-priced (Pyth)" tab, select TSLA**
 > "This one's anchored to Tesla's live price feed from Pyth — the migration target moves with the market."
@@ -74,7 +74,7 @@ Honest framing, do not overclaim: the pool-creation and position transactions we
 
 Only your team, the judges and Colosseum can see it. Answers "What changed this week?".
 
-> "Quick update on CurveForge. This week the stock catalog went from 157 to 331 verified quote assets across xStocks, Backpack and Ondo — every mint checked on-chain. I shipped DLMM Conviction Pools, so after a token migrates to DAMM v2 its creator can open a concentrated liquidity position from the Explore page.
+> "Quick update on CurveForge. This week the stock catalog went from 157 to 332 verified quote assets across xStocks, Backpack and Ondo — every mint checked on-chain. I shipped DLMM Conviction Pools, so after a token migrates to DAMM v2 its creator can open a concentrated liquidity position from the Explore page.
 >
 > I also ran a full code review and fixed five real bugs — including one that would have shown inverted prices on about half of migrated pools — added the project's first automated tests, plus SEO and accessibility fixes, and the repo is now MIT-licensed.
 >
@@ -103,7 +103,7 @@ Form: `superteam.fun/earn/listing/meteora-dbc` → Submit Now. Required fields a
 
 **Project Description:**
 ```
-CurveForge is a token launchpad on Meteora's Dynamic Bonding Curve where the curve can be quoted directly against a real tokenized stock instead of SOL. It covers 331 verified quote assets across three issuers (xStocks, Backpack Securities, Ondo) - every mint individually checked on-chain (Meteora token badge + Token-2022 extension profile) - plus SOL and USDC curves. Launch, curve completion, migration to DAMM v2 and fee claiming have been run end to end on Solana mainnet. Also included: a pre-launch buy simulator, Pyth-anchored curves, DLMM Conviction Pools after migration, and a public CORS-open API for any DBC or DAMM v2 pool. Every action is wallet-signed: the connected wallet signs and owns each launch. Open-source (MIT) with automated tests.
+CurveForge is a token launchpad on Meteora's Dynamic Bonding Curve where the curve can be quoted directly against a real tokenized stock instead of SOL. It covers 332 verified quote assets across three issuers (xStocks, Backpack Securities, Ondo) - every mint individually checked on-chain (Meteora token badge + Token-2022 extension profile) - plus SOL and USDC curves. Launch, curve completion, migration to DAMM v2 and fee claiming have been run end to end on Solana mainnet. Also included: a pre-launch buy simulator, Pyth-anchored curves, DLMM Conviction Pools after migration, and a public CORS-open API for any DBC or DAMM v2 pool. Every action is wallet-signed: the connected wallet signs and owns each launch. Open-source (MIT) with automated tests.
 ```
 
 **Anything Else?** (maps the project to the track's own "ideas we'd love to see"; honest about what is not built):
