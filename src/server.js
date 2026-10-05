@@ -11,6 +11,7 @@ import { getPublicPoolInfo } from "./dbcPoolInfo.js";
 import { getDammPoolInfo } from "./dammPoolInfo.js";
 import { getConvictionPoolStatus, preparePoolCreationTransaction, preparePositionTransaction, submitConvictionTransaction } from "./dlmmConviction.js";
 import { rateLimit } from "./rateLimit.js";
+import { isValidPublicKey } from "./validation.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, "..", "public");
@@ -177,7 +178,10 @@ export function startServer() {
     if (!record) return res.status(404).json({ error: "Launched token not found." });
     if (!record.poolAddress) return res.status(400).json({ error: "This record has no associated pool." });
     try {
-      const progress = await getDbcCurveProgress(record.poolAddress);
+      // The ORIGINAL DBC curve account: after a migration poolAddress points
+      // at the DAMM v2 pool, and reading that as a DBC pool throws "Invalid
+      // account discriminator" (see markDbcPoolMigrated in tokenLauncher.js).
+      const progress = await getDbcCurveProgress(resolveDbcPoolAddress(record));
       res.json({ progress });
     } catch (err) {
       console.error("Failed to read curve progress:", err);
@@ -267,6 +271,7 @@ export function startServer() {
   // UI only). Read-only, no wallet needed. ----
   app.get("/api/dbc-pool/:address", async (req, res) => {
     res.set("Access-Control-Allow-Origin", "*");
+    if (!isValidPublicKey(req.params.address)) return res.status(400).json({ error: "Invalid address: expected a base58 Solana public key." });
     try {
       const info = await getPublicPoolInfo(req.params.address);
       if (!info) return res.status(404).json({ error: "No DBC pool found for that address (tried as both a pool address and a base mint)." });
@@ -283,6 +288,7 @@ export function startServer() {
   // yet - see dammPoolInfo.js's header comment for why.
   app.get("/api/damm-pool/:address", async (req, res) => {
     res.set("Access-Control-Allow-Origin", "*");
+    if (!isValidPublicKey(req.params.address)) return res.status(400).json({ error: "Invalid address: expected a base58 Solana public key." });
     try {
       const info = await getDammPoolInfo(req.params.address);
       if (!info) return res.status(404).json({ error: "No DAMM v2 pool found for that address." });
@@ -299,6 +305,10 @@ export function startServer() {
   // header comment for the full design and the real on-chain
   // "token launch owner proof" requirement this surfaces to the caller.
   app.get("/api/conviction/:dammPoolAddress/status", async (req, res) => {
+    // Documented as CORS-open (docs.html), like the two pool-info routes above.
+    res.set("Access-Control-Allow-Origin", "*");
+    if (!isValidPublicKey(req.params.dammPoolAddress)) return res.status(400).json({ error: "Invalid address: expected a base58 Solana public key." });
+    if (req.query.wallet && !isValidPublicKey(req.query.wallet)) return res.status(400).json({ error: "Invalid wallet: expected a base58 Solana public key." });
     try {
       const status = await getConvictionPoolStatus(req.params.dammPoolAddress, req.query.wallet || null);
       if (!status) return res.status(404).json({ error: "No migrated DAMM v2 pool found for that address." });
