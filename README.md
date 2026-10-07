@@ -155,12 +155,16 @@ recognizable real companies curated (Citigroup, Petrobras, Novo Nordisk, Eli Lil
 Automation, Constellation Energy, and a cluster of Solana-ecosystem-adjacent names like Rigetti,
 D-Wave, Archer Aviation, AST SpaceMobile). 48/50 passed; 2 rejections this round: `WENon` (Wendy's)
 and `RXRXon` (Recursion Pharmaceuticals) both have real mints but no Meteora token badge yet - left
-unadded. **The stock-quoted catalog now totals 332 presets across 3 issuers** (31 xStocks + 62
-Backpack Securities + 239 Ondo) - the 332nd is `EWZ` (iShares MSCI Brazil ETF, Backpack Securities),
-added 2026-10-05 after Meteora announced it, with the same on-chain checks as every other entry
-(token badge found, Token-2022, 6 decimals, identical extension set, inactive transfer hook). Remaining ~210 Ondo tickers are overwhelmingly ETFs, bonds, and
-leveraged/commodity funds rather than individual stocks - diminishing returns for further batches
-with this project's "real tokenized stock" framing.
+unadded. **The stock-quoted catalog now totals 426 presets across 3 issuers** (31 xStocks + 67
+Backpack Securities + 328 Ondo). Two additions since the 331 above, each with the same on-chain checks as every
+other entry (token badge found, Token-2022, expected decimals, identical extension set for the issuer, inactive
+transfer hook):
+- 2026-10-05: `EWZ` (iShares MSCI Brazil ETF, Backpack Securities), added after Meteora announced it.
+- 2026-10-07: 94 individual stocks - 89 more from Ondo and 5 from Backpack (BE, BLK, CBRS, PUSA, RACE). A
+  read-only sweep of Ondo's 213 remaining assets found 201 that pass all checks (89 stocks, 111 ETFs, 1 closed-end
+  fund) and 7 with no Meteora token badge yet (USHYon, NEARon, GOOGon, RXRXon, HTZon, WENon, HYDBon); only the
+  individual stocks were added. The remaining ~110 Ondo ETFs are overwhelmingly bond, leveraged and
+  commodity funds rather than stocks - kept out to stay faithful to the project's "real tokenized stock" framing.
 
 ## Six curve presets, plus one live-priced mode (2026-09-17)
 
