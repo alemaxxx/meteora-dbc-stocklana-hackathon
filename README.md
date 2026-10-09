@@ -14,13 +14,35 @@ further after Stocklana? Colosseum's World's Fair is the next stop") - they aren
 each other, so it's possible to submit to Stocklana first and keep evolving the same project for
 Crypto World's Fair afterward.
 
-Extracted from the [Lançar Token Bot](https://github.com/alemaxxx/lauch-token) - a larger bot that
+Extracted from the [Lançar Token Bot](https://github.com/alemaxxx/lauch-token) ("Launch Token Bot", a
+private repository) - a larger bot that
 detects hype waves on StonkFun/pump.fun and launches tokens on top of them. This project here is
 just the **Meteora DBC** (Dynamic Bonding Curve) part, without the wave detection: a direct
 form - name, symbol, image, curve preset - and the rest is automatic until the curve is ready to
 migrate.
 
 Open-source under the [MIT License](LICENSE).
+
+## Where this code comes from
+
+A short, honest timeline taken from the git history of this repository and of the earlier private bot:
+
+- **2026-09-12** - the Lançar Token Bot (a private repository) is created, extracting its token-launch
+  domain from an earlier personal project of the author. Sep 12-14: wave detector, pump.fun/StonkFun
+  launch flow, thematic quote tokens, a buy/sell bot tab.
+- **2026-09-14, 06:00 PT** - the Crypto World's Fair contest period starts.
+- **2026-09-15** - first commits integrating the Meteora DBC SDK, which is the core of CurveForge.
+  Everything specific to Meteora DBC was written from this date on: the curve presets, the
+  launch / migration / fee-claim flows, the tokenized-stock catalog, Pyth-anchored curves, the
+  DAMM v2 and DLMM features, the public API and the automated tests.
+- **2026-09-17** - first commit of this public repository: a bulk upload of the DBC-only extract, so the
+  public git history does not show the Sep 12-16 steps.
+
+**Reused from the earlier bot** (created on Sep 12-14, i.e. right before and around the start of the
+contest): the generic scaffolding - the Express server skeleton, config loading, a transaction retry
+helper, token metadata/image upload, the launch orchestration skeleton and the UI kit and styling. The
+wave detection, the buy/sell bot and the pump.fun/StonkFun-specific code were left out of this
+repository.
 
 ## What it does
 
